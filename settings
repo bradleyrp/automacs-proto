@@ -1,0 +1,69 @@
+#!/usr/bin/python
+
+#---hostname-to-architecture dictionary
+'''
+The keys in valid_hostnames are single word strings excluding punctuation which can be mathced to the true
+true hostname. For example, if $HOSTNAME is likely to be kraken.school.login2 then just use "kraken". This
+dictionary also keeps track of the available architectures for each hostname.
+'''
+#---here the hostname is a single word excluding punctuation which can be matched to the true hostname
+#---note that the first element in the corresponding list is the default architecture
+valid_hostnames = {
+	'compbio':['opterons','xeons'],
+	}
+
+#---header file definitions
+#---note the variable naming must be cluster_header_hostname_architecture
+
+cluster_header_compbio_opterons = \
+"""#!/bin/bash
+#PBS -l nodes=1:ppn=16,walltime=96:00:00
+#PBS -j eo 
+#PBS -q opterons
+#PBS -N gmxjob
+cd $PBS_O_WORKDIR
+echo "Job started on `hostname` at `date`"
+"""
+
+cluster_header_compbio_xeons = \
+"""#!/bin/bash
+#PBS -l nodes=1:ppn=2,walltime=96:00:00
+#PBS -j eo 
+#PBS -N gmxjob
+cd $PBS_O_WORKDIR
+echo "Job started on `hostname` at `date`"
+"""
+
+#---default number of nodes, processors per node, and walltime
+#---note the module item holds bash commands to set paths for gromacs utilities 
+default_proc_specs = {
+	'compbio_xeons':
+		{'nnodes':4,'ppn':2,'walltime':48,
+		'module':'module load gromacs-gcc'},
+	'compbio_opterons':
+		{'nodes':1,'ppn':16,'walltime':72,
+		'module':'module load gromacs-gcc'},
+	}
+	
+#---gromacs paths
+standard_gromacs_commands = [
+	'mdrun','grompp','tpbconv','editconf','genbox','make_ndx','genion',
+	'trjconv','gmxcheck',
+	]
+
+#---system-specific suffixes to the gromacs utilities
+gmx_suffixes = {
+	'compbio_xeons':'_mpi_d',
+	'compbio_opterons':'_mpi_d',
+	}
+
+#---system-specific commands to substitute for standard_gromacs_commands
+#---note some commands require a number of processors NPROCS which is substituted by ./controller make
+gmx_overrides = {
+	'local':{'mdrun':'mdrun -nt 4',},
+	'compbio_xeons':{'mdrun':'mpirun -np NPROCS mdrun_mpi_d',},
+	'compbio_opterons':{'mdrun':'mpirun -np NPROCS mdrun_mpi_d',},
+	}
+
+
+

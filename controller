@@ -1,0 +1,500 @@
+#!/usr/bin/python
+
+import os
+import re
+import sys
+import subprocess
+import socket
+
+#---SETTINGS
+#-------------------------------------------------------------------------------------------------------------
+
+execfile('settings')
+
+#---regex list for files to remove
+patlist = ['log-','em-all-','step-','.top$','.mdp$','.tpr$','.xtc$','.trr$','.gro$','.edr$','.log$','.cpt$',
+	'.itp$','cluster-','gmxpaths','gmxcalls','gmxjob','#','.dat','.pdb','script-','.jpeg$','.jpg$']
+	
+#---documentation page
+document_location = 'file://'+os.path.abspath(os.path.curdir)+'/docs/_build/html/index.html'
+	
+helpstring = \
+"""
+\tAutomacs (AMX) CONTROLLER.\n
+\t./controller <operation>
+\ttools for running automatic GROMACS simulations\n
+\toperations:
+\t----------
+\t"reset"          : clears the subdirectories of all run files
+\t"make <method>"  : generates PBS and bash scripts according 
+\t                   to settings in amx-bearings
+\t"make_docs"      : re-generates documentation (development only)
+\t"render <gro>    : uses vmd and tachyon to render a bilayer snapshot
+\t                   from a gro (structure) file (add an optional
+\t                   tpr file to draw the bonds)\n
+\tmethods:
+\t-------
+\t"cgmd-bilayer"   : build a coarse-grained lipid bilayer
+\t"aamd-bilayer"   : build an atomistic lipid bilayer
+"""
+
+document_string = \
+"""
+\tDocumentation is provided via python-Sphinx/sphinx-apidoc which
+\tautomatically generates python-style documentation web pages 
+\taccording to the docstrings. This means that the code is also 
+\theavily commented and should be readable as well. Visit the 
+\tfollowing link to view the documentation.\n
+\t"""+str('file://'+os.path.abspath(os.path.curdir)+'/docs/_build/html/index.html')+"\n\n"
+
+#---BASH SCRIPT CONSTANTS
+#-------------------------------------------------------------------------------------------------------------
+
+#---bash commands referenced in script_dict are recorded here
+#---note that "preps" lists contain bash commands to copy general steps and connect the steps
+#---note that "scripts" lists contain bash commands to run the steps in sequence
+
+preps_amx_cgmd_bilayer = [
+"""
+#---copy equilibration files
+if ! [ -d "$step_equilibration" ]; then cp -r ./sources/general-equil ./$step_equilibration
+else cp -r ./sources/general-equil/* ./$step_equilibration;fi\n
+#---connect equilibration settings to the previous step
+sed -i 's/^SOURCEDIR.*/SOURCEDIR=\.\.\/'$step_bilayer'/g' $step_equilibration/settings.sh
+sed -i 's/SIMTYPE.*/SIMTYPE="'$simtype'"/g' $step_equilibration/settings.sh
+sed -i 's/cp $AMXPATH\/.*/cp $AMXPATH\/'$input_files'\/\* \.\//g' $step_equilibration/settings.sh
+""",
+"""
+#---copy simulation continuation files
+if ! [ -d "$step_simulation" ]; then cp -r ./sources/general-sim ./$step_simulation
+else cp -r ./sources/general-sim/* ./$step_simulation;fi\n
+#---connect simulation settings to the previous step
+sed -i 's/^SOURCEDIR.*/SOURCEDIR=\.\.\/'$step_equilibration'/g' $step_simulation/settings.sh
+sed -i 's/SIMTYPE.*/SIMTYPE="'$simtype'"/g' $step_simulation/settings.sh
+sed -i 's/cp $AMXPATH\/.*/cp $AMXPATH\/'$input_files'\/\* \.\//g' $step_simulation/settings.sh
+""",
+]
+
+preps_amx_aamd_bilayer = [
+"""
+#---copy equilibration files
+if ! [ -d "$step_equilibration" ]; then cp -r ./sources/general-equil ./$step_equilibration
+else cp -r ./sources/general-equil/* ./$step_equilibration;fi\n
+#---connect equilibration settings to the previous step
+sed -i 's/^SOURCEDIR.*/SOURCEDIR=\.\.\/'$step_bilayer'/g' $step_equilibration/settings.sh
+sed -i 's/SIMTYPE.*/SIMTYPE="'$simtype'"/g' $step_equilibration/settings.sh
+sed -i 's/cp $AMXPATH\/.*/cp $AMXPATH\/'$input_files'\/\* \.\//g' $step_equilibration/settings.sh
+""",
+"""
+#---copy simulation continuation files
+if ! [ -d "$step_simulation" ]; then cp -r ./sources/general-sim ./$step_simulation
+else cp -r ./sources/general-sim/* ./$step_simulation;fi\n
+#---connect simulation settings to the previous step
+sed -i 's/^SOURCEDIR.*/SOURCEDIR=\.\.\/'$step_equilibration'/g' $step_simulation/settings.sh
+sed -i 's/SIMTYPE.*/SIMTYPE="'$simtype'"/g' $step_simulation/settings.sh
+sed -i 's/cp $AMXPATH\/.*/cp $AMXPATH\/'$input_files'\/\* \.\//g' $step_simulation/settings.sh
+""",
+]
+
+#---BASH SCRIPT GENERATOR
+#-------------------------------------------------------------------------------------------------------------
+
+#---amx procedure details
+script_dict = {
+	'cgmd-bilayer':{
+		'prep':preps_amx_cgmd_bilayer,
+		'steps':{
+			'step_monolayer':'s1-build-lipidgrid',
+			'step_bilayer':'s2-build-bilayer',
+			'step_equilibration':'s3-equil',
+			'step_simulation':'s4-sim',
+			'simtype':'cgmd-bilayer',
+			'input_files':'cgmd-bilayer-equil',
+			},
+		'sequence':[
+			"""\n#---python scripts to build monolayer and bilayer\n"""+\
+			"""python -c "execfile('./amx/header');\n"""+\
+			"""MonolayerGrids(rootdir='s1-build-lipidgrid');"\n"""+\
+			"""python -c "execfile('./amx/header');\n"""+\
+			"""Bilayer(rootdir='s2-build-bilayer',previous_dir='s1-build-lipidgrid');"\n""",
+			"""\n#---execute equilibration step\n"""+\
+			"""cd $step_equilibration\n./script-equilibrate.pl\ncd ..\n""",
+			"""\n#---execute simulation (continuation) step\n"""+\
+			"""cd $step_simulation\n./script-sim.pl\ncd ..\n""",
+			],
+		},
+	'aamd-bilayer':{
+		'prep':preps_amx_aamd_bilayer,
+		'steps':{
+			'step_monolayer':'s1-build-lipidgrid',
+			'step_bilayer':'s2-build-bilayer',
+			'step_equilibration':'s3-equil',
+			'step_simulation':'s4-sim',
+			'simtype':'aamd-bilayer',
+			'input_files':'aamd-bilayer-equil',
+			},
+		'sequence':[
+			"""\n#---python scripts to build monolayer and bilayer\n"""+\
+			"""python -c "execfile('./amx/header');\n"""+\
+			"""MonolayerGrids(rootdir='s1-build-lipidgrid',"""+\
+			"""structs_dir='sources/aamd-bilayer-lipids-structs');"\n"""+\
+			"""python -c "execfile('./amx/header');\n"""+\
+			"""Bilayer(rootdir='s2-build-bilayer',previous_dir='s1-build-lipidgrid');"\n""",
+			"""\n#---execute equilibration step\n"""+\
+			"""cd $step_equilibration\n./script-equilibrate.pl\ncd ..\n""",
+			"""\n#---execute simulation (continuation) step\n"""+\
+			"""cd $step_simulation\n./script-sim.pl\ncd ..\n""",
+			],
+		},
+	}
+
+def script_maker(target,module_commands=None,sim_only=False):
+	'''
+	Prepare a script which builds a CGMD bilayer using standard folder names.
+	'''
+	if target not in script_dict.keys(): raise Exception('except: unclear make target')
+	steps = script_dict[target]['steps']
+	script = '\n#---definitions\n'
+	for step in steps.keys(): script += step+'='+steps[step]+'\n'
+	#---the sim_only flag uses only the last, presumably "continuation" segment of the sequence
+	if sim_only: seq_segments = script_dict[target]['sequence'][-1:]
+	else: seq_segments = script_dict[target]['sequence']
+	for segment in seq_segments: 
+		#---we add module_commands before each segment to ensure GROMACS paths are set
+		if module_commands != None: script += '\n'+module_commands+'\n'
+		script += segment
+	return script
+	
+def prep_scripts(target):
+	'''
+	Execute temporary bash scripts to setup the directories.
+	'''
+	if target not in script_dict.keys(): raise Exception('except: unclear make target')
+	steps = script_dict[target]['steps']
+	for segment in script_dict[target]['prep']:
+		fp = open('script-temporary-prep.sh','w')
+		fp.write('#!/bin/bash\n\n')
+		for step in steps.keys(): fp.write(step+'='+steps[step]+'\n')
+		fp.write(segment)
+		fp.close()
+		os.system('bash script-temporary-prep.sh')
+		os.system('rm script-temporary-prep.sh')
+
+#---FUNCTIONS
+#-------------------------------------------------------------------------------------------------------------
+
+def argsort(seq): 
+	'''Provide a list of indices which give a sorted list.'''
+	return sorted(range(len(seq)), key = seq.__getitem__)
+
+def reset():
+	'''
+	Clears all run files from the current directory structure.
+	'''
+	print '\nlist of relevant data files which may be deleted:\n'
+	rootdir = os.path.expanduser('.')
+	for root,dirnames,filenames in os.walk(rootdir,followlinks=True):
+		for filename in filenames:
+			#---find files with patterns in patlist, excluding source files and 
+			if any([re.search(i,filename) for i in patlist]) and \
+				not re.search('source',root) and not re.search('input',root) \
+				and not re.search('amx',root):
+				print root+'/'+filename
+	print '\ndata folders marked for deletion:\n'
+	for root,dirnames,filenames in os.walk(rootdir,followlinks=True):
+		for dn in dirnames:
+			if re.search('s[0-9]-.+',dn):
+				print root+'/'+dn
+	shall = True if raw_input("%s (y/N) " % '\nstatus: remove data folders?').lower() == 'y' else False
+	confirmed = True if raw_input("%s (y/N) " % 'status: confirmed?').lower() == 'y' else False
+	if shall and confirmed:
+		if os.path.isfile('gmxpaths.conf'): os.remove('gmxpaths.conf')
+		for root,dirnames,filenames in os.walk(rootdir,followlinks=True):
+			for dn in dirnames:
+				if re.search('s[0-9]-.+',dn):
+					print 'rm '+root+'/'+dn
+					os.system('rm -r '+root+'/'+dn)
+			for filename in filenames:
+				#---find files with patterns in patlist, excluding source files and 
+				if any([re.search(i,filename) for i in patlist]) and \
+					not re.search('source',root) and not re.search('input',root) \
+					and not re.search('amx',root):
+					print 'rm '+root+'/'+filename
+					os.system('rm -r '+root+'/'+filename)
+					
+def make_docs():
+	'''Regenerate the documentation using sphinx-apidoc and code in amx/gendoc.sh'''
+	os.system('./amx/script-make-docs.sh '+os.path.abspath('.'))
+
+
+#---RENDERING
+#-------------------------------------------------------------------------------------------------------------
+
+#---VMD script to render an isometric-style view of the bilayer
+rendercode = \
+"""
+source sources/codebase/cg_bonds.tcl
+color Display Background white
+display resize 800 800
+display projection orthographic
+set ind [molinfo top]
+mol modstyle 0 0 Licorice 2.3
+mouse stoprotation
+rotate z by 45
+rotate x by -45
+render Tachyon fig-snapshot-$picname {
+	tachyon -aasamples 12 %s -format TARGA -o %s.tga; 
+	convert %s.tga %s.jpeg; 
+	rm %s.tga; rm %s;
+	}
+quit
+"""
+
+rendercode_no_solvent = \
+"""
+source sources/codebase/cg_bonds.tcl
+color Display Background white
+display resize 800 800
+display projection orthographic
+set ind [molinfo top]
+mol modstyle 0 0 Licorice 2.3
+mol modselect 0 0 "all not resname W and not resname ION and not water"
+mouse stoprotation
+rotate z by 45
+rotate x by -45
+render Tachyon fig-snapshot-$picname {
+	tachyon -aasamples 12 %s -format TARGA -o %s.tga; 
+	convert %s.tga %s.jpeg; 
+	rm %s.tga; rm %s;
+	}
+quit
+"""
+
+rendercode_xyz = [
+"""
+source sources/codebase/cg_bonds.tcl
+color Display Background white
+display resize 800 800
+display projection orthographic
+set ind [molinfo top]
+mol modstyle 0 0 Licorice 2.3
+mol modselect 0 0 "all not resname W and not resname ION and not water"
+mouse stoprotation
+rotate x by -90
+render Tachyon fig-snapshot-$picname {
+	tachyon -aasamples 12 %s -format TARGA -o %s.tga; 
+	convert %s.tga %s.jpeg; 
+	rm %s.tga; rm %s;
+	}
+quit
+""",
+"""
+source sources/codebase/cg_bonds.tcl
+color Display Background white
+display resize 800 800
+display projection orthographic
+set ind [molinfo top]
+mol modstyle 0 0 Licorice 2.3
+mol modselect 0 0 "all not resname W and not resname ION and not water"
+mouse stoprotation
+rotate x by -90
+rotate y by 90
+render Tachyon fig-snapshot-$picname {
+	tachyon -aasamples 12 %s -format TARGA -o %s.tga; 
+	convert %s.tga %s.jpeg; 
+	rm %s.tga; rm %s;
+	}
+quit
+""",
+"""
+source sources/codebase/cg_bonds.tcl
+color Display Background white
+display resize 800 800
+display projection orthographic
+set ind [molinfo top]
+mol modstyle 0 0 Licorice 2.3
+mol modselect 0 0 "all not resname W and not resname ION and not water"
+mouse stoprotation
+render Tachyon fig-snapshot-$picname {
+	tachyon -aasamples 12 %s -format TARGA -o %s.tga; 
+	convert %s.tga %s.jpeg; 
+	rm %s.tga; rm %s;
+	}
+quit
+""",]
+	
+def render(gropath,tpr=None,no_solvent=False,xyz=False):
+	'''
+	Wrapper for VMD-based scripts for rendering images of the bilayer.
+	'''
+	letter = ['x','y','z']
+	
+	if xyz: codes = rendercode_xyz
+	elif no_solvent == False: codes = [rendercode]
+	else: codes = [rendercode_no_solvent]
+	for ci in range(len(codes)):
+		code = codes[ci]
+		grofile = gropath.split('/')[-1][:-4]
+		fp = open('script-temporary-prep.tcl','w')
+		fp.write('#!/bin/bash\n\n')
+		fp.write('mol new '+gropath+'\n')
+		if os.path.isfile(gropath[:-4]+'.tpr'):
+			fp.write('source sources/codebase/cg_bonds.tcl\n')
+			fp.write('cg_bonds -tpr '+gropath[:-4]+'.tpr\n')
+			fp.write('set usebonds 1\n')
+		elif tpr != None:
+			fp.write('source sources/codebase/cg_bonds.tcl\n')
+			fp.write('cg_bonds -tpr '+tpr+'\n')
+			fp.write('set usebonds 1\n')
+		else: fp.write('set usebonds 0\n')
+		fp.write('set picname '+grofile+'\n')
+		fp.write(code)
+		fp.close()
+		os.system('vmd -dispdev text -e script-temporary-prep.tcl')
+		os.remove('script-temporary-prep.tcl')
+		if xyz: os.system('mv fig-snapshot-'+grofile+'.jpeg fig-snapshot-'+grofile+'-'+letter[ci]+'.jpeg')
+	
+def render_latest(simdir):
+	'''
+	Function which renders the most recent frame of a simulation from its cpt file.
+	'''
+	fl = []
+	for (dirpath, dirnames, filenames) in os.walk(simdir):
+		fl += filenames
+		break
+	last = max([int(f[-8:-4]) for f in fl if 
+		(f[-4:] == '.cpt' and not re.match('md.part[0-9]{4}_prev\.cpt',f))])
+	last = '{0:04d}'.format(last)
+	os.system("cd "+simdir+"; echo -e \"0\n\" | trjconv -f md.part"+last+\
+		".cpt -o latest.gro -s md.part"+last+".tpr"+" -pbc mol")
+	render(simdir+'/latest.gro',tpr=simdir+'/md.part'+last+'.tpr',no_solvent=True)
+	render(simdir+'/latest.gro',tpr=simdir+'/md.part'+last+'.tpr',xyz=True)
+	os.remove(simdir+'/latest.gro')
+	
+def render_latest_allsides(simdir):
+	'''
+	Function which renders the most recent frame of a simulation from its cpt file.
+	'''
+	fl = []
+	for (dirpath, dirnames, filenames) in os.walk(simdir):
+		fl += filenames
+		break
+	last = max([int(f[-8:-4]) for f in fl if 
+		(f[-4:] == '.cpt' and not re.match('md.part[0-9]{4}_prev\.cpt',f))])
+	last = '{0:04d}'.format(last)
+	os.system("cd "+simdir+"; echo -e \"0\n\" | trjconv -f md.part"+last+\
+		".cpt -o latest.gro -s md.part"+last+".tpr"+" -pbc mol")
+	render(simdir+'/latest.gro',tpr=simdir+'/md.part'+last+'.tpr',xyz=True)
+	os.remove(simdir+'/latest.gro')
+
+#---MAKE
+#-------------------------------------------------------------------------------------------------------------
+					
+def make(target):
+	'''
+	Deposit PBS scripts in each step folder for the corresponding step and make master scripts.
+	'''
+	print helpstring
+	print "\tGenerating script.\n"
+	
+	#---determine location
+	hostname = None
+	for key in valid_hostnames.keys():
+		subproc_failed = False
+		try: check_host = re.match(key,subprocess.check_output(['echo $HOSTNAME'],shell=True).strip('\n'))
+		except: check_host = False
+		if check_host or re.match(key,socket.gethostname()):
+			hostname = key
+			break
+	print '\thostname = '+str(hostname)
+	#---if no hostname matches use the local steps
+	if hostname == None: system_id = 'local'
+	#---check for multiple architectures and choose the first one by default
+	if hostname in valid_hostnames.keys() and valid_hostnames[hostname] != None: 
+		arch = valid_hostnames[hostname][0]
+	else: arch = None
+	if hostname != None: system_id = hostname+('' if arch == None else '_'+arch)
+	if hostname != None and system_id in default_proc_specs.keys():
+		print '\thost/architecture settings: '
+		for key in default_proc_specs[system_id]: 
+			print '\t\t'+key+' = '+str(default_proc_specs[system_id][key])
+		proc_settings = default_proc_specs[system_id]
+		print '\tto use different settings, edit amx-bearings and rerun make'	
+	else: proc_settings = None
+
+	#---write gmxpaths.conf
+	#---note that you can only change the NPROCS commands passed downstream here
+	#---...this means that ./controller make must be rerun to switch processor counts
+	fp = open('gmxpaths.conf','w')
+	for key in standard_gromacs_commands:
+		if system_id in gmx_overrides.keys() and key in gmx_overrides[system_id].keys():
+			command_syntax = gmx_overrides[system_id][key]
+			if proc_settings != None:
+				command_syntax = re.sub('NPROCS',
+					str(proc_settings['nodes']*proc_settings['ppn']),command_syntax)
+			fp.write(key+' '+command_syntax+'\n')
+		elif system_id in gmx_suffixes.keys(): 
+			fp.write(key+' '+key+gmx_suffixes[system_id]+'\n')
+		else: fp.write(key+' '+key+'\n')
+	fp.close()
+
+	#---write the local script
+	print '\twriting script: script-master-'+str(target)
+	fp = open('script-master-'+str(target),'w')
+	fp.write('#!/bin/bash\n')
+	fp.write(script_maker(target))
+	fp.close()
+	os.system('chmod u+x '+'script-master-'+str(target))
+
+	#---prepare the files and directories
+	prep_scripts(target)
+	
+	#---write a simulation continuation script to the final step
+	fp = open(script_dict[target]['steps']['step_simulation']+'/script-md-continue','w')
+	fp.write('#!/bin/bash\n')
+	fp.write(script_maker(target,sim_only=True))
+	fp.close()	
+	
+	#---write cluster-header if possible
+	if hostname != None and 'cluster_header_'+system_id in globals():
+		header_source = globals()['cluster_header_'+system_id]
+		header_source_mod = []
+		for line in header_source.split('\n'):
+			if line[:7] == '#PBS -l' and proc_settings != None:
+				line = \
+					'#PBS -l nodes='+str(proc_settings['nodes'])+\
+					':ppn='+str(proc_settings['ppn'])+\
+					',walltime='+str(proc_settings['walltime'])+':00:00'
+			header_source_mod.append(line)
+		header_source_mod = '\n'.join(header_source_mod)
+		print '\twriting PBS script: cluster-master-'+str(target)
+		fp = open('cluster-master-'+str(target),'w')
+		fp.write(header_source_mod)
+		fp.write(script_maker(target,module_commands=proc_settings['module']))
+		fp.close()
+		#---write a simulation continuation script to the final step
+		fp = open(script_dict[target]['steps']['step_simulation']+'/cluster-md-continue','w')
+		fp.write(header_source_mod)
+		fp.write(script_maker(target,module_commands=proc_settings['module'],sim_only=True))
+		fp.close()		
+
+	print '\texecute locally with ./'+'script-master-'+str(target)
+	print '\tsee the documentation for details\n'
+
+#---MAIN
+#-------------------------------------------------------------------------------------------------------------
+			
+if __name__ == "__main__":
+	if len(sys.argv) == 1: 
+		print helpstring
+		print document_string
+	elif len(sys.argv) > 1 and sys.argv[1] in ['make','render','render_latest']:
+		if len(sys.argv) < 3: print 'need a target'
+		elif len(sys.argv) == 3: globals()[sys.argv[1].strip()](sys.argv[2])
+		elif len(sys.argv) == 4 and sys.argv[1] in ['render']:
+			globals()[sys.argv[1].strip()](sys.argv[2],tpr=sys.argv[3])
+		else: print 'too many arguments'
+	else:	
+		if sys.argv[1] in globals(): globals()[sys.argv[1].strip()]()
+		else: print 'invalid operation'
+

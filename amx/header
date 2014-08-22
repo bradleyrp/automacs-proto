@@ -1,0 +1,7 @@
+#!/usr/bin/python
+
+from amx.lipidgrid import MonolayerGrids
+from amx.bilayer import Bilayer
+from amx.tools import *
+import sys
+
