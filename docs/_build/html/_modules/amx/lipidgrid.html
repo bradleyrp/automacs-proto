@@ -1,0 +1,547 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>amx.lipidgrid &mdash; amx 1.0.0 documentation</title>
+  
+
+  
+  
+
+  
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="amx 1.0.0 documentation" href="../../index.html"/>
+        <link rel="up" title="Module code" href="../index.html"/> 
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.6.2/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-nav-search">
+        <a href="../../index.html" class="fa fa-home"> amx</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        
+        
+            <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../amx.html">amx package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../amx.html#building-coarse-grained-bilayers">Building coarse-grained bilayers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../amx.html#equilibration">Equilibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../amx.html#module-amx.lipidgrid">amx.lipidgrid module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../amx.html#module-amx.bilayer">amx.bilayer module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../amx.html#module-amx.tools">amx.tools module</a></li>
+</ul>
+</li>
+</ul>
+
+        
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../index.html">amx</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      
+    <li>amx.lipidgrid</li>
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            
+  <h1>Source code for amx.lipidgrid</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/python</span>
+
+<span class="c">#---AUTOMACS (AMX) &quot;LIPIDGRID&quot; MODULE</span>
+<span class="c">#---created 2014.08.13 by ryan bradley</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module will generate a lipid monolayer configurations according to input compositions and</span>
+<span class="sd">a few fairly standard geometric measurements. It relies on a small library of lipids structures and </span>
+<span class="sd">topologies which are typically located in the ``sources`` directory.</span>
+
+<span class="sd">.. figure:: ../sources/docs/automacs-cgmd-bilayer-monolayer.jpeg</span>
+<span class="sd">   :align: center</span>
+<span class="sd">   :alt: monolayer snapshot</span>
+<span class="sd">   :width: 75 %</span>
+<span class="sd">   </span>
+<span class="sd">   Example monolayer configuration.</span>
+<span class="sd">   </span>
+<span class="sd">The image above is an example monolayer configuration written to ``place-grid-start.gro``. You can see that </span>
+<span class="sd">the coarse-grained beads are not connected. The ``MonolayerGrids`` instance does not generate a topology, </span>
+<span class="sd">so we won&#39;t see the bonds until we use the ``amx.bilayer`` submodule to construct and minimize the bilayer.</span>
+<span class="sd">   </span>
+<span class="sd">Settings</span>
+<span class="sd">********</span>
+
+<span class="sd">Input settings are imported from the python-style file called ``inputs/input-specs-bilayer.dat`` by default.</span>
+<span class="sd">For a bilayer with different compositions for each monolayer, we use the following defintions. ::</span>
+
+<span class="sd">	#---COMPOSITIONS</span>
+<span class="sd">	#---note you can set equal monolayer compositions by deleting complist1, etc</span>
+
+<span class="sd">	nlipids0 = 400</span>
+<span class="sd">	complist0 = [80,19,1]</span>
+<span class="sd">	lipidnames0 = [&#39;DOPC&#39;,&#39;DOPS&#39;,&#39;PIP2&#39;]</span>
+<span class="sd">	nlipids1 = 400</span>
+<span class="sd">	complist1 = [4,1]</span>
+<span class="sd">	lipidnames1 = [&#39;DOPC&#39;,&#39;DOPS&#39;]</span>
+<span class="sd">	</span>
+<span class="sd">Elsewhere in the ``inputs/input-specs-bilayer.dat`` we find the geometric settings for assembling the</span>
+<span class="sd">monolayers. The key parameter here is the ``solvent_thickness`` which sets the size of the water slab in </span>
+<span class="sd">nanometers. ::</span>
+
+<span class="sd">	bilayer_construction_settings = {</span>
+<span class="sd">		&#39;lbuffer&#39;:0.1,</span>
+<span class="sd">		&#39;tbuffer&#39;:0.1,</span>
+<span class="sd">		&#39;pbc_spacing&#39;:0.2,</span>
+<span class="sd">		&#39;solvent_thickness&#39;:10,</span>
+<span class="sd">		&#39;lipid_water_buffer&#39;:0.1,</span>
+<span class="sd">		&#39;ion_strength&#39;:0.150,</span>
+<span class="sd">		&#39;negative_ion_name&#39;:&#39;CL&#39;,&#39;nq&#39;:-1,</span>
+<span class="sd">		&#39;positive_ion_name&#39;:&#39;NA&#39;,&#39;pq&#39;:1,</span>
+<span class="sd">		&#39;lipid_spacing&#39;:0.2,</span>
+<span class="sd">		}</span>
+<span class="sd">		</span>
+<span class="sd">These parameters also set the spacing between lipids, between monolayer tails, and so on.</span>
+
+<span class="sd">================== ================================================================================</span>
+<span class="sd">Parameter          Definition</span>
+<span class="sd">================== ================================================================================</span>
+<span class="sd">lbuffer            spacing between individual lipids in the grid</span>
+<span class="sd">tbuffer            spacing between the ends of lipid tails when making a bilayer from a monolayer</span>
+<span class="sd">pbc_spacing        distance between monolayers under PBC during vacuum construction step</span>
+<span class="sd">solvent_thickness  thickness of the water slab in nm, normal to the bilayer (may relax)</span>
+<span class="sd">lipid_water_buffer gap between lipids and water during solvate step</span>
+<span class="sd">ion_strength       molar ion concentration (check the code for the exact procedure)</span>
+<span class="sd">lipid_spacing      the distance in nm between adjacent lipids during combinator methods </span>
+<span class="sd">================== ================================================================================</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c">#---development features</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s">&#39;/etc/pythonstart&#39;</span><span class="p">):</span>
+	<span class="nb">execfile</span><span class="p">(</span><span class="s">&#39;/etc/pythonstart&#39;</span><span class="p">)</span>
+
+<span class="c">#---imports</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">from</span> <span class="nn">tools</span> <span class="kn">import</span> <span class="n">call</span><span class="p">,</span><span class="n">checkout</span><span class="p">,</span><span class="n">tee</span>
+
+<span class="c">#---locate gmxpaths</span>
+<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s">&#39;gmxpaths.conf&#39;</span><span class="p">):</span> <span class="n">gmxpaths_path</span> <span class="o">=</span> <span class="s">&#39;./&#39;</span>
+<span class="k">else</span><span class="p">:</span> <span class="n">gmxpaths_path</span> <span class="o">=</span> <span class="s">&#39;../&#39;</span>
+
+<span class="c">#---load the gromacs paths</span>
+<span class="n">gmxpaths</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([[</span><span class="n">i</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span><span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">:])]</span> 
+	<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="n">gmxpaths_path</span><span class="o">+</span><span class="s">&#39;gmxpaths.conf&#39;</span><span class="p">,</span><span class="s">&#39;r&#39;</span><span class="p">)</span> 
+	<span class="k">if</span> <span class="n">i</span><span class="o">.</span><span class="n">strip</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;#&#39;</span><span class="p">])</span>
+
+<span class="c">#---FUNCTIONS</span>
+<span class="c">#-------------------------------------------------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="MonolayerGrids"><a class="viewcode-back" href="../../amx.html#amx.lipidgrid.MonolayerGrids">[docs]</a><span class="k">class</span> <span class="nc">MonolayerGrids</span><span class="p">:</span>
+	<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">	Class which generates a lipid monolayer configurations according to desired compositions.</span>
+<span class="sd">	</span>
+<span class="sd">	Creating a single instance of this class will automatically run the construction procedure in the root </span>
+<span class="sd">	directory (a required keyword argument). Compositions are specified in ``inputs/input-specs-bilayer.dat``</span>
+<span class="sd">	and the user can choose to make the bilayer symmetric by only defining one composition there.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	rootdir : str</span>
+<span class="sd">		relative path to perform the monolayer construction and save the final configuration file</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">rootdir</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">		Sets root directory and passes a dictionary of extra parameters to the build_monolayer function.</span>
+<span class="sd">		&#39;&#39;&#39;</span>
+		<span class="c">#---default parameters</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+			<span class="s">&#39;structs_dir&#39;</span><span class="p">:</span><span class="s">&#39;sources/cgmd-bilayer-lipids-structs&#39;</span><span class="p">,</span>
+			<span class="s">&#39;input_specs&#39;</span><span class="p">:</span><span class="s">&#39;inputs/input-specs-bilayer.dat&#39;</span><span class="p">,</span>
+			<span class="p">}</span>
+		<span class="c">#---override defaults with kwargs</span>
+		<span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;structs_dir&#39;</span><span class="p">,</span><span class="s">&#39;input_specs&#39;</span><span class="p">]:</span>
+			<span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span> <span class="o">=</span> <span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;/&#39;</span>
+
+		<span class="c">#---skip everything if the procedure is final configuration is already available</span>
+		<span class="c">#---note that this takes the place of an exception and hence expects the user to remove old files</span>
+		<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;place-grid-start.gro&#39;</span><span class="p">)</span> <span class="ow">or</span> \
+			<span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;place-grid-start0.gro&#39;</span><span class="p">):</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="n">tee</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;log-script-master&#39;</span><span class="p">,</span><span class="s">&#39;a&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">stderr</span> <span class="o">=</span> <span class="n">tee</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;log-script-master&#39;</span><span class="p">,</span><span class="s">&#39;a&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span><span class="n">error</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+			<span class="k">print</span> <span class="s">&#39;START LIPIDGRID&#39;</span>
+			<span class="k">print</span> <span class="s">&#39;skipping this step because monolayer configuration exists&#39;</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="c">#---make root directory</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">))):</span> <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="k">else</span><span class="p">:</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;except: requested root directory already exists without a configuration&#39;</span><span class="p">)</span>
+			<span class="c">#---start the logger</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="n">tee</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;log-script-master&#39;</span><span class="p">,</span><span class="s">&#39;a&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">stderr</span> <span class="o">=</span> <span class="n">tee</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;log-script-master&#39;</span><span class="p">,</span><span class="s">&#39;a&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span><span class="n">error</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+			<span class="k">print</span> <span class="s">&#39;START LIPIDGRID&#39;</span>
+			<span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span> <span class="k">print</span> <span class="n">key</span><span class="o">+</span><span class="s">&#39; = &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+			<span class="c">#---build the monolayers</span>
+			<span class="k">else</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_monolayers</span><span class="p">()</span> 
+
+<div class="viewcode-block" id="MonolayerGrids.combinator"><a class="viewcode-back" href="../../amx.html#amx.lipidgrid.MonolayerGrids.combinator">[docs]</a>	<span class="k">def</span> <span class="nf">combinator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">big</span><span class="p">,</span><span class="n">add</span><span class="p">,</span><span class="n">out</span><span class="p">,</span><span class="n">spacing</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span><span class="n">rootdir</span><span class="o">=</span><span class="s">&#39;./&#39;</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Add a lipid to a row of lipids.</span>
+
+<span class="sd">		This function takes a lipid configuration with an arbitrary number of lipid structures in a straight </span>
+<span class="sd">		line. It adds a new lipid to the row, and writes the resulting configuration. It is designed to build </span>
+<span class="sd">		a row of lipids piecewise in the y-dimension. The complete rows are assembled by the combinator_row </span>
+<span class="sd">		function in the	x-dimension to create a grid of lipids which will eventually become a monolayer. This </span>
+<span class="sd">		function is called repeatedly by the :class:`build_monolayers &lt;MonolayerGrids.build_monolayers&gt;` </span>
+<span class="sd">		function.</span>
+<span class="sd">	</span>
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		big : str</span>
+<span class="sd">			relative path to a structure (gro) file containing a row of lipids</span>
+<span class="sd">		add : str</span>
+<span class="sd">			relative path to a structure (gro) file of the lipid to be added to the row of lipids</span>
+<span class="sd">		out : str</span>
+<span class="sd">			write the combined configuration to an output structure (gro) file</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+	
+		<span class="n">call</span><span class="p">(</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">]</span><span class="o">+</span><span class="s">&#39; -f &#39;</span><span class="o">+</span><span class="n">big</span><span class="o">+</span><span class="s">&#39; -resnr 2 -o 1.1.gro -center 0 0 0 -d 0&#39;</span><span class="p">,</span>
+			<span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-1.1&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">]</span><span class="o">+</span><span class="s">&#39; -f &#39;</span><span class="o">+</span><span class="n">add</span><span class="o">+</span><span class="s">&#39; -o 2.1.gro -center 0 0 0 -d 0&#39;</span><span class="p">,</span>
+			<span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-2.1&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">vy11</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&quot;awk&quot;</span><span class="p">,</span><span class="s">&quot;&#39;/new box vectors/ {print $6}&#39;&quot;</span><span class="p">,</span><span class="s">&quot;log-editconf-1.1&quot;</span><span class="p">],</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">))</span>
+		<span class="n">vy21</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&quot;awk&quot;</span><span class="p">,</span><span class="s">&quot;&#39;/new box vectors/ {print $6}&#39;&quot;</span><span class="p">,</span><span class="s">&quot;log-editconf-2.1&quot;</span><span class="p">],</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">))</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">]</span><span class="o">+</span><span class="s">&#39; -f 1.1.gro -center 0 &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">vy11</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span><span class="o">+</span><span class="s">&#39; 0 -o 1.2.gro&#39;</span><span class="p">,</span>
+			<span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-1.2&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">]</span><span class="o">+</span><span class="s">&#39; -f 2.1.gro -center 0 &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">vy21</span><span class="o">/</span><span class="mi">2</span><span class="o">+</span><span class="n">vy11</span><span class="o">+</span><span class="n">spacing</span><span class="p">)</span><span class="o">+</span><span class="s">&#39; 0 -o 2.2.gro&#39;</span><span class="p">,</span>
+			<span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-2.2&#39;</span><span class="p">,</span>
+			<span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;3.1.gro&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">)</span>
+		<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;Test</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+		<span class="n">n1</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&quot;awk&quot;</span><span class="p">,</span><span class="s">&quot;&#39;NR==2 {print $1}&#39;&quot;</span><span class="p">,</span><span class="s">&quot;1.2.gro&quot;</span><span class="p">],</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">))</span>
+		<span class="n">n2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&quot;awk&quot;</span><span class="p">,</span><span class="s">&quot;&#39;NR==2 {print $1}&#39;&quot;</span><span class="p">,</span><span class="s">&quot;2.2.gro&quot;</span><span class="p">],</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">))</span>
+		<span class="n">ntot</span> <span class="o">=</span> <span class="n">n1</span><span class="o">+</span><span class="n">n2</span>
+		<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">ntot</span><span class="p">))</span><span class="o">+</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+		<span class="n">body1</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;/1.2.gro&#39;</span><span class="p">)][</span><span class="mi">2</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+		<span class="n">body2</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;/2.2.gro&#39;</span><span class="p">)][</span><span class="mi">2</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+		<span class="n">tail</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;/2.2.gro&#39;</span><span class="p">)][</span><span class="o">-</span><span class="mi">1</span><span class="p">:])</span>
+		<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">body2</span><span class="p">)</span>
+		<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">body1</span><span class="p">)</span>
+		<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">tail</span><span class="p">)</span>
+		<span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">]</span><span class="o">+</span><span class="s">&#39; -f 3.1.gro -o &#39;</span><span class="o">+</span><span class="n">out</span><span class="o">+</span><span class="s">&#39; -d 0&#39;</span><span class="p">,</span>
+			<span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-out&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="s">&#39;rm 1.1.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="s">&#39;rm 2.1.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="s">&#39;rm 1.2.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="s">&#39;rm 2.2.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="s">&#39;rm 3.1.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="MonolayerGrids.combinator_row"><a class="viewcode-back" href="../../amx.html#amx.lipidgrid.MonolayerGrids.combinator_row">[docs]</a>	<span class="k">def</span> <span class="nf">combinator_row</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">big</span><span class="p">,</span><span class="n">add</span><span class="p">,</span><span class="n">out</span><span class="p">,</span><span class="n">spacing</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span><span class="n">rootdir</span><span class="o">=</span><span class="s">&#39;./&#39;</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Add a row of lipids to a grid of lipids.</span>
+
+<span class="sd">		This function takes a lipid configuration with an arbitrary number of rows of lipid structures in a </span>
+<span class="sd">		grid Formation. It adds a new lipid row to the grid, and writes the resulting configuration. It adds </span>
+<span class="sd">		rows in The x-dimension, and hence takes a lipid row which is oriented in the y-dimension. This </span>
+<span class="sd">		function is called repeatedly by the build_monolayer function.</span>
+
+<span class="sd">		Parameters</span>
+<span class="sd">		----------</span>
+<span class="sd">		big : str</span>
+<span class="sd">			relative path to a structure (gro) file containing a grid of lipids</span>
+<span class="sd">		add : str</span>
+<span class="sd">			relative path to a structure (gro) file of the lipid row to be added to the grid of lipids</span>
+<span class="sd">		out : str</span>
+<span class="sd">			write the combined configuration to an output structure (gro) file</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="n">call</span><span class="p">(</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">]</span><span class="o">+</span><span class="s">&#39; -f &#39;</span><span class="o">+</span><span class="n">big</span><span class="o">+</span><span class="s">&#39; -o 1.1.gro -center 0 0 0 -d 0&#39;</span><span class="p">,</span>
+			<span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-1.1&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">]</span><span class="o">+</span><span class="s">&#39; -f &#39;</span><span class="o">+</span><span class="n">add</span><span class="o">+</span><span class="s">&#39; -o 2.1.gro -center 0 0 0 -d 0&#39;</span><span class="p">,</span>
+			<span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-2.1&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">vy11</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&quot;awk&quot;</span><span class="p">,</span><span class="s">&quot;&#39;/new box vectors/ {print $5}&#39;&quot;</span><span class="p">,</span><span class="s">&quot;log-editconf-1.1&quot;</span><span class="p">],</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">))</span>
+		<span class="n">vy21</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&quot;awk&quot;</span><span class="p">,</span><span class="s">&quot;&#39;/new box vectors/ {print $5}&#39;&quot;</span><span class="p">,</span><span class="s">&quot;log-editconf-2.1&quot;</span><span class="p">],</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">))</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">]</span><span class="o">+</span><span class="s">&#39; -f 1.1.gro -center &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">vy11</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span><span class="o">+</span><span class="s">&#39; 0 0 -o 1.2.gro&#39;</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-1.2&#39;</span><span class="p">,</span>
+			<span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">]</span><span class="o">+</span><span class="s">&#39; -f 2.1.gro -center &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">vy21</span><span class="o">/</span><span class="mi">2</span><span class="o">+</span><span class="n">vy11</span><span class="o">+</span><span class="n">spacing</span><span class="p">)</span><span class="o">+</span><span class="s">&#39; 0 0 -o 2.2.gro&#39;</span><span class="p">,</span>
+			<span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-2.2&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;3.1.gro&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">)</span>
+		<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;Test</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+		<span class="n">n1</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&quot;awk&quot;</span><span class="p">,</span><span class="s">&quot;&#39;NR==2 {print $1}&#39;&quot;</span><span class="p">,</span><span class="s">&quot;1.2.gro&quot;</span><span class="p">],</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">))</span>
+		<span class="n">n2</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&quot;awk&quot;</span><span class="p">,</span><span class="s">&quot;&#39;NR==2 {print $1}&#39;&quot;</span><span class="p">,</span><span class="s">&quot;2.2.gro&quot;</span><span class="p">],</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">))</span>
+		<span class="n">ntot</span> <span class="o">=</span> <span class="n">n1</span><span class="o">+</span><span class="n">n2</span>
+		<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">ntot</span><span class="p">))</span><span class="o">+</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+		<span class="n">body1</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;/1.2.gro&#39;</span><span class="p">)][</span><span class="mi">2</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+		<span class="n">body2</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;/2.2.gro&#39;</span><span class="p">)][</span><span class="mi">2</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+		<span class="n">tail</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;/2.2.gro&#39;</span><span class="p">)][</span><span class="o">-</span><span class="mi">1</span><span class="p">:])</span>
+		<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">body1</span><span class="p">)</span>
+		<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">body2</span><span class="p">)</span>
+		<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">tail</span><span class="p">)</span>
+		<span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">]</span><span class="o">+</span><span class="s">&#39; -f 3.1.gro -o &#39;</span><span class="o">+</span><span class="n">out</span><span class="o">+</span><span class="s">&#39; -d 0&#39;</span><span class="p">,</span>
+			<span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-out&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="s">&#39;rm 1.1.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="s">&#39;rm 2.1.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="s">&#39;rm 1.2.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="s">&#39;rm 2.2.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="s">&#39;rm 3.1.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="MonolayerGrids.build_monolayers"><a class="viewcode-back" href="../../amx.html#amx.lipidgrid.MonolayerGrids.build_monolayers">[docs]</a>	<span class="k">def</span> <span class="nf">build_monolayers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+		<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">		Generate a random arrangement of lipids and iteratively construct a grid of lipid structures according</span>
+<span class="sd">		to this arrangement. If ``matplotlib`` is available, the program will render the random configuration</span>
+<span class="sd">		and save the results in the root directory. Note that this step currently requires ``numpy``.</span>
+<span class="sd">		&#39;&#39;&#39;</span>
+
+		<span class="n">rootdir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span>
+		<span class="n">input_specs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s">&#39;input_specs&#39;</span><span class="p">]</span>
+		<span class="n">lipid_location</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s">&#39;structs_dir&#39;</span><span class="p">]))</span>
+
+		<span class="c">#---numpy sqrt below</span>
+	
+		<span class="c">#---load the compositions</span>
+		<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">input_specs</span><span class="p">):</span>
+			<span class="c">#---note that execfile must receive a dictionary because locals cannot be modified (optimization)</span>
+			<span class="nb">execfile</span><span class="p">(</span><span class="n">input_specs</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+			<span class="n">complist0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s">&#39;complist0&#39;</span><span class="p">]</span>
+			<span class="n">nlipids0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s">&#39;nlipids0&#39;</span><span class="p">]</span>
+			<span class="n">lipidnames0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s">&#39;lipidnames0&#39;</span><span class="p">]</span>
+			<span class="k">print</span> <span class="s">&#39;complist0 = &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">complist0</span><span class="p">)</span>
+			<span class="k">print</span> <span class="s">&#39;nlipids0 = &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">nlipids0</span><span class="p">)</span>
+			<span class="k">print</span> <span class="s">&#39;lipidnames0 = &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">lipidnames0</span><span class="p">)</span>
+			<span class="n">totside</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">nlipids0</span><span class="p">))]</span>
+			<span class="n">total_lipids</span> <span class="o">=</span> <span class="p">[</span><span class="n">nlipids0</span><span class="p">]</span>
+		<span class="k">else</span><span class="p">:</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;except: cannot locate the input specifications file &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">input_specs</span><span class="p">))</span>
+		<span class="c">#---load compositions for a second, distinct monolayer if available</span>
+		<span class="k">if</span> <span class="s">&#39;complist1&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span> <span class="n">asymmetric</span> <span class="o">=</span> <span class="bp">False</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">print</span> <span class="s">&#39;detected asymmetric composition from input_specs&#39;</span>
+			<span class="n">asymmetric</span> <span class="o">=</span> <span class="bp">True</span>
+			<span class="n">complist1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s">&#39;complist1&#39;</span><span class="p">]</span>
+			<span class="n">nlipids1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s">&#39;nlipids1&#39;</span><span class="p">]</span>
+			<span class="n">lipidnames1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s">&#39;lipidnames1&#39;</span><span class="p">]</span>
+			<span class="k">print</span> <span class="s">&#39;complist1 = &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">complist1</span><span class="p">)</span>
+			<span class="k">print</span> <span class="s">&#39;nlipids1 = &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">nlipids1</span><span class="p">)</span>
+			<span class="k">print</span> <span class="s">&#39;lipidnames1 = &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">lipidnames1</span><span class="p">)</span>
+			<span class="n">totside</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">nlipids0</span><span class="p">)),</span><span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">nlipids1</span><span class="p">))]</span>
+			<span class="n">total_lipids</span> <span class="o">=</span> <span class="p">[</span><span class="n">nlipids0</span><span class="p">,</span><span class="n">nlipids1</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">simscale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s">&#39;simscale&#39;</span><span class="p">]</span>
+		<span class="n">spacing</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s">&#39;bilayer_construction_settings&#39;</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">simscale</span><span class="p">][</span><span class="s">&#39;lipid_spacing&#39;</span><span class="p">]</span>
+	
+		<span class="c">#---record compositions</span>
+		<span class="k">if</span> <span class="n">asymmetric</span><span class="p">:</span> <span class="n">monocomplist</span><span class="p">,</span><span class="n">lipidnames</span> <span class="o">=</span> <span class="p">[</span><span class="n">complist0</span><span class="p">,</span><span class="n">complist1</span><span class="p">],[</span><span class="n">lipidnames0</span><span class="p">,</span><span class="n">lipidnames1</span><span class="p">]</span>
+		<span class="k">else</span><span class="p">:</span> <span class="n">monocomplist</span><span class="p">,</span><span class="n">lipidnames</span> <span class="o">=</span> <span class="p">[</span><span class="n">complist0</span><span class="p">],[</span><span class="n">lipidnames0</span><span class="p">]</span>
+		<span class="n">lipid_nameset</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span><span class="n">i</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">lipidnames</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">j</span><span class="p">]))</span>
+		<span class="n">lipid_counts</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">lipid_nameset</span><span class="p">]</span>
+		
+		<span class="c">#---clear previous files to avoid downstream confusion</span>
+		<span class="k">for</span> <span class="n">fname</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;./place-grid-start.gro&#39;</span><span class="p">,</span><span class="s">&#39;./place-grid-start0.gro&#39;</span><span class="p">,</span><span class="s">&#39;./place-grid-start1.gro&#39;</span><span class="p">]:</span>
+			<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">fname</span><span class="p">):</span> <span class="n">call</span><span class="p">(</span><span class="s">&#39;rm &#39;</span><span class="o">+</span><span class="n">fname</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+		<span class="c">#---loop over distinct monolayer compositions	</span>
+		<span class="k">for</span> <span class="n">ci</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">monocomplist</span><span class="p">)):</span>
+			<span class="n">complist</span> <span class="o">=</span> <span class="n">monocomplist</span><span class="p">[</span><span class="n">ci</span><span class="p">]</span>
+			<span class="k">print</span> <span class="s">&#39;building monolayer &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">ci</span><span class="p">)</span>
+
+			<span class="c">#---generate random configuration</span>
+			<span class="n">counts</span> <span class="o">=</span> <span class="p">[]</span>
+			
+			<span class="k">if</span> <span class="nb">sum</span><span class="p">(</span><span class="n">complist</span><span class="p">)</span> <span class="o">!=</span> <span class="mf">1.0</span><span class="p">:</span> <span class="n">complist</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">/</span><span class="nb">sum</span><span class="p">(</span><span class="n">complist</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">complist</span><span class="p">]</span>
+			<span class="n">arrangement</span> <span class="o">=</span> <span class="p">[]</span>
+			<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">complist</span><span class="p">))[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+				<span class="n">nlipids</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">complist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">*</span><span class="n">nlipids0</span><span class="p">))</span>
+				<span class="n">counts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nlipids</span><span class="p">)</span>
+				<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">arrangement</span><span class="p">)</span><span class="o">+</span><span class="n">nlipids</span> <span class="o">&gt;</span> <span class="n">total_lipids</span><span class="p">[</span><span class="n">ci</span><span class="p">]:</span> 
+					<span class="k">print</span> <span class="s">&#39;rounding correction on the number of &#39;</span><span class="o">+</span><span class="n">lipidnames</span><span class="p">[</span><span class="n">ci</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+					<span class="n">nlipids</span> <span class="o">=</span> <span class="n">total_lipids</span><span class="p">[</span><span class="n">ci</span><span class="p">]</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">arrangement</span><span class="p">)</span>
+				<span class="k">print</span> <span class="s">&#39;lipid with composition = &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">complist</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">+</span><span class="s">&#39; requires &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">nlipids</span><span class="p">)</span><span class="o">+</span><span class="s">&#39; lipids&#39;</span>
+				<span class="n">arrangement</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">i</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nlipids</span><span class="p">)])</span>
+				<span class="n">lipid_counts</span><span class="p">[</span><span class="n">lipid_nameset</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">lipidnames</span><span class="p">[</span><span class="n">ci</span><span class="p">][</span><span class="n">i</span><span class="p">])]</span> <span class="o">+=</span> <span class="n">nlipids</span>
+			
+			<span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">arrangement</span><span class="p">)</span>
+			<span class="n">arrangement</span> <span class="o">=</span> <span class="p">[[</span><span class="n">arrangement</span><span class="p">[</span><span class="n">i</span><span class="o">*</span><span class="n">totside</span><span class="p">[</span><span class="n">ci</span><span class="p">]</span><span class="o">+</span><span class="n">j</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">totside</span><span class="p">[</span><span class="n">ci</span><span class="p">])</span> 
+				<span class="k">if</span> <span class="n">i</span><span class="o">*</span><span class="n">totside</span><span class="p">[</span><span class="n">ci</span><span class="p">]</span><span class="o">+</span><span class="n">j</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">arrangement</span><span class="p">)]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">arrangement</span><span class="p">)</span><span class="o">/</span><span class="n">totside</span><span class="p">[</span><span class="n">ci</span><span class="p">]</span><span class="o">+</span>
+				<span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">arrangement</span><span class="p">)</span><span class="o">/</span><span class="n">totside</span><span class="p">[</span><span class="n">ci</span><span class="p">]</span> <span class="o">==</span> <span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">arrangement</span><span class="p">))</span><span class="o">/</span><span class="n">totside</span><span class="p">[</span><span class="n">ci</span><span class="p">]</span> <span class="k">else</span> <span class="mi">1</span><span class="p">))]</span>
+			<span class="k">print</span> <span class="s">&#39;proposed configuration = </span><span class="se">\n</span><span class="s">&#39;</span><span class="o">+</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">arrangement</span><span class="p">])</span>
+
+			<span class="c">#---vizualization feature</span>
+			<span class="k">try</span><span class="p">:</span> 
+				<span class="kn">import</span> <span class="nn">numpy</span>
+				<span class="kn">import</span> <span class="nn">matplotlib</span> <span class="kn">as</span> <span class="nn">mpl</span>
+				<span class="kn">import</span> <span class="nn">matplotlib.pylab</span> <span class="kn">as</span> <span class="nn">plt</span>
+				<span class="n">cmap</span> <span class="o">=</span> <span class="n">mpl</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">jet</span>
+				<span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+				<span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">111</span><span class="p">)</span>
+				<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">&#39;lipid configuration&#39;</span><span class="p">)</span>
+				<span class="n">afill</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">arrangement</span><span class="p">)</span>
+				<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">afill</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">afill</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+					<span class="n">afill</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">afill</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">complist</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">afill</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">afill</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))]</span>
+					<span class="k">print</span> <span class="s">&#39;note that fill values of &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">complist</span><span class="p">))</span><span class="o">+</span><span class="s">&#39; are empty&#39;</span>
+					<span class="n">bounds</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">complist</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+				<span class="k">else</span><span class="p">:</span> <span class="n">bounds</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">complist</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+				<span class="n">afill</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">afill</span><span class="p">)</span>
+				<span class="k">print</span> <span class="n">bounds</span>
+				<span class="k">print</span> <span class="n">afill</span>
+				<span class="n">norm</span> <span class="o">=</span> <span class="n">mpl</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">BoundaryNorm</span><span class="p">(</span><span class="n">bounds</span><span class="p">,</span><span class="n">cmap</span><span class="o">.</span><span class="n">N</span><span class="p">)</span>
+				<span class="n">im</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">afill</span><span class="o">.</span><span class="n">T</span><span class="p">,</span><span class="n">interpolation</span><span class="o">=</span><span class="s">&#39;nearest&#39;</span><span class="p">,</span>
+					<span class="n">origin</span><span class="o">=</span><span class="s">&#39;lower&#39;</span><span class="p">,</span><span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span><span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">)</span>
+				<span class="n">cbar</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">im</span><span class="p">,</span><span class="n">orientation</span><span class="o">=</span><span class="s">&quot;vertical&quot;</span><span class="p">)</span>
+				<span class="k">print</span> <span class="s">&#39;found matplotlib and saving figure to fig-arrangement&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">ci</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.png&#39;</span>
+				<span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;fig-arrangement&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">ci</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.png&#39;</span><span class="p">,</span><span class="n">dpi</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+				<span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+
+			<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span> <span class="k">print</span> <span class="s">&#39;no numpy or matplotlib so the text arrangement will have to do&#39;</span>
+
+			<span class="c">#---write the configuration</span>
+			<span class="n">fp</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;config.dat&#39;</span><span class="p">,</span><span class="s">&#39;w&#39;</span><span class="p">)</span>
+			<span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;arrangement = &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="nb">list</span><span class="p">([</span><span class="nb">list</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">arrangement</span><span class="p">])))</span>
+			<span class="n">fp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+			<span class="c">#---generate the grid</span>
+			<span class="n">lipidlist</span> <span class="o">=</span> <span class="p">[</span><span class="n">lipid_location</span><span class="o">+</span><span class="s">&#39;/&#39;</span><span class="o">+</span><span class="n">i</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">lipidnames</span><span class="p">[</span><span class="n">ci</span><span class="p">]]</span>
+			<span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">arrangement</span><span class="p">)):</span>
+				<span class="n">start_lipid</span><span class="o">=</span><span class="s">&#39;&#39;</span>
+				<span class="n">next_lipid</span><span class="o">=</span><span class="s">&#39;&#39;</span>
+				<span class="n">start_lipid</span> <span class="o">=</span> <span class="n">lipidlist</span><span class="p">[</span><span class="n">arrangement</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span>
+				<span class="n">next_lipid</span> <span class="o">=</span> <span class="n">lipidlist</span><span class="p">[</span><span class="n">arrangement</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="mi">1</span><span class="p">]]</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">combinator</span><span class="p">(</span><span class="n">start_lipid</span><span class="p">,</span><span class="n">next_lipid</span><span class="p">,</span><span class="s">&#39;out.gro&#39;</span><span class="p">,</span><span class="n">spacing</span><span class="o">=</span><span class="n">spacing</span><span class="p">,</span><span class="n">rootdir</span><span class="o">=</span><span class="n">rootdir</span><span class="p">)</span>	
+				<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">arrangement</span><span class="p">[</span><span class="n">j</span><span class="p">])):</span>
+					<span class="n">call</span><span class="p">(</span><span class="s">&#39;mv out.gro in.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+					<span class="n">next_lipid</span> <span class="o">=</span> <span class="n">lipidlist</span><span class="p">[</span><span class="n">arrangement</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">i</span><span class="p">]]</span>
+					<span class="bp">self</span><span class="o">.</span><span class="n">combinator</span><span class="p">(</span><span class="s">&#39;in.gro&#39;</span><span class="p">,</span><span class="n">next_lipid</span><span class="p">,</span><span class="s">&#39;out.gro&#39;</span><span class="p">,</span><span class="n">spacing</span><span class="o">=</span><span class="n">spacing</span><span class="p">,</span><span class="n">rootdir</span><span class="o">=</span><span class="n">rootdir</span><span class="p">)</span>
+				<span class="n">estr</span><span class="o">=</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">]</span><span class="o">+</span><span class="s">&#39; -f out.gro -o row&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">j</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro -d 0 -resnr 1 &amp;&gt; log-editconf-out&#39;</span>
+				<span class="n">call</span><span class="p">(</span><span class="n">estr</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+				<span class="n">call</span><span class="p">(</span><span class="s">&#39;rm in.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+				<span class="n">call</span><span class="p">(</span><span class="s">&#39;rm out.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">combinator_row</span><span class="p">(</span><span class="s">&#39;row0.gro&#39;</span><span class="p">,</span><span class="s">&#39;row1.gro&#39;</span><span class="p">,</span><span class="s">&#39;grid.gro&#39;</span><span class="p">,</span><span class="n">spacing</span><span class="o">=</span><span class="n">spacing</span><span class="p">,</span><span class="n">rootdir</span><span class="o">=</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">arrangement</span><span class="p">)):</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">combinator_row</span><span class="p">(</span><span class="s">&#39;grid.gro&#39;</span><span class="p">,</span><span class="s">&#39;row&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">j</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span><span class="p">,</span><span class="s">&#39;grid.gro&#39;</span><span class="p">,</span>
+					<span class="n">spacing</span><span class="o">=</span><span class="n">spacing</span><span class="p">,</span><span class="n">rootdir</span><span class="o">=</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="n">asymmetric</span><span class="p">:</span> <span class="n">finalname</span> <span class="o">=</span> <span class="s">&#39;place-grid-start.gro&#39;</span>
+			<span class="k">else</span><span class="p">:</span> <span class="n">finalname</span> <span class="o">=</span> <span class="s">&#39;place-grid-start&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">ci</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span>
+			<span class="n">call</span><span class="p">(</span><span class="s">&#39;cp grid.gro &#39;</span><span class="o">+</span><span class="n">finalname</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+			<span class="n">call</span><span class="p">(</span><span class="s">&#39;rm row*.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+			<span class="n">call</span><span class="p">(</span><span class="s">&#39;rm \#*&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">rootdir</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+		<span class="c">#---write the composition</span>
+		<span class="n">fp</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;composition.dat&#39;</span><span class="p">,</span><span class="s">&#39;w&#39;</span><span class="p">)</span>
+		<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lipid_nameset</span><span class="p">)):</span> <span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">lipid_nameset</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">lipid_counts</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">+</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>	
+		<span class="n">fp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+		<span class="k">print</span> <span class="s">&#39;done building monolayer&#39;</span><span class="o">+</span><span class="p">(</span><span class="s">&#39;s&#39;</span> <span class="k">if</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="s">&#39;&#39;</span><span class="p">)</span>
+	</div></div>
+</pre></div>
+
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2014, Ryan Bradley.
+    </p>
+  </div>
+
+  <a href="https://github.com/snide/sphinx_rtd_theme">Sphinx theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../',
+            VERSION:'1.0.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

@@ -3,13 +3,13 @@
 #---AUTOMACS (automatic GROMACS) run settings
 
 #---type
-SIMTYPE="aamd-protein"
+SIMTYPE="aamd-bilayer"
 
 #---equilibration steps (nvt-short, nvt, npt)
 STEPSTRING="nvt-short nvt npt"
 
 #---input files
-SOURCEDIR=
+SOURCEDIR=../s2-build-bilayer
 STRUCT=system.gro
 TOP=system.top
 ITP=*.itp
@@ -24,8 +24,8 @@ cp $SOURCEDIR/$TOP ./system.top
 cp $SOURCEDIR/$GRP ./system-groups.ndx
 cp $SOURCEDIR/$ITP ./
 cp $SOURCEDIR/composition.dat ./
-cp -r $SOURCEDIR/*.ff ./
+cp -r $SOURCEDIR/martini.ff ./
 cp -r $SOURCEDIR/lipids-tops ./
 
 #---copy standard input files for minimization
-cp $AMXPATH/cgmd-bilayer-equil/* ./
+cp $AMXPATH/aamd-bilayer-equil/* ./

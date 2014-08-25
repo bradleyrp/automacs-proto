@@ -1,0 +1,563 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>amx package &mdash; amx 1.0.0 documentation</title>
+  
+
+  
+  
+
+  
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="amx 1.0.0 documentation" href="index.html"/>
+        <link rel="prev" title="Automacs (AMX) Documentation" href="index.html"/> 
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.6.2/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-nav-search">
+        <a href="index.html" class="fa fa-home"> amx</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        
+        
+            <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="">amx package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#building-coarse-grained-bilayers">Building coarse-grained bilayers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#equilibration">Equilibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-amx.lipidgrid">amx.lipidgrid module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-amx.bilayer">amx.bilayer module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-amx.tools">amx.tools module</a></li>
+</ul>
+</li>
+</ul>
+
+        
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">amx</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+      
+    <li>amx package</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          <a href="_sources/amx.txt" rel="nofollow"> View page source</a>
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            
+  <div class="section" id="amx-package">
+<h1>amx package<a class="headerlink" href="#amx-package" title="Permalink to this headline">¶</a></h1>
+<p>&#8220;Automacs&#8221; is short for automatic GROMACS, and serves as a catchall for a set of tools designed to
+automatically generate molecular dynamics simulations of biophysical lipid bilayers with associated proteins.</p>
+<p>Currently, the <tt class="docutils literal"><span class="pre">amx</span></tt> package contains only routines to build MARTINI coarse-grained bilayers.</p>
+<div class="section" id="building-coarse-grained-bilayers">
+<h2>Building coarse-grained bilayers<a class="headerlink" href="#building-coarse-grained-bilayers" title="Permalink to this headline">¶</a></h2>
+<p>The procedure for building a coarse-grained bilayer has three parts.</p>
+<ol class="arabic simple">
+<li>Make a two-dimensional grid of lipids in order to form monolayers.</li>
+<li>Assemble two monolayers into a bilayer and add solvent and counterions.</li>
+<li>Equilibrate the bilayer system and prepare for a production run.</li>
+</ol>
+<p>Assembly of the monolayer and bilayer are performed by the <tt class="docutils literal"><span class="pre">lipidgrid</span></tt> and <tt class="docutils literal"><span class="pre">bilayer</span></tt> modules,
+respectively. These modules are described in detail below. These codes are executed by the python script
+titled <tt class="docutils literal"><span class="pre">script-amx-cgmd-bilayer</span></tt>. This script contains the following key commands.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">amx.lipidgrid</span> <span class="kn">import</span> <span class="n">MonolayerGrids</span>
+<span class="kn">from</span> <span class="nn">amx.bilayer</span> <span class="kn">import</span> <span class="n">Bilayer</span>
+<span class="kn">from</span> <span class="nn">amx.tools</span> <span class="kn">import</span> <span class="o">*</span>
+
+<span class="n">MonolayerGrids</span><span class="p">(</span><span class="n">rootdir</span><span class="o">=</span><span class="s">&#39;s1-build-lipidgrid&#39;</span><span class="p">)</span>
+<span class="n">Bilayer</span><span class="p">(</span><span class="n">rootdir</span><span class="o">=</span><span class="s">&#39;s2-build-bilayer&#39;</span><span class="p">,</span><span class="n">previous_dir</span><span class="o">=</span><span class="s">&#39;s1-build-lipidgrid&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>After importing the necessary classes from the <tt class="docutils literal"><span class="pre">amx</span></tt> module, the script creates a <tt class="docutils literal"><span class="pre">MonolayerGrids</span></tt>
+instance followed by a <tt class="docutils literal"><span class="pre">Bilayer</span></tt> instance. These class instances will generate simulation data in new
+subfolders, which are preferably labeled by step. That is <tt class="docutils literal"><span class="pre">s2-build-bilayer</span></tt> refers to the second step in
+which we build the bilayer from the monolayers generated in the first.</p>
+<p>This workflow allows each class instance to operate on a self-contained folder in order to assemble and
+simulate the system of interest. This minimizes the amount and complexity of the code, since we repeat many
+steps (e.g. regenerate a different set of counterions) during the course of running many simulations.</p>
+<p>By convention, the input specifications are stored in the <tt class="docutils literal"><span class="pre">inputs</span></tt> folder while chemical information, such
+as lipid configurations and topologies are stored in the <tt class="docutils literal"><span class="pre">sources</span></tt> folder. All of these settings can be
+changed according to the class specifications given below.</p>
+</div>
+<div class="section" id="equilibration">
+<h2>Equilibration<a class="headerlink" href="#equilibration" title="Permalink to this headline">¶</a></h2>
+<p>For compatibility purposes, both equilibration and production simulations are executed via Perl scripts.</p>
+</div>
+<div class="section" id="module-amx.lipidgrid">
+<span id="amx-lipidgrid-module"></span><h2>amx.lipidgrid module<a class="headerlink" href="#module-amx.lipidgrid" title="Permalink to this headline">¶</a></h2>
+<p>This module will generate a lipid monolayer configurations according to input compositions and
+a few fairly standard geometric measurements. It relies on a small library of lipids structures and 
+topologies which are typically located in the <tt class="docutils literal"><span class="pre">sources</span></tt> directory.</p>
+<div class="figure align-center">
+<a class="reference internal image-reference" href="_images/automacs-cgmd-bilayer-monolayer.jpeg"><img alt="monolayer snapshot" src="_images/automacs-cgmd-bilayer-monolayer.jpeg" style="width: 75%;" /></a>
+<p class="caption">Example monolayer configuration.</p>
+</div>
+<p>The image above is an example monolayer configuration written to <tt class="docutils literal"><span class="pre">place-grid-start.gro</span></tt>. You can see that 
+the coarse-grained beads are not connected. The <tt class="docutils literal"><span class="pre">MonolayerGrids</span></tt> instance does not generate a topology, 
+so we won&#8217;t see the bonds until we use the <tt class="docutils literal"><span class="pre">amx.bilayer</span></tt> submodule to construct and minimize the bilayer.</p>
+<div class="section" id="settings">
+<h3>Settings<a class="headerlink" href="#settings" title="Permalink to this headline">¶</a></h3>
+<p>Input settings are imported from the python-style file called <tt class="docutils literal"><span class="pre">inputs/input-specs-bilayer.dat</span></tt> by default.
+For a bilayer with different compositions for each monolayer, we use the following defintions.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#---COMPOSITIONS</span>
+<span class="c">#---note you can set equal monolayer compositions by deleting complist1, etc</span>
+
+<span class="n">nlipids0</span> <span class="o">=</span> <span class="mi">400</span>
+<span class="n">complist0</span> <span class="o">=</span> <span class="p">[</span><span class="mi">80</span><span class="p">,</span><span class="mi">19</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">lipidnames0</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;DOPC&#39;</span><span class="p">,</span><span class="s">&#39;DOPS&#39;</span><span class="p">,</span><span class="s">&#39;PIP2&#39;</span><span class="p">]</span>
+<span class="n">nlipids1</span> <span class="o">=</span> <span class="mi">400</span>
+<span class="n">complist1</span> <span class="o">=</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">lipidnames1</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;DOPC&#39;</span><span class="p">,</span><span class="s">&#39;DOPS&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Elsewhere in the <tt class="docutils literal"><span class="pre">inputs/input-specs-bilayer.dat</span></tt> we find the geometric settings for assembling the
+monolayers. The key parameter here is the <tt class="docutils literal"><span class="pre">solvent_thickness</span></tt> which sets the size of the water slab in 
+nanometers.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">bilayer_construction_settings</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s">&#39;lbuffer&#39;</span><span class="p">:</span><span class="mf">0.1</span><span class="p">,</span>
+        <span class="s">&#39;tbuffer&#39;</span><span class="p">:</span><span class="mf">0.1</span><span class="p">,</span>
+        <span class="s">&#39;pbc_spacing&#39;</span><span class="p">:</span><span class="mf">0.2</span><span class="p">,</span>
+        <span class="s">&#39;solvent_thickness&#39;</span><span class="p">:</span><span class="mi">10</span><span class="p">,</span>
+        <span class="s">&#39;lipid_water_buffer&#39;</span><span class="p">:</span><span class="mf">0.1</span><span class="p">,</span>
+        <span class="s">&#39;ion_strength&#39;</span><span class="p">:</span><span class="mf">0.150</span><span class="p">,</span>
+        <span class="s">&#39;negative_ion_name&#39;</span><span class="p">:</span><span class="s">&#39;CL&#39;</span><span class="p">,</span><span class="s">&#39;nq&#39;</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="s">&#39;positive_ion_name&#39;</span><span class="p">:</span><span class="s">&#39;NA&#39;</span><span class="p">,</span><span class="s">&#39;pq&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span>
+        <span class="s">&#39;lipid_spacing&#39;</span><span class="p">:</span><span class="mf">0.2</span><span class="p">,</span>
+        <span class="p">}</span>
+</pre></div>
+</div>
+<p>These parameters also set the spacing between lipids, between monolayer tails, and so on.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="18%" />
+<col width="82%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Parameter</th>
+<th class="head">Definition</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>lbuffer</td>
+<td>spacing between individual lipids in the grid</td>
+</tr>
+<tr class="row-odd"><td>tbuffer</td>
+<td>spacing between the ends of lipid tails when making a bilayer from a monolayer</td>
+</tr>
+<tr class="row-even"><td>pbc_spacing</td>
+<td>distance between monolayers under PBC during vacuum construction step</td>
+</tr>
+<tr class="row-odd"><td>solvent_thickness</td>
+<td>thickness of the water slab in nm, normal to the bilayer (may relax)</td>
+</tr>
+<tr class="row-even"><td>lipid_water_buffer</td>
+<td>gap between lipids and water during solvate step</td>
+</tr>
+<tr class="row-odd"><td>ion_strength</td>
+<td>molar ion concentration (check the code for the exact procedure)</td>
+</tr>
+<tr class="row-even"><td>lipid_spacing</td>
+<td>the distance in nm between adjacent lipids during combinator methods</td>
+</tr>
+</tbody>
+</table>
+<dl class="class">
+<dt id="amx.lipidgrid.MonolayerGrids">
+<em class="property">class </em><tt class="descclassname">amx.lipidgrid.</tt><tt class="descname">MonolayerGrids</tt><big>(</big><em>rootdir</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/amx/lipidgrid.html#MonolayerGrids"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.lipidgrid.MonolayerGrids" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class which generates a lipid monolayer configurations according to desired compositions.</p>
+<p>Creating a single instance of this class will automatically run the construction procedure in the root 
+directory (a required keyword argument). Compositions are specified in <tt class="docutils literal"><span class="pre">inputs/input-specs-bilayer.dat</span></tt>
+and the user can choose to make the bilayer symmetric by only defining one composition there.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>rootdir</strong> : str</p>
+<blockquote class="last">
+<div><p>relative path to perform the monolayer construction and save the final configuration file</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="amx.lipidgrid.MonolayerGrids.build_monolayers">
+<tt class="descname">build_monolayers</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/amx/lipidgrid.html#MonolayerGrids.build_monolayers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.lipidgrid.MonolayerGrids.build_monolayers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate a random arrangement of lipids and iteratively construct a grid of lipid structures according
+to this arrangement. If <tt class="docutils literal"><span class="pre">matplotlib</span></tt> is available, the program will render the random configuration
+and save the results in the root directory. Note that this step currently requires <tt class="docutils literal"><span class="pre">numpy</span></tt>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="amx.lipidgrid.MonolayerGrids.combinator">
+<tt class="descname">combinator</tt><big>(</big><em>big</em>, <em>add</em>, <em>out</em>, <em>spacing=0.2</em>, <em>rootdir='./'</em><big>)</big><a class="reference internal" href="_modules/amx/lipidgrid.html#MonolayerGrids.combinator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.lipidgrid.MonolayerGrids.combinator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a lipid to a row of lipids.</p>
+<p>This function takes a lipid configuration with an arbitrary number of lipid structures in a straight 
+line. It adds a new lipid to the row, and writes the resulting configuration. It is designed to build 
+a row of lipids piecewise in the y-dimension. The complete rows are assembled by the combinator_row 
+function in the x-dimension to create a grid of lipids which will eventually become a monolayer. This 
+function is called repeatedly by the <a class="reference internal" href="#amx.lipidgrid.MonolayerGrids.build_monolayers" title="amx.lipidgrid.MonolayerGrids.build_monolayers"><tt class="xref py py-class docutils literal"><span class="pre">build_monolayers</span></tt></a> 
+function.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>big</strong> : str</p>
+<blockquote>
+<div><p>relative path to a structure (gro) file containing a row of lipids</p>
+</div></blockquote>
+<p><strong>add</strong> : str</p>
+<blockquote>
+<div><p>relative path to a structure (gro) file of the lipid to be added to the row of lipids</p>
+</div></blockquote>
+<p><strong>out</strong> : str</p>
+<blockquote class="last">
+<div><p>write the combined configuration to an output structure (gro) file</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="amx.lipidgrid.MonolayerGrids.combinator_row">
+<tt class="descname">combinator_row</tt><big>(</big><em>big</em>, <em>add</em>, <em>out</em>, <em>spacing=0.2</em>, <em>rootdir='./'</em><big>)</big><a class="reference internal" href="_modules/amx/lipidgrid.html#MonolayerGrids.combinator_row"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.lipidgrid.MonolayerGrids.combinator_row" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a row of lipids to a grid of lipids.</p>
+<p>This function takes a lipid configuration with an arbitrary number of rows of lipid structures in a 
+grid Formation. It adds a new lipid row to the grid, and writes the resulting configuration. It adds 
+rows in The x-dimension, and hence takes a lipid row which is oriented in the y-dimension. This 
+function is called repeatedly by the build_monolayer function.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>big</strong> : str</p>
+<blockquote>
+<div><p>relative path to a structure (gro) file containing a grid of lipids</p>
+</div></blockquote>
+<p><strong>add</strong> : str</p>
+<blockquote>
+<div><p>relative path to a structure (gro) file of the lipid row to be added to the grid of lipids</p>
+</div></blockquote>
+<p><strong>out</strong> : str</p>
+<blockquote class="last">
+<div><p>write the combined configuration to an output structure (gro) file</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="module-amx.bilayer">
+<span id="amx-bilayer-module"></span><h2>amx.bilayer module<a class="headerlink" href="#module-amx.bilayer" title="Permalink to this headline">¶</a></h2>
+<p>This module takes one or two monolayers consisting of a grid of lipids oriented in the z-dimension. It
+combines them into a bilayer, minimizes in vacuum, simulates with restraints to pack the lipids into a natural
+area, adds water and counterions, and performs a final minimization. The resulting structure will be ready for
+equilibration and production simulation.</p>
+<div class="figure align-center">
+<a class="reference internal image-reference" href="_images/automacs-cgmd-bilayer-bilayer.jpeg"><img alt="monolayer snapshot" src="_images/automacs-cgmd-bilayer-bilayer.jpeg" style="width: 75%;" /></a>
+<p class="caption">Example bilayer configuration before adding solvent.</p>
+</div>
+<p>For simplicity, you build a bilayer by creating a <tt class="docutils literal"><span class="pre">Bilayer</span></tt> class instance. You must provide the location of
+the monolayer configurations necessary to build the bilayer. This can be done by passing the <tt class="docutils literal"><span class="pre">previous_dir</span></tt>
+keyword argument according to the following example from <tt class="docutils literal"><span class="pre">script-amx-cgmd-bilayer</span></tt>.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">Bilayer</span><span class="p">(</span><span class="n">rootdir</span><span class="o">=</span><span class="s">&#39;s2-build-bilayer&#39;</span><span class="p">,</span><span class="n">previous_dir</span><span class="o">=</span><span class="s">&#39;s1-build-lipidgrid&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Creating the class object takes care of everything else. When it is complete, you will find a <tt class="docutils literal"><span class="pre">system.gro</span></tt> 
+and the associated topology and index files in the <tt class="docutils literal"><span class="pre">s2-build-bilayer</span></tt> folder. The assembly process includes
+the following steps.</p>
+<ol class="arabic simple">
+<li>Assemble the monolayers into a bilayer and minimize.</li>
+<li>Pack the lipids into a more natural configuration by simulating in vacuum with position restraints
+on the head and tails to keep the lipids aligned.</li>
+<li>Add a slab of water and minimize.</li>
+<li>Add counterions and minimize.</li>
+</ol>
+<p>The overall procedure is executed via <tt class="docutils literal"><span class="pre">Bilayer.construction()</span></tt> and can be restarted in case of errors at the 
+last successful step.</p>
+<dl class="class">
+<dt id="amx.bilayer.Bilayer">
+<em class="property">class </em><tt class="descclassname">amx.bilayer.</tt><tt class="descname">Bilayer</tt><big>(</big><em>rootdir=None</em>, <em>previous_dir=None</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/amx/bilayer.html#Bilayer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.bilayer.Bilayer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class which generates a solvated bilayer with counterions from monolayer configurations.</p>
+<p>Note that creating an instance of this class will automatically run the construction procedure. You must 
+provide locations to the monolayer configurations when the object is created. Otherwise, all parameters
+are specified in <tt class="docutils literal"><span class="pre">inputs/input-specs-bilayer.dat</span></tt>. Note that this file handles inputs for both the 
+atomistic and coarse-grained bilayer construction, both of which are handled by this class. The 
+construction process procedes automatically, but will skip ahead if the process is interrupted and 
+then restarted.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>rootdir</strong> : str</p>
+<blockquote>
+<div><p>relative path to store simulation data</p>
+</div></blockquote>
+<p><strong>previous_dir</strong> : str</p>
+<blockquote class="last">
+<div><p>path to the directory containing monolayer configurations in either <tt class="docutils literal"><span class="pre">place-grid-start0.gro</span></tt> and 
+<tt class="docutils literal"><span class="pre">place-grid-start0.gro</span></tt> for a bilayer with an asymmetric composition, or 
+<tt class="docutils literal"><span class="pre">place-grid-start.gro</span></tt> for a symmetric bilayer.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="amx.bilayer.Bilayer.construction">
+<tt class="descname">construction</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/amx/bilayer.html#Bilayer.construction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.bilayer.Bilayer.construction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute construction steps in sequence and skip ahead if they are already completed. Infer whether 
+construction steps are complete by checking for their final output files. The procedure executes in
+the following order.</p>
+<ol class="arabic simple">
+<li><a class="reference internal" href="#amx.bilayer.Bilayer.vacuum" title="amx.bilayer.Bilayer.vacuum"><tt class="xref py py-class docutils literal"><span class="pre">vacuum</span></tt></a></li>
+<li><a class="reference internal" href="#amx.bilayer.Bilayer.packing" title="amx.bilayer.Bilayer.packing"><tt class="xref py py-class docutils literal"><span class="pre">packing</span></tt></a></li>
+<li><a class="reference internal" href="#amx.bilayer.Bilayer.solvate" title="amx.bilayer.Bilayer.solvate"><tt class="xref py py-class docutils literal"><span class="pre">solvate</span></tt></a></li>
+<li><a class="reference internal" href="#amx.bilayer.Bilayer.counterionize" title="amx.bilayer.Bilayer.counterionize"><tt class="xref py py-class docutils literal"><span class="pre">counterionize</span></tt></a></li>
+</ol>
+</dd></dl>
+
+<dl class="method">
+<dt id="amx.bilayer.Bilayer.counterionize">
+<tt class="descname">counterionize</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/amx/bilayer.html#Bilayer.counterionize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.bilayer.Bilayer.counterionize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add counterions to the water slab.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="amx.bilayer.Bilayer.get_box_vectors">
+<tt class="descname">get_box_vectors</tt><big>(</big><em>logfile</em>, <em>new=True</em><big>)</big><a class="reference internal" href="_modules/amx/bilayer.html#Bilayer.get_box_vectors"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.bilayer.Bilayer.get_box_vectors" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read box vectors from editconf output stored in a log file.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="amx.bilayer.Bilayer.grouping">
+<tt class="descname">grouping</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/amx/bilayer.html#Bilayer.grouping"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.bilayer.Bilayer.grouping" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write the <tt class="docutils literal"><span class="pre">system-groups.ndx</span></tt> file for further simulation, which requires that the water and 
+lipids and possibly proteins are coupled to their own temperature baths.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="amx.bilayer.Bilayer.minimization_method">
+<tt class="descname">minimization_method</tt><big>(</big><em>name</em>, <em>posre=False</em><big>)</big><a class="reference internal" href="_modules/amx/bilayer.html#Bilayer.minimization_method"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.bilayer.Bilayer.minimization_method" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generic minimization method with a drop-in name and standard inputs. This function takes a file
+suffix and performs a minimization on the corresponding <tt class="docutils literal"><span class="pre">gro</span></tt> file.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="amx.bilayer.Bilayer.packing">
+<tt class="descname">packing</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/amx/bilayer.html#Bilayer.packing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.bilayer.Bilayer.packing" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pack the lipids into a natural configuration by simulating in vacuum with restraints.</p>
+<p>This function runs vacuum simulation in stages according to available input files specified in the
+<tt class="docutils literal"><span class="pre">inputs/input-specs-bilayer.dat</span></tt> file. These inputs are sequenced to ensure that the bilayer is 
+contiguous and the lipids are aligned. Position restraints written into the lipid topologies prevent
+the lipids from escaping.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="amx.bilayer.Bilayer.solvate">
+<tt class="descname">solvate</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/amx/bilayer.html#Bilayer.solvate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.bilayer.Bilayer.solvate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a slab of water next to the bilayer. <tt class="docutils literal"><span class="pre">inputs/input-specs-bilayer.dat</span></tt> sets some of the geometric
+parameters, namely the solvent_thickness, which determines the total amount of water in the system 
+before any relaxation steps.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="amx.bilayer.Bilayer.vacuum">
+<tt class="descname">vacuum</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/amx/bilayer.html#Bilayer.vacuum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.bilayer.Bilayer.vacuum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Assemble monolayers into a bilayer and minimize.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="amx.bilayer.Bilayer.write_topology">
+<tt class="descname">write_topology</tt><big>(</big><em>topname</em>, <em>restraints=False</em>, <em>water_only=False</em><big>)</big><a class="reference internal" href="_modules/amx/bilayer.html#Bilayer.write_topology"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.bilayer.Bilayer.write_topology" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write the topology file from residue lists stored in <tt class="docutils literal"><span class="pre">self.lnames</span></tt> and <tt class="docutils literal"><span class="pre">self.complist</span></tt>.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-amx.tools">
+<span id="amx-tools-module"></span><h2>amx.tools module<a class="headerlink" href="#module-amx.tools" title="Permalink to this headline">¶</a></h2>
+<p>The tools module provides supporting functions for the other modules in order to simplify the code. These 
+consist primarily of functions which interact with the filesystem either via Python libraries such as 
+<tt class="docutils literal"><span class="pre">shutil</span></tt> or via Bash using the <tt class="docutils literal"><span class="pre">subprocess</span></tt> or <tt class="docutils literal"><span class="pre">sys</span></tt> modules. Modules import necessary functions with 
+the following code.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">amx.tools</span> <span class="kn">import</span> <span class="n">call</span><span class="p">,</span><span class="n">tee</span><span class="p">,</span><span class="n">checkout</span>
+</pre></div>
+</div>
+<dl class="function">
+<dt id="amx.tools.call">
+<tt class="descclassname">amx.tools.</tt><tt class="descname">call</tt><big>(</big><em>command</em>, <em>logfile=None</em>, <em>cwd=None</em>, <em>silent=False</em><big>)</big><a class="reference internal" href="_modules/amx/tools.html#call"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.tools.call" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrapper for system calls in a different directory with a dedicated log file.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="amx.tools.checkout">
+<tt class="descclassname">amx.tools.</tt><tt class="descname">checkout</tt><big>(</big><em>command</em>, <em>cwd=None</em><big>)</big><a class="reference internal" href="_modules/amx/tools.html#checkout"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.tools.checkout" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the result of a shell command.</p>
+<p>This command emulates the <tt class="docutils literal"><span class="pre">subprocess.check_output</span></tt> function for systems with older versions of that 
+module. If <tt class="docutils literal"><span class="pre">subprocess.check_output</span></tt> is unavailable, it routes the <tt class="docutils literal"><span class="pre">STDOUT</span></tt> from the command to
+a temporary text file and then reads that.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="amx.tools.copy">
+<tt class="descclassname">amx.tools.</tt><tt class="descname">copy</tt><big>(</big><em>source</em>, <em>destination</em><big>)</big><a class="reference internal" href="_modules/amx/tools.html#copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.tools.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generic copy function for handling files or directories.</p>
+<p>This copy function can copy directories as long as the destination folder is fully specified. It will
+also copy a folder&#8217;s contents to another folder directly if the Bash-style asterisk wildcard is found
+in the source argument. It also copies individual files.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="amx.tools.tee">
+<em class="property">class </em><tt class="descclassname">amx.tools.</tt><tt class="descname">tee</tt><big>(</big><em>*files</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/amx/tools.html#tee"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.tools.tee" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Routes print statements to the screen and a log file.</p>
+<p>Routes output to multiple streams, namely a log file and stdout, emulating the linux &#8220;tee&#8221; function. 
+Whenever a new log file is desired, use the following code to replace <tt class="docutils literal"><span class="pre">sys.stdout</span></tt> and route all print
+statements to both the screen and the log file.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="n">tee</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;log-script-master&#39;</span><span class="p">,</span><span class="s">&#39;a&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Initialize the object with a file handle for the new log file. It is possible to run <tt class="docutils literal"><span class="pre">tee</span></tt> multiple
+times in order to redirect <tt class="docutils literal"><span class="pre">print</span></tt> output to a new file. The new object checks to see if 
+<tt class="docutils literal"><span class="pre">sys.stdout</span></tt> is a tee object or the &#8220;real&#8221; stream, and rolls both into the new object.</p>
+<dl class="method">
+<dt id="amx.tools.tee.write">
+<tt class="descname">write</tt><big>(</big><em>obj</em><big>)</big><a class="reference internal" href="_modules/amx/tools.html#tee.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.tools.tee.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>The write function here emulates the write functions for both files and the standard output stream
+so that the tee object will always write to both places.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="index.html" class="btn btn-neutral" title="Automacs (AMX) Documentation"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2014, Ryan Bradley.
+    </p>
+  </div>
+
+  <a href="https://github.com/snide/sphinx_rtd_theme">Sphinx theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'1.0.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

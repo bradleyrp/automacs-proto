@@ -1,0 +1,14 @@
+#!/bin/bash
+
+#---definitions
+simtype=aamd-bilayer
+step_monolayer=s1-build-lipidgrid
+step_simulation=s4-sim
+step_bilayer=s2-build-bilayer
+step_equilibration=s3-equil
+input_files=aamd-bilayer-equil
+
+#---execute simulation (continuation) step
+cd $step_simulation
+./script-sim.pl
+cd ..

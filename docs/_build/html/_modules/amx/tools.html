@@ -1,0 +1,290 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>amx.tools &mdash; amx 1.0.0 documentation</title>
+  
+
+  
+  
+
+  
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="amx 1.0.0 documentation" href="../../index.html"/>
+        <link rel="up" title="Module code" href="../index.html"/> 
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.6.2/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-nav-search">
+        <a href="../../index.html" class="fa fa-home"> amx</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        
+        
+            <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../amx.html">amx package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../amx.html#building-coarse-grained-bilayers">Building coarse-grained bilayers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../amx.html#equilibration">Equilibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../amx.html#module-amx.lipidgrid">amx.lipidgrid module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../amx.html#module-amx.bilayer">amx.bilayer module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../amx.html#module-amx.tools">amx.tools module</a></li>
+</ul>
+</li>
+</ul>
+
+        
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../index.html">amx</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      
+    <li>amx.tools</li>
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            
+  <h1>Source code for amx.tools</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/python</span>
+
+<span class="c">#---AUTOMACS (AMX) &quot;TOOLS&quot; MODULE</span>
+<span class="c">#---created 2014.08.13 by ryan bradley</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">The tools module provides supporting functions for the other modules in order to simplify the code. These </span>
+<span class="sd">consist primarily of functions which interact with the filesystem either via Python libraries such as </span>
+<span class="sd">``shutil`` or via Bash using the ``subprocess`` or ``sys`` modules. Modules import necessary functions with </span>
+<span class="sd">the following code. ::</span>
+
+<span class="sd">	from amx.tools import call,tee,checkout</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">sys</span><span class="o">,</span><span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">glob</span><span class="o">,</span><span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">errno</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+
+<span class="c">#---FUNCTIONS</span>
+<span class="c">#-------------------------------------------------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="tee"><a class="viewcode-back" href="../../amx.html#amx.tools.tee">[docs]</a><span class="k">class</span> <span class="nc">tee</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">	Routes print statements to the screen and a log file.</span>
+<span class="sd">	</span>
+<span class="sd">	Routes output to multiple streams, namely a log file and stdout, emulating the linux &quot;tee&quot; function. </span>
+<span class="sd">	Whenever a new log file is desired, use the following code to replace ``sys.stdout`` and route all print</span>
+<span class="sd">	statements to both the screen and the log file. ::</span>
+<span class="sd">		</span>
+<span class="sd">		sys.stdout = tee(open(self.rootdir+&#39;log-script-master&#39;,&#39;a&#39;,1))</span>
+<span class="sd">		</span>
+<span class="sd">	Initialize the object with a file handle for the new log file. It is possible to run ``tee`` multiple</span>
+<span class="sd">	times in order to redirect ``print`` output to a new file. The new object checks to see if </span>
+<span class="sd">	``sys.stdout`` is a tee object or the &quot;real&quot; stream, and rolls both into the new object.</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">files</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+		<span class="c">#---if sys.stdout is already a tee object, then just steal its stdout member</span>
+		<span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">__class__</span><span class="p">)</span> <span class="o">==</span> <span class="s">&quot;&lt;class &#39;amx.tools.tee&#39;&gt;&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">stdout</span>
+		<span class="c">#---otherwise set stdout from scratch</span>
+		<span class="k">else</span><span class="p">:</span> 
+			<span class="k">if</span> <span class="s">&#39;error&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="ow">and</span> <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;error&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="bp">True</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span>
+			<span class="k">else</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">files</span> <span class="o">=</span> <span class="n">files</span>
+		<span class="k">if</span> <span class="s">&#39;error&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="ow">and</span> <span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;error&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="bp">True</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="bp">True</span>
+		<span class="k">else</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">error</span> <span class="o">=</span> <span class="bp">False</span>
+<div class="viewcode-block" id="tee.write"><a class="viewcode-back" href="../../amx.html#amx.tools.tee.write">[docs]</a>	<span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span> 
+		<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">		The write function here emulates the write functions for both files and the standard output stream</span>
+<span class="sd">		so that the tee object will always write to both places.</span>
+<span class="sd">		&#39;&#39;&#39;</span>
+		<span class="n">st</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s">&#39;%Y.%m.</span><span class="si">%d</span><span class="s">.%H%M&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">error</span> <span class="k">else</span> <span class="s">&#39;&#39;</span>
+		<span class="k">if</span> <span class="n">obj</span> <span class="o">!=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">st</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+		<span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">:</span>
+			<span class="k">if</span> <span class="n">obj</span> <span class="o">!=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">st</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="p">)</span>
+			<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+</div></div>
+<div class="viewcode-block" id="call"><a class="viewcode-back" href="../../amx.html#amx.tools.call">[docs]</a><span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="n">command</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">	Wrapper for system calls in a different directory with a dedicated log file.</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">command</span><span class="p">)</span> <span class="o">==</span> <span class="nb">list</span><span class="p">:</span> <span class="n">command</span> <span class="o">=</span> <span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+	<span class="c">#---newlines indicates a special case that must be called directly i.e. piping user input to a program</span>
+	<span class="k">if</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span> <span class="ow">in</span> <span class="n">command</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">):</span> 
+		<span class="k">if</span> <span class="n">logfile</span> <span class="o">==</span> <span class="bp">None</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">((</span><span class="s">&#39;cd &#39;</span><span class="o">+</span><span class="n">cwd</span><span class="o">+</span><span class="s">&#39;;&#39;</span> <span class="k">if</span> <span class="n">cwd</span> <span class="o">!=</span> <span class="bp">None</span> <span class="k">else</span> <span class="s">&#39;&#39;</span><span class="p">)</span><span class="o">+</span><span class="n">command</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">((</span><span class="s">&#39;cd &#39;</span><span class="o">+</span><span class="n">cwd</span><span class="o">+</span><span class="s">&#39;;&#39;</span> <span class="k">if</span> <span class="n">cwd</span> <span class="o">!=</span> <span class="bp">None</span> <span class="k">else</span> <span class="s">&#39;&#39;</span><span class="p">)</span><span class="o">+</span><span class="n">command</span><span class="o">+</span><span class="s">&#39; &amp;&gt; &#39;</span><span class="o">+</span><span class="n">logfile</span><span class="p">)</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="k">if</span> <span class="n">logfile</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+			<span class="n">output</span> <span class="o">=</span> <span class="nb">open</span><span class="p">((</span><span class="s">&#39;&#39;</span> <span class="k">if</span> <span class="n">cwd</span> <span class="o">==</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">cwd</span><span class="p">)</span><span class="o">+</span><span class="n">logfile</span><span class="p">,</span><span class="s">&#39;wb&#39;</span><span class="p">)</span>
+			<span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">command</span><span class="p">)</span> <span class="o">==</span> <span class="nb">list</span><span class="p">:</span> <span class="n">command</span> <span class="o">=</span> <span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="n">silent</span><span class="p">:</span> <span class="k">print</span> <span class="s">&#39;executing command: &quot;&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">command</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;&quot; logfile = &#39;</span><span class="o">+</span><span class="n">logfile</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="n">subprocess</span><span class="o">.</span><span class="n">check_call</span><span class="p">(</span><span class="n">command</span><span class="p">,</span>
+					<span class="n">shell</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+					<span class="n">stdout</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+					<span class="n">stderr</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+					<span class="n">cwd</span><span class="o">=</span><span class="n">cwd</span><span class="p">)</span>
+			<span class="k">except</span><span class="p">:</span>
+				<span class="k">print</span> <span class="s">&#39;execution error&#39;</span>
+				<span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s">&#39;mdrun&#39;</span><span class="p">,</span><span class="n">command</span><span class="p">):</span> <span class="k">print</span> <span class="s">&#39;continuing after gromacs mdrun error&#39;</span>
+				<span class="k">else</span><span class="p">:</span> <span class="k">print</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+			<span class="n">output</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+		<span class="k">else</span><span class="p">:</span> 
+			<span class="k">if</span> <span class="ow">not</span> <span class="n">silent</span><span class="p">:</span> <span class="k">print</span> <span class="s">&#39;executing command: &quot;&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">command</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;&quot;&#39;</span>
+			<span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">__class__</span><span class="p">)</span> <span class="o">==</span> <span class="s">&quot;&lt;class &#39;amx.tools.tee&#39;&gt;&quot;</span><span class="p">:</span> <span class="n">stderr</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+			<span class="k">else</span><span class="p">:</span> <span class="n">stderr</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span>
+			<span class="k">try</span><span class="p">:</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_call</span><span class="p">(</span><span class="n">command</span><span class="p">,</span><span class="n">shell</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span><span class="n">stderr</span><span class="o">=</span><span class="n">stderr</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">cwd</span><span class="p">)</span>
+			<span class="k">except</span><span class="p">:</span>
+				<span class="k">print</span> <span class="s">&#39;execution error&#39;</span>
+				<span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s">&#39;mdrun&#39;</span><span class="p">,</span><span class="n">command</span><span class="p">):</span> <span class="k">print</span> <span class="s">&#39;continuing after gromacs mdrun error&#39;</span>
+				<span class="k">else</span><span class="p">:</span> <span class="k">print</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="checkout"><a class="viewcode-back" href="../../amx.html#amx.tools.checkout">[docs]</a><span class="k">def</span> <span class="nf">checkout</span><span class="p">(</span><span class="n">command</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">	Return the result of a shell command.</span>
+<span class="sd">	</span>
+<span class="sd">	This command emulates the ``subprocess.check_output`` function for systems with older versions of that </span>
+<span class="sd">	module. If ``subprocess.check_output`` is unavailable, it routes the ``STDOUT`` from the command to</span>
+<span class="sd">	a temporary text file and then reads that.</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="k">try</span><span class="p">:</span>
+		<span class="n">result</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span><span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command</span><span class="p">),</span><span class="n">shell</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">cwd</span><span class="p">)</span>
+	<span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+		<span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">command</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">list</span><span class="p">:</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;except: command must be a list for old-school Popen&#39;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">command</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;awk&#39;</span><span class="p">:</span> <span class="n">command</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&quot;&#39;&quot;</span><span class="p">,</span><span class="s">&quot;&quot;</span><span class="p">,</span><span class="n">command</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+		<span class="n">result</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span><span class="n">command</span><span class="p">,</span><span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="n">cwd</span><span class="p">)</span><span class="o">.</span><span class="n">communicate</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">result</span>
+</div>
+<div class="viewcode-block" id="copy"><a class="viewcode-back" href="../../amx.html#amx.tools.copy">[docs]</a><span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="n">source</span><span class="p">,</span><span class="n">destination</span><span class="p">):</span>
+	<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">	Generic copy function for handling files or directories.</span>
+<span class="sd">	</span>
+<span class="sd">	This copy function can copy directories as long as the destination folder is fully specified. It will</span>
+<span class="sd">	also copy a folder&#39;s contents to another folder directly if the Bash-style asterisk wildcard is found</span>
+<span class="sd">	in the source argument. It also copies individual files.</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="c">#---check if wildcard in the source in which case use glob</span>
+	<span class="k">if</span> <span class="s">&#39;*&#39;</span> <span class="ow">in</span> <span class="n">source</span><span class="p">:</span>
+		<span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">source</span><span class="p">):</span>
+			<span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span><span class="n">destination</span><span class="p">)</span>
+	<span class="c">#---otherwise try a copytree and if that fails just use copy</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="k">try</span><span class="p">:</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copytree</span><span class="p">(</span><span class="n">source</span><span class="p">,</span><span class="n">destination</span><span class="p">)</span>
+		<span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+			<span class="k">if</span> <span class="n">exc</span><span class="o">.</span><span class="n">errno</span> <span class="o">==</span> <span class="n">errno</span><span class="o">.</span><span class="n">ENOTDIR</span><span class="p">:</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">source</span><span class="p">,</span><span class="n">destination</span><span class="p">)</span>
+			<span class="k">else</span><span class="p">:</span> <span class="k">raise</span>
+</pre></div></div>
+
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2014, Ryan Bradley.
+    </p>
+  </div>
+
+  <a href="https://github.com/snide/sphinx_rtd_theme">Sphinx theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../',
+            VERSION:'1.0.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

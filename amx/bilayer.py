@@ -422,7 +422,7 @@ class Bilayer:
 		cmd = [gmxpaths['genbox'],
 			'-cs '+self.settings['water_conf'],
 			'-o solvate-empty-uncentered.gro',
-			'-box '+str(boxdims[0])+' '+str(boxdims[1])+' '+str(self.settings['solvent_thickness'])+' ']
+			'-box '+str(boxdims[0])+' '+str(boxdims[1])+' '+str(self.settings['solvent_thickness'])]
 		call(cmd,logfile='log-genbox-solvate-empty',cwd=self.rootdir)
 
 		print "counting waters"
@@ -434,7 +434,8 @@ class Bilayer:
 				cwd=self.rootdir).split()[0])-3)
 
 		print "translating water box"
-		lwtranslate = self.settings['lipid_water_buffer']+self.settings['solvent_thickness']
+		#---removed lipid_water_buffer from below
+		lwtranslate = self.settings['solvent_thickness']
 		cmd = [gmxpaths['editconf'],
 			'-f solvate-empty-uncentered.gro',
 			'-o solvate-empty.gro',
@@ -442,8 +443,9 @@ class Bilayer:
 		call(cmd,logfile='log-editconf-solvate-move-empty',cwd=self.rootdir)
 
 		print "concatenating water and bilayer"
+		#---swapped in the md-vacuum-p2-check-dims.gro for vacuum-packed.gro here
 		confs = [[line for line in open(self.rootdir+fn,'r')] 
-			for fn in ['vacuum-packed.gro','solvate-empty.gro']]
+			for fn in ['md-vacuum-p2-check-dims.gro','solvate-empty.gro']]
 		natoms = str(sum([len(conf)-3 for conf in confs]))
 		fp = open(self.rootdir+'solvate-unsized.gro','w')
 		fp.write('bilayer\n'+natoms+'\n')

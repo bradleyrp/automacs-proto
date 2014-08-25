@@ -1,5 +1,5 @@
 integrator = md
-nsteps = 50000
+nsteps = 20000
 dt = 0.0002
 
 nstxout = 5000
@@ -14,7 +14,9 @@ gen_temp = 323
 gen_seed = -1
 
 constraint_algorithm = lincs
-constraints = all-bonds
+;previous method used all-bonds but this was crashing so rpb changed it on 2014.08.24
+;constraints = all-bonds
+constraints = none
 lincs_iter = 1
 lincs_order = 4
 

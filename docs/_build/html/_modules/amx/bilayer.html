@@ -1,0 +1,806 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>amx.bilayer &mdash; amx 1.0.0 documentation</title>
+  
+
+  
+  
+
+  
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="amx 1.0.0 documentation" href="../../index.html"/>
+        <link rel="up" title="Module code" href="../index.html"/> 
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.6.2/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-nav-search">
+        <a href="../../index.html" class="fa fa-home"> amx</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        
+        
+            <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../amx.html">amx package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../amx.html#building-coarse-grained-bilayers">Building coarse-grained bilayers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../amx.html#equilibration">Equilibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../amx.html#module-amx.lipidgrid">amx.lipidgrid module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../amx.html#module-amx.bilayer">amx.bilayer module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../amx.html#module-amx.tools">amx.tools module</a></li>
+</ul>
+</li>
+</ul>
+
+        
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../index.html">amx</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      
+    <li>amx.bilayer</li>
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            
+  <h1>Source code for amx.bilayer</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/python</span>
+
+<span class="c">#---AUTOMACS (AMX) &quot;BILAYER&quot; MODULE</span>
+<span class="c">#---created 2014.08.14 by ryan bradley</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module takes one or two monolayers consisting of a grid of lipids oriented in the z-dimension. It</span>
+<span class="sd">combines them into a bilayer, minimizes in vacuum, simulates with restraints to pack the lipids into a natural</span>
+<span class="sd">area, adds water and counterions, and performs a final minimization. The resulting structure will be ready for</span>
+<span class="sd">equilibration and production simulation.</span>
+
+<span class="sd">.. figure:: ../sources/docs/automacs-cgmd-bilayer-bilayer.jpeg</span>
+<span class="sd">   :align: center</span>
+<span class="sd">   :alt: monolayer snapshot</span>
+<span class="sd">   :width: 75 %</span>
+<span class="sd">   </span>
+<span class="sd">   Example bilayer configuration before adding solvent.</span>
+
+<span class="sd">For simplicity, you build a bilayer by creating a ``Bilayer`` class instance. You must provide the location of</span>
+<span class="sd">the monolayer configurations necessary to build the bilayer. This can be done by passing the ``previous_dir``</span>
+<span class="sd">keyword argument according to the following example from ``script-amx-cgmd-bilayer``. ::</span>
+
+<span class="sd">	Bilayer(rootdir=&#39;s2-build-bilayer&#39;,previous_dir=&#39;s1-build-lipidgrid&#39;)</span>
+<span class="sd">	</span>
+<span class="sd">Creating the class object takes care of everything else. When it is complete, you will find a ``system.gro`` </span>
+<span class="sd">and the associated topology and index files in the ``s2-build-bilayer`` folder. The assembly process includes</span>
+<span class="sd">the following steps.</span>
+
+<span class="sd">1. Assemble the monolayers into a bilayer and minimize.</span>
+<span class="sd">2. Pack the lipids into a more natural configuration by simulating in vacuum with position restraints</span>
+<span class="sd">   on the head and tails to keep the lipids aligned.</span>
+<span class="sd">3. Add a slab of water and minimize.</span>
+<span class="sd">4. Add counterions and minimize.</span>
+
+<span class="sd">The overall procedure is executed via ``Bilayer.construction()`` and can be restarted in case of errors at the </span>
+<span class="sd">last successful step.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c">#---development features</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s">&#39;/etc/pythonstart&#39;</span><span class="p">):</span>
+	<span class="nb">execfile</span><span class="p">(</span><span class="s">&#39;/etc/pythonstart&#39;</span><span class="p">)</span>
+
+<span class="c">#---imports</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">from</span> <span class="nn">tools</span> <span class="kn">import</span> <span class="n">call</span><span class="p">,</span><span class="n">checkout</span><span class="p">,</span><span class="n">tee</span><span class="p">,</span><span class="n">copy</span>
+
+<span class="c">#---locate gmxpaths</span>
+<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s">&#39;gmxpaths.conf&#39;</span><span class="p">):</span> <span class="n">gmxpaths_path</span> <span class="o">=</span> <span class="s">&#39;./&#39;</span>
+<span class="k">else</span><span class="p">:</span> <span class="n">gmxpaths_path</span> <span class="o">=</span> <span class="s">&#39;../&#39;</span>
+
+<span class="c">#---load the gromacs paths</span>
+<span class="n">gmxpaths</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([[</span><span class="n">i</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span><span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">:])]</span> 
+	<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="n">gmxpaths_path</span><span class="o">+</span><span class="s">&#39;gmxpaths.conf&#39;</span><span class="p">,</span><span class="s">&#39;r&#39;</span><span class="p">)</span> 
+	<span class="k">if</span> <span class="n">i</span><span class="o">.</span><span class="n">strip</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;#&#39;</span><span class="p">])</span>
+
+<span class="c">#---CLASS</span>
+<span class="c">#-------------------------------------------------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="Bilayer"><a class="viewcode-back" href="../../amx.html#amx.bilayer.Bilayer">[docs]</a><span class="k">class</span> <span class="nc">Bilayer</span><span class="p">:</span>
+	<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">	Class which generates a solvated bilayer with counterions from monolayer configurations.</span>
+<span class="sd">	</span>
+<span class="sd">	Note that creating an instance of this class will automatically run the construction procedure. You must </span>
+<span class="sd">	provide locations to the monolayer configurations when the object is created. Otherwise, all parameters</span>
+<span class="sd">	are specified in ``inputs/input-specs-bilayer.dat``. Note that this file handles inputs for both the </span>
+<span class="sd">	atomistic and coarse-grained bilayer construction, both of which are handled by this class. The </span>
+<span class="sd">	construction process procedes automatically, but will skip ahead if the process is interrupted and </span>
+<span class="sd">	then restarted.</span>
+
+<span class="sd">	Parameters</span>
+<span class="sd">	----------</span>
+<span class="sd">	rootdir : str</span>
+<span class="sd">		relative path to store simulation data</span>
+<span class="sd">	previous_dir : str</span>
+<span class="sd">		path to the directory containing monolayer configurations in either ``place-grid-start0.gro`` and </span>
+<span class="sd">		``place-grid-start0.gro`` for a bilayer with an asymmetric composition, or </span>
+<span class="sd">		``place-grid-start.gro`` for a symmetric bilayer.</span>
+<span class="sd">	&#39;&#39;&#39;</span>
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">rootdir</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">previous_dir</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+		<span class="c">#---set paths for the previous and current steps</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="n">rootdir</span><span class="p">))</span><span class="o">+</span><span class="s">&#39;/&#39;</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">prevdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="n">previous_dir</span><span class="p">))</span><span class="o">+</span><span class="s">&#39;/&#39;</span>
+
+		<span class="c">#---manually specify the sources directory and the inputs file</span>
+		<span class="k">if</span> <span class="s">&#39;sources_dir&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span> 
+			<span class="bp">self</span><span class="o">.</span><span class="n">sources_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;sources_dir&#39;</span><span class="p">]))</span><span class="o">+</span><span class="s">&#39;/&#39;</span>
+		<span class="k">else</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">sources_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s">&#39;./sources/&#39;</span><span class="p">))</span><span class="o">+</span><span class="s">&#39;/&#39;</span>
+		<span class="k">if</span> <span class="s">&#39;inputs_file&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span> 
+			<span class="bp">self</span><span class="o">.</span><span class="n">inputs_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s">&#39;inputs_file&#39;</span><span class="p">]))</span><span class="o">+</span><span class="s">&#39;/&#39;</span>
+		<span class="k">else</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s">&#39;./inputs/input-specs-bilayer.dat&#39;</span><span class="p">))</span>
+
+		<span class="c">#---skip everything if the procedure is final configuration is already available</span>
+		<span class="c">#---note that this takes the place of an exception and hence expects the user to remove old files</span>
+		<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;system.gro&#39;</span><span class="p">):</span> 
+			<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="n">tee</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;log-script-master&#39;</span><span class="p">,</span><span class="s">&#39;a&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">stderr</span> <span class="o">=</span> <span class="n">tee</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;log-script-master&#39;</span><span class="p">,</span><span class="s">&#39;a&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span><span class="n">error</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+			<span class="k">print</span> <span class="s">&#39;skipping this step because system.gro exists&#39;</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="c">#---make root directory</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">):</span> 
+				<span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">rootdir</span><span class="p">)</span>
+				<span class="n">needs_file_transfers</span> <span class="o">=</span> <span class="bp">True</span>
+			<span class="k">else</span><span class="p">:</span> <span class="n">needs_file_transfers</span> <span class="o">=</span> <span class="bp">False</span>
+			<span class="c">#---start the logger</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="n">tee</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;log-script-master&#39;</span><span class="p">,</span><span class="s">&#39;a&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span>
+			<span class="n">sys</span><span class="o">.</span><span class="n">stderr</span> <span class="o">=</span> <span class="n">tee</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;log-script-master&#39;</span><span class="p">,</span><span class="s">&#39;a&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span><span class="n">error</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+			<span class="k">print</span> <span class="s">&#39;START BILAYER&#39;</span>
+			<span class="c">#---determine if asymmetric from presence of place-grid-start0.gro</span>
+			<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prevdir</span><span class="o">+</span><span class="s">&#39;place-grid-start0.gro&#39;</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">asymmetric</span> <span class="o">=</span> <span class="bp">True</span>
+			<span class="k">else</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">asymmetric</span> <span class="o">=</span> <span class="bp">False</span>
+			<span class="c">#---bilayer construction settings are pulled from the inputs_file</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+			<span class="nb">execfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs_file</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">simscale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s">&#39;simscale&#39;</span><span class="p">]</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s">&#39;bilayer_construction_settings&#39;</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">simscale</span><span class="p">]</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">ion_residue_names</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;sol_name&#39;</span><span class="p">]]</span><span class="o">+</span>\
+				<span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s">&#39;bilayer_construction_settings&#39;</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">simscale</span><span class="p">][</span><span class="s">&#39;ion_residue_names&#39;</span><span class="p">]</span>
+			<span class="c">#---copy input files if this is a fresh start</span>
+			<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">asymmetric</span><span class="p">:</span>
+				<span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prevdir</span><span class="o">+</span><span class="s">&#39;place-grid-start0.gro&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;place-grid-start0.gro&#39;</span><span class="p">)</span>
+				<span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prevdir</span><span class="o">+</span><span class="s">&#39;place-grid-start1.gro&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;place-grid-start1.gro&#39;</span><span class="p">)</span>
+			<span class="k">else</span><span class="p">:</span> 
+				<span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prevdir</span><span class="o">+</span><span class="s">&#39;place-grid-start.gro&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;place-grid-start0.gro&#39;</span><span class="p">)</span>
+				<span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prevdir</span><span class="o">+</span><span class="s">&#39;place-grid-start.gro&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;place-grid-start1.gro&#39;</span><span class="p">)</span>
+			<span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prevdir</span><span class="o">+</span><span class="s">&#39;composition.dat&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;composition.dat&#39;</span><span class="p">)</span>
+			<span class="c">#---copy input files from standard sources i.e. the forcefield only if absent</span>
+			<span class="k">if</span> <span class="n">needs_file_transfers</span><span class="p">:</span>
+				<span class="c">#---scale-specific copy commands</span>
+				<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">simscale</span> <span class="o">==</span> <span class="s">&#39;cgmd&#39;</span><span class="p">:</span>			
+					<span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sources_dir</span><span class="o">+</span><span class="s">&#39;cgmd-bilayer-lipids-tops&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;lipids-tops&#39;</span><span class="p">)</span>
+					<span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sources_dir</span><span class="o">+</span><span class="s">&#39;martini.ff&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;martini.ff&#39;</span><span class="p">)</span>
+					<span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sources_dir</span><span class="o">+</span><span class="s">&#39;cgmd-bilayer-mdps-construct/*&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+					<span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sources_dir</span><span class="o">+</span><span class="s">&#39;cgmd-bilayer/solvate-water.gro&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;solvate-water.gro&#39;</span><span class="p">)</span>
+				<span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">simscale</span> <span class="o">==</span> <span class="s">&#39;aamd&#39;</span><span class="p">:</span>
+					<span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sources_dir</span><span class="o">+</span><span class="s">&#39;aamd-bilayer-lipids-tops&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;lipids-tops&#39;</span><span class="p">)</span>
+					<span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sources_dir</span><span class="o">+</span><span class="s">&#39;charmm36.ff&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;charmm36.ff&#39;</span><span class="p">)</span>
+					<span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sources_dir</span><span class="o">+</span><span class="s">&#39;aamd-bilayer-mdps-construct/*&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+				<span class="k">else</span><span class="p">:</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;except: unclear simulation resolution&#39;</span><span class="p">)</span>
+			<span class="c">#---running lists of molecules and compositions</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">comps</span> <span class="o">=</span> <span class="p">[],[]</span>
+			<span class="c">#---call the master construction procedure</span>
+			<span class="k">print</span> <span class="s">&#39;starting bilayer construction&#39;</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">construction</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Bilayer.get_box_vectors"><a class="viewcode-back" href="../../amx.html#amx.bilayer.Bilayer.get_box_vectors">[docs]</a>	<span class="k">def</span> <span class="nf">get_box_vectors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">logfile</span><span class="p">,</span><span class="n">new</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;Read box vectors from editconf output stored in a log file.&#39;&#39;&#39;</span>
+		<span class="k">if</span> <span class="n">new</span><span class="p">:</span>
+			<span class="n">boxdims</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&quot;awk&quot;</span><span class="p">,</span><span class="s">&quot;&#39;/new box vectors/ {print $&quot;</span><span class="o">+</span>\
+				<span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">5</span><span class="p">)</span><span class="o">+</span><span class="s">&quot;}&#39;&quot;</span><span class="p">,</span><span class="n">logfile</span><span class="p">],</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">boxdims</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&quot;awk&quot;</span><span class="p">,</span><span class="s">&quot;&#39;/    box vectors/ {print $&quot;</span><span class="o">+</span>\
+				<span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">4</span><span class="p">)</span><span class="o">+</span><span class="s">&quot;}&#39;&quot;</span><span class="p">,</span><span class="n">logfile</span><span class="p">],</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+		<span class="k">return</span> <span class="n">boxdims</span>
+		</div>
+<div class="viewcode-block" id="Bilayer.write_topology"><a class="viewcode-back" href="../../amx.html#amx.bilayer.Bilayer.write_topology">[docs]</a>	<span class="k">def</span> <span class="nf">write_topology</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">topname</span><span class="p">,</span><span class="n">restraints</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span><span class="n">water_only</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;Write the topology file from residue lists stored in ``self.lnames`` and ``self.complist``.&#39;&#39;&#39;</span>
+		
+		<span class="k">print</span> <span class="s">&#39;writing topology&#39;</span>
+		<span class="c">#---atomistic topology disabled here</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">simscale</span> <span class="o">==</span> <span class="s">&#39;aamd&#39;</span><span class="p">:</span>
+			<span class="n">fp</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="n">topname</span><span class="p">,</span><span class="s">&#39;w&#39;</span><span class="p">)</span>
+			<span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;#include &quot;charmm36.ff/forcefield.itp&quot;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+			<span class="k">for</span> <span class="n">lname</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">lname</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ion_residue_names</span><span class="p">:</span> 
+					<span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;#include &quot;./lipids-tops/lipid.&#39;</span><span class="o">+</span><span class="n">lname</span><span class="o">+</span><span class="s">&#39;.itp&quot;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+					<span class="k">if</span> <span class="n">restraints</span><span class="p">:</span> <span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;#include &quot;./lipids-tops/restr.&#39;</span><span class="o">+</span><span class="n">lname</span><span class="o">+</span><span class="s">&#39;.itp&quot;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span> 
+			<span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;#include &quot;charmm36.ff/tips3p.itp&quot;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+			<span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;#include &quot;charmm36.ff/ions.itp&quot;</span><span class="se">\n\n</span><span class="s">&#39;</span><span class="p">)</span>
+			<span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;[ system ]</span><span class="se">\n</span><span class="s">BILAYER</span><span class="se">\n\n</span><span class="s">&#39;</span><span class="p">)</span>
+			<span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;[ molecules ]</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+			<span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="p">)):</span> 
+				<span class="k">if</span> <span class="ow">not</span> <span class="n">water_only</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="p">[</span><span class="n">l</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;sol_name&#39;</span><span class="p">]:</span>
+					<span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="p">[</span><span class="n">l</span><span class="p">]</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">comps</span><span class="p">[</span><span class="n">l</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+			<span class="n">fp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+		<span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">simscale</span> <span class="o">==</span> <span class="s">&#39;cgmd&#39;</span><span class="p">:</span>
+			<span class="c">#---define ion names for exclusion from topology update function</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">ion_residue_names</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;sol_name&#39;</span><span class="p">],</span><span class="s">&#39;MG&#39;</span><span class="p">,</span><span class="s">&#39;NA&#39;</span><span class="p">,</span><span class="s">&#39;CL&#39;</span><span class="p">,</span><span class="s">&#39;Cal&#39;</span><span class="p">]</span>
+			<span class="n">fp</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="n">topname</span><span class="p">,</span><span class="s">&#39;w&#39;</span><span class="p">)</span>
+			<span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s">&#39;topheader_martini&#39;</span><span class="p">])</span>			
+			<span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="p">)):</span> 
+				<span class="k">if</span> <span class="ow">not</span> <span class="n">water_only</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="p">[</span><span class="n">l</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;sol_name&#39;</span><span class="p">]:</span> 
+					<span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="p">[</span><span class="n">l</span><span class="p">]</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">comps</span><span class="p">[</span><span class="n">l</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+			<span class="n">fp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+		<span class="k">else</span><span class="p">:</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;except: unclear procedure to write topology&#39;</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="Bilayer.minimization_method"><a class="viewcode-back" href="../../amx.html#amx.bilayer.Bilayer.minimization_method">[docs]</a>	<span class="k">def</span> <span class="nf">minimization_method</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="p">,</span><span class="n">posre</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">		Generic minimization method with a drop-in name and standard inputs. This function takes a file</span>
+<span class="sd">		suffix and performs a minimization on the corresponding ``gro`` file.</span>
+<span class="sd">		&#39;&#39;&#39;</span>
+		<span class="k">print</span> <span class="n">name</span><span class="o">+</span><span class="s">&quot; minimization, steepest descent&quot;</span>
+		<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;grompp&#39;</span><span class="p">],</span>
+			<span class="s">&#39;-f input-em-steep-&#39;</span><span class="o">+</span><span class="p">(</span><span class="s">&#39;posre-&#39;</span> <span class="k">if</span> <span class="n">posre</span> <span class="k">else</span> <span class="s">&#39;&#39;</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;in.mdp&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-c &#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-p &#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;.top&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-o em-&#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;-steep&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-po em-&#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;-steep&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-maxwarn 10&#39;</span><span class="p">]</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-grompp-em-&#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;-steep&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+		<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;mdrun&#39;</span><span class="p">],</span><span class="s">&#39;-v&#39;</span><span class="p">,</span><span class="s">&#39;-deffnm em-&#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;-steep&#39;</span><span class="p">]</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-mdrun-em-&#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;-steep&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+
+		<span class="k">print</span> <span class="n">name</span><span class="o">+</span><span class="s">&quot; minimization, conjugate gradient&quot;</span>
+		<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;grompp&#39;</span><span class="p">],</span>
+			<span class="s">&#39;-f input-em-cg-&#39;</span><span class="o">+</span><span class="p">(</span><span class="s">&#39;posre-&#39;</span> <span class="k">if</span> <span class="n">posre</span> <span class="k">else</span> <span class="s">&#39;&#39;</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;in.mdp&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-c em-&#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;-steep.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-p &#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;.top&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-o em-&#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;-cg&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-po em-&#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;-cg&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-maxwarn 10&#39;</span><span class="p">]</span>
+		<span class="k">print</span> <span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-grompp-em-&#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;-cg&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+		<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;mdrun&#39;</span><span class="p">],</span><span class="s">&#39;-v&#39;</span><span class="p">,</span><span class="s">&#39;-deffnm em-&#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;-cg&#39;</span><span class="p">]</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-mdrun-em-&#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;-cg&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+	
+		<span class="n">mdrun_logs</span> <span class="o">=</span> <span class="p">[[</span><span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="n">fn</span><span class="p">,</span><span class="s">&#39;r&#39;</span><span class="p">)]</span> 
+			<span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;log-mdrun-em-&#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;-steep&#39;</span><span class="p">,</span><span class="s">&#39;log-mdrun-em-&#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;-cg&#39;</span><span class="p">]]</span>
+		<span class="n">forces</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">[[</span><span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">3</span><span class="p">])</span> 
+			<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">d</span> <span class="k">if</span> <span class="n">line</span><span class="p">[:</span><span class="mi">13</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;Maximum force&#39;</span><span class="p">]</span> 
+			<span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">mdrun_logs</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span>
+		<span class="n">bestmin</span> <span class="o">=</span> <span class="s">&#39;em-&#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;-cg.gro&#39;</span> <span class="k">if</span> <span class="n">forces</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">forces</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">else</span> <span class="s">&#39;em-&#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;-steep.gro&#39;</span>
+		<span class="n">call</span><span class="p">(</span><span class="s">&#39;cp &#39;</span><span class="o">+</span><span class="n">bestmin</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="o">+</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;-minimized.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="Bilayer.construction"><a class="viewcode-back" href="../../amx.html#amx.bilayer.Bilayer.construction">[docs]</a>	<span class="k">def</span> <span class="nf">construction</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">		Execute construction steps in sequence and skip ahead if they are already completed. Infer whether </span>
+<span class="sd">		construction steps are complete by checking for their final output files. The procedure executes in</span>
+<span class="sd">		the following order.</span>
+<span class="sd">		</span>
+<span class="sd">		1. :class:`vacuum &lt;Bilayer.vacuum&gt;`</span>
+<span class="sd">		2. :class:`packing &lt;Bilayer.packing&gt;`</span>
+<span class="sd">		3. :class:`solvate &lt;Bilayer.solvate&gt;`</span>
+<span class="sd">		4. :class:`counterionize &lt;Bilayer.counterionize&gt;`</span>
+<span class="sd">		&#39;&#39;&#39;</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;vacuum-minimized.gro&#39;</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">vacuum</span><span class="p">()</span>
+		<span class="k">else</span><span class="p">:</span> 
+			<span class="k">print</span> <span class="s">&#39;skipping vacuum construction because vacuum-minimized.gro exists&#39;</span>
+			<span class="c">#---diagnostic</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">comps</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;composition.dat&#39;</span><span class="p">)]</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">lnames</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">comps</span><span class="p">]</span>
+			<span class="n">monos</span> <span class="o">=</span> <span class="p">[[</span><span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="n">fn</span><span class="p">,</span><span class="s">&#39;r&#39;</span><span class="p">)]</span> 
+				<span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;place-grid-monolayer-center0.gro&#39;</span><span class="p">,</span><span class="s">&#39;place-grid-monolayer-mirror1.gro&#39;</span><span class="p">]]</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;vacuum-packed.gro&#39;</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">packing</span><span class="p">()</span>
+		<span class="k">else</span><span class="p">:</span> <span class="k">print</span> <span class="s">&#39;skipping vacuum packing because vacuum-packed.gro exists&#39;</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;solvate-minimized.gro&#39;</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">solvate</span><span class="p">()</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">print</span> <span class="s">&#39;skipping solvate because solvate-minimized.gro exists&#39;</span>
+			<span class="c">#---diagnostic</span>
+			<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">simscale</span> <span class="o">==</span> <span class="s">&#39;aamd&#39;</span><span class="p">:</span>
+				<span class="n">nwaters</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&#39;wc&#39;</span><span class="p">,</span><span class="s">&#39;-l solvate-empty-uncentered.gro&#39;</span><span class="p">],</span>
+					<span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span><span class="o">-</span><span class="mi">3</span><span class="p">)</span><span class="o">/</span><span class="mi">3</span>
+			<span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">simscale</span> <span class="o">==</span> <span class="s">&#39;cgmd&#39;</span><span class="p">:</span>
+				<span class="n">nwaters</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&#39;wc&#39;</span><span class="p">,</span><span class="s">&#39;-l solvate-empty-uncentered.gro&#39;</span><span class="p">],</span>
+					<span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span><span class="o">-</span><span class="mi">3</span><span class="p">)</span>				
+			<span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;sol_name&#39;</span><span class="p">])</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">comps</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;sol_name&#39;</span><span class="p">],</span><span class="nb">str</span><span class="p">(</span><span class="n">nwaters</span><span class="p">)])</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;system.gro&#39;</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">counterionize</span><span class="p">()</span>
+		<span class="k">else</span><span class="p">:</span> 
+			<span class="k">print</span> <span class="s">&#39;skipping counterionize because system.gro exists&#39;</span>
+			<span class="c">#---diagnostic</span>
+			<span class="n">pcount</span><span class="p">,</span><span class="n">ncount</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&#39;awk&#39;</span><span class="p">,</span><span class="s">&quot;&#39;/Will try to add / {print $&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">col</span><span class="p">)</span><span class="o">+</span>\
+				<span class="s">&quot;}&#39;&quot;</span><span class="p">,</span><span class="s">&quot;log-genion&quot;</span><span class="p">],</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">))</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span><span class="mi">9</span><span class="p">]]</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;positive_ion_name&#39;</span><span class="p">])</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">comps</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;positive_ion_name&#39;</span><span class="p">],</span><span class="nb">str</span><span class="p">(</span><span class="n">pcount</span><span class="p">)])</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;negative_ion_name&#39;</span><span class="p">])</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">comps</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;negative_ion_name&#39;</span><span class="p">],</span><span class="nb">str</span><span class="p">(</span><span class="n">ncount</span><span class="p">)])</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">comps</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;sol_name&#39;</span><span class="p">])][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">nwaters</span> <span class="o">-</span> <span class="n">pcount</span> <span class="o">-</span> <span class="n">ncount</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">grouping</span><span class="p">()</span>
+	</div>
+<div class="viewcode-block" id="Bilayer.vacuum"><a class="viewcode-back" href="../../amx.html#amx.bilayer.Bilayer.vacuum">[docs]</a>	<span class="k">def</span> <span class="nf">vacuum</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>	
+		<span class="sd">&#39;&#39;&#39;Assemble monolayers into a bilayer and minimize.&#39;&#39;&#39;</span>
+		<span class="n">startconfs</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;place-grid-start0.gro&#39;</span><span class="p">,</span><span class="s">&#39;place-grid-start1.gro&#39;</span><span class="p">]</span>
+		<span class="k">for</span> <span class="n">si</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">startconfs</span><span class="p">)):</span>
+			<span class="n">startconf</span> <span class="o">=</span> <span class="n">startconfs</span><span class="p">[</span><span class="n">si</span><span class="p">]</span>
+
+			<span class="k">print</span> <span class="s">&quot;checking the unsized monolayer dimensions&quot;</span>
+			<span class="n">call</span><span class="p">(</span><span class="s">&#39;cp &#39;</span><span class="o">+</span><span class="n">startconf</span><span class="o">+</span><span class="s">&#39; place-grid-monolayer-unsized&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">si</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-f place-grid-monolayer-unsized&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">si</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-o place-grid-monolayer-check-dims&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">si</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-d 0&#39;</span><span class="p">]</span>
+			<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-place-check-dims-monolayer&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">si</span><span class="p">),</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="n">boxdims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_box_vectors</span><span class="p">(</span><span class="s">&#39;log-editconf-place-check-dims-monolayer&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">si</span><span class="p">))</span>
+
+			<span class="k">print</span> <span class="s">&quot;resizing the box with a buffer&quot;</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-f place-grid-monolayer-unsized&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">si</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-o place-grid-monolayer&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">si</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-d &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;lbuffer&#39;</span><span class="p">])]</span>
+			<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-place-grid-monolayer&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">si</span><span class="p">),</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+
+			<span class="n">shifter</span> <span class="o">=</span> <span class="n">boxdims</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;tbuffer&#39;</span><span class="p">]</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-f place-grid-monolayer&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">si</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-o place-grid-monolayer-center&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">si</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-rotate 0 0 90&#39;</span> <span class="k">if</span> <span class="n">si</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="s">&#39;-rotate 0 0 0&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-center 0 0 0&#39;</span><span class="p">]</span>
+			<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-place-center&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">si</span><span class="p">),</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+
+			<span class="k">print</span> <span class="s">&quot;rotating and flipping&quot;</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-f place-grid-monolayer-center&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">si</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-o place-grid-monolayer-mirror&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">si</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-scale 1 1 -1&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-translate 0 0 -&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">shifter</span><span class="p">)]</span>
+			<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-place-mirror&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">si</span><span class="p">),</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+
+		<span class="c">#---diagnostic</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">comps</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;composition.dat&#39;</span><span class="p">)]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">lnames</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">comps</span><span class="p">]</span>
+		<span class="n">monos</span> <span class="o">=</span> <span class="p">[[</span><span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="n">fn</span><span class="p">,</span><span class="s">&#39;r&#39;</span><span class="p">)]</span> 
+			<span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;place-grid-monolayer-center0.gro&#39;</span><span class="p">,</span><span class="s">&#39;place-grid-monolayer-mirror1.gro&#39;</span><span class="p">]]</span>
+
+		<span class="n">fp</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;place-grid-unsized.gro&#39;</span><span class="p">,</span><span class="s">&#39;w&#39;</span><span class="p">)</span>
+		<span class="n">natoms</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">sum</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">mono</span><span class="p">)</span><span class="o">-</span><span class="mi">3</span> <span class="k">for</span> <span class="n">mono</span> <span class="ow">in</span> <span class="n">monos</span><span class="p">]))</span>
+		<span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;bilayer</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">+</span><span class="n">natoms</span><span class="o">+</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+		<span class="k">for</span> <span class="n">lname</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="p">:</span>
+			<span class="k">for</span> <span class="n">mono</span> <span class="ow">in</span> <span class="n">monos</span><span class="p">:</span>
+				<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">mono</span><span class="p">:</span>
+					<span class="k">if</span> <span class="n">line</span><span class="p">[</span><span class="mi">5</span><span class="p">:</span><span class="mi">10</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">==</span> <span class="n">lname</span><span class="p">:</span> 
+						<span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+		<span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">monos</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+		<span class="n">fp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+		<span class="k">print</span> <span class="s">&quot;checking the unsized bilayer dimensions&quot;</span>
+		<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">],</span>
+			<span class="s">&#39;-f place-grid-unsized.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-o place-grid-unsized-check-dims.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-d &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;lbuffer&#39;</span><span class="p">])]</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-place-check-dims&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+
+		<span class="n">boxdims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_box_vectors</span><span class="p">(</span><span class="s">&#39;log-editconf-place-check-dims&#39;</span><span class="p">,</span><span class="n">new</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;square&#39;</span><span class="p">]:</span>
+			<span class="n">boxpad</span> <span class="o">=</span> <span class="p">[</span><span class="nb">max</span><span class="p">(</span><span class="n">boxdims</span><span class="p">[:</span><span class="mi">2</span><span class="p">])</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;lbuffer&#39;</span><span class="p">]</span><span class="o">/</span><span class="mf">2.</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">)]</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">boxpad</span> <span class="o">=</span> <span class="p">[</span><span class="n">boxdims</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;lbuffer&#39;</span><span class="p">]</span><span class="o">/</span><span class="mf">2.</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">)]</span>
+
+		<span class="k">print</span> <span class="s">&quot;resizing the box&quot;</span> 
+		<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">],</span>
+			<span class="s">&#39;-f place-grid-unsized.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-o vacuum.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-box &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">boxpad</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">boxpad</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;zbuffer&#39;</span><span class="p">]</span><span class="o">/</span><span class="mf">2.</span><span class="o">+</span><span class="n">boxdims</span><span class="p">[</span><span class="mi">2</span><span class="p">])]</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-place-grid&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+		
+		<span class="bp">self</span><span class="o">.</span><span class="n">write_topology</span><span class="p">(</span><span class="s">&#39;vacuum.top&#39;</span><span class="p">,</span><span class="n">restraints</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">minimization_method</span><span class="p">(</span><span class="s">&#39;vacuum&#39;</span><span class="p">,</span><span class="n">posre</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		</div>
+<div class="viewcode-block" id="Bilayer.packing"><a class="viewcode-back" href="../../amx.html#amx.bilayer.Bilayer.packing">[docs]</a>	<span class="k">def</span> <span class="nf">packing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">		Pack the lipids into a natural configuration by simulating in vacuum with restraints.</span>
+<span class="sd">		</span>
+<span class="sd">		This function runs vacuum simulation in stages according to available input files specified in the</span>
+<span class="sd">		``inputs/input-specs-bilayer.dat`` file. These inputs are sequenced to ensure that the bilayer is </span>
+<span class="sd">		contiguous and the lipids are aligned. Position restraints written into the lipid topologies prevent</span>
+<span class="sd">		the lipids from escaping.</span>
+<span class="sd">		&#39;&#39;&#39;</span>
+		<span class="c">#---find the list of mdp files used for the stagewise simulation	</span>
+		<span class="n">packing_mdps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;vacuum_packing_sequence&#39;</span><span class="p">]</span>
+			
+		<span class="c">#---loop over stages in order to gently but firmly assemble the bilayer</span>
+		<span class="k">for</span> <span class="n">mi</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">packing_mdps</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+			<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span><span class="p">):</span>
+				<span class="k">print</span> <span class="s">&#39;skipping packing step &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">)</span><span class="o">+</span><span class="s">&#39; because md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro exists&#39;</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="k">print</span> <span class="s">&quot;packing lipids in vacuum, round &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">)</span>
+				<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;grompp&#39;</span><span class="p">],</span>
+					<span class="s">&#39;-f &#39;</span><span class="o">+</span><span class="n">packing_mdps</span><span class="p">[</span><span class="n">mi</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+					<span class="s">&#39;-c &#39;</span><span class="o">+</span><span class="p">(</span><span class="s">&#39;vacuum-minimized.gro&#39;</span> <span class="k">if</span> <span class="n">mi</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="s">&#39;md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span><span class="p">),</span>
+					<span class="s">&#39;-p vacuum.top&#39;</span><span class="p">,</span>
+					<span class="s">&#39;-o md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">),</span>
+					<span class="s">&#39;-po md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">),</span>
+					<span class="s">&#39;-maxwarn 10&#39;</span><span class="p">]</span>
+				<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-grompp-md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">),</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+				<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;mdrun&#39;</span><span class="p">],</span><span class="s">&#39;-v&#39;</span><span class="p">,</span><span class="s">&#39;-deffnm md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">)]</span>
+				<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-mdrun-md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">),</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+				<span class="c">#---sometimes the packing step crashes due to high forces so retreive gro</span>
+				<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s">&#39;md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span><span class="p">):</span>
+					<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;gmxcheck&#39;</span><span class="p">],</span>
+						<span class="s">&#39;-f md-vacuum-p1.xtc&#39;</span><span class="p">]</span>
+					<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-gmxcheck-md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">),</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+					<span class="n">lastframe</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&quot;awk&quot;</span><span class="p">,</span><span class="s">&quot;&#39;/Step / {print $2}&#39;&quot;</span><span class="p">,</span>
+						<span class="s">&#39;log-gmxcheck-md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">)],</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+					<span class="n">ts</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&quot;awk&quot;</span><span class="p">,</span><span class="s">&quot;&#39;/Step / {print $3}&#39;&quot;</span><span class="p">,</span>
+						<span class="s">&#39;log-gmxcheck-md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">)],</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+					<span class="n">lasttime</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">lastframe</span><span class="p">)</span><span class="o">*</span><span class="n">ts</span><span class="p">))</span>
+					<span class="k">print</span> <span class="s">&#39;last viable frame was at &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">lasttime</span><span class="p">)</span><span class="o">+</span><span class="s">&#39; ps&#39;</span>
+					<span class="k">print</span> <span class="s">&#39;retrieving that frame&#39;</span>
+					<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;trjconv&#39;</span><span class="p">],</span>
+						<span class="s">&#39;-f md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.xtc&#39;</span><span class="p">,</span>
+						<span class="s">&#39;-o md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro&#39;</span><span class="p">,</span>
+						<span class="s">&#39;-s md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.tpr&#39;</span><span class="p">,</span>
+						<span class="s">&#39;-b &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">lasttime</span><span class="p">),</span>
+						<span class="s">&#39;-e &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">lasttime</span><span class="p">),]</span>
+					<span class="n">call</span><span class="p">(</span><span class="s">&#39;echo -e &quot;0</span><span class="se">\n</span><span class="s">&quot; |&#39;</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cmd</span><span class="p">),</span>
+						<span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-trjconv-md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">),</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="s">&#39;cp md-vacuum-p&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">mi</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.gro vacuum-packed.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Bilayer.solvate"><a class="viewcode-back" href="../../amx.html#amx.bilayer.Bilayer.solvate">[docs]</a>	<span class="k">def</span> <span class="nf">solvate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">		Add a slab of water next to the bilayer. ``inputs/input-specs-bilayer.dat`` sets some of the geometric</span>
+<span class="sd">		parameters, namely the solvent_thickness, which determines the total amount of water in the system </span>
+<span class="sd">		before any relaxation steps.</span>
+<span class="sd">		&#39;&#39;&#39;</span>
+	
+		<span class="c">#---set the file name of the water box</span>
+		<span class="c">#---note that spc216.gro used for atomistic water is found the GROMACS share directory</span>
+		<span class="n">water_conf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;water_conf&#39;</span><span class="p">]</span>
+	
+		<span class="k">print</span> <span class="s">&quot;checking the bilayer dimensions&quot;</span>
+		<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">],</span>
+			<span class="s">&#39;-f vacuum-packed.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-o md-vacuum-p2-check-dims.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-d 0&#39;</span><span class="p">]</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-vacuum-packed-check-dims&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+		<span class="n">boxdims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_box_vectors</span><span class="p">(</span><span class="s">&#39;log-editconf-vacuum-packed-check-dims&#39;</span><span class="p">,</span><span class="n">new</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+		<span class="k">print</span> <span class="s">&quot;making a water box with the same footprint as the bilayer&quot;</span>
+		<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;genbox&#39;</span><span class="p">],</span>
+			<span class="s">&#39;-cs &#39;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;water_conf&#39;</span><span class="p">],</span>
+			<span class="s">&#39;-o solvate-empty-uncentered.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-box &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">boxdims</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">boxdims</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;solvent_thickness&#39;</span><span class="p">])</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="p">]</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-genbox-solvate-empty&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+
+		<span class="k">print</span> <span class="s">&quot;counting waters&quot;</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">simscale</span> <span class="o">==</span> <span class="s">&#39;aamd&#39;</span><span class="p">:</span>
+			<span class="n">nwaters</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&#39;wc&#39;</span><span class="p">,</span><span class="s">&#39;-l solvate-empty-uncentered.gro&#39;</span><span class="p">],</span>
+				<span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span><span class="o">-</span><span class="mi">3</span><span class="p">)</span><span class="o">/</span><span class="mi">3</span>
+		<span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">simscale</span> <span class="o">==</span> <span class="s">&#39;cgmd&#39;</span><span class="p">:</span>
+			<span class="n">nwaters</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&#39;wc&#39;</span><span class="p">,</span><span class="s">&#39;-l solvate-empty-uncentered.gro&#39;</span><span class="p">],</span>
+				<span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span><span class="o">-</span><span class="mi">3</span><span class="p">)</span>
+
+		<span class="k">print</span> <span class="s">&quot;translating water box&quot;</span>
+		<span class="n">lwtranslate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;lipid_water_buffer&#39;</span><span class="p">]</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;solvent_thickness&#39;</span><span class="p">]</span>
+		<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">],</span>
+			<span class="s">&#39;-f solvate-empty-uncentered.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-o solvate-empty.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-translate 0 0 -&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">lwtranslate</span><span class="p">)]</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-solvate-move-empty&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+
+		<span class="k">print</span> <span class="s">&quot;concatenating water and bilayer&quot;</span>
+		<span class="n">confs</span> <span class="o">=</span> <span class="p">[[</span><span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="n">fn</span><span class="p">,</span><span class="s">&#39;r&#39;</span><span class="p">)]</span> 
+			<span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;vacuum-packed.gro&#39;</span><span class="p">,</span><span class="s">&#39;solvate-empty.gro&#39;</span><span class="p">]]</span>
+		<span class="n">natoms</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">sum</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">conf</span><span class="p">)</span><span class="o">-</span><span class="mi">3</span> <span class="k">for</span> <span class="n">conf</span> <span class="ow">in</span> <span class="n">confs</span><span class="p">]))</span>
+		<span class="n">fp</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="o">+</span><span class="s">&#39;solvate-unsized.gro&#39;</span><span class="p">,</span><span class="s">&#39;w&#39;</span><span class="p">)</span>
+		<span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;bilayer</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">+</span><span class="n">natoms</span><span class="o">+</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+		<span class="k">for</span> <span class="n">conf</span> <span class="ow">in</span> <span class="n">confs</span><span class="p">:</span>
+			<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">conf</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+				<span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">line</span><span class="p">[:</span><span class="mi">20</span><span class="p">]</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="o">+</span><span class="s">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+					<span class="s">&#39;{value[0]:&gt;3}.{value[1]:&lt;3}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="s">&#39;{:.2f}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)))</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">))</span>
+					<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">line</span><span class="p">[</span><span class="mi">20</span><span class="p">:]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">()])</span><span class="o">+</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+		<span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">confs</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+		<span class="n">fp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+		<span class="k">print</span> <span class="s">&quot;checking the bilayer z-dimension&quot;</span>
+		<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">],</span>
+			<span class="s">&#39;-f solvate-unsized.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-o solvate-unsized-check-dims.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-d &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;lipid_water_buffer&#39;</span><span class="p">]))]</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-solvate-unsized&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+		<span class="n">boxdimsxy</span> <span class="o">=</span> <span class="n">boxdims</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+		<span class="n">boxdims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_box_vectors</span><span class="p">(</span><span class="s">&#39;log-editconf-solvate-unsized&#39;</span><span class="p">,</span><span class="n">new</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+		<span class="k">print</span> <span class="s">&quot;resizing the box&quot;</span>
+		<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;editconf&#39;</span><span class="p">],</span>
+			<span class="s">&#39;-f solvate-unsized.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-o solvate.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-box &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">boxdimsxy</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">boxdimsxy</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">boxdims</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="p">]</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-editconf-solvate&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+
+		<span class="k">print</span> <span class="s">&quot;counting waters and updating topology&quot;</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">simscale</span> <span class="o">==</span> <span class="s">&#39;aamd&#39;</span><span class="p">:</span>
+			<span class="n">nwaters</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&#39;wc&#39;</span><span class="p">,</span><span class="s">&#39;-l solvate-empty-uncentered.gro&#39;</span><span class="p">],</span>
+				<span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span><span class="o">-</span><span class="mi">3</span><span class="p">)</span><span class="o">/</span><span class="mi">3</span>
+		<span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">simscale</span> <span class="o">==</span> <span class="s">&#39;cgmd&#39;</span><span class="p">:</span>
+			<span class="n">nwaters</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&#39;wc&#39;</span><span class="p">,</span><span class="s">&#39;-l solvate-empty-uncentered.gro&#39;</span><span class="p">],</span>
+				<span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span><span class="o">-</span><span class="mi">3</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;sol_name&#39;</span><span class="p">])</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">comps</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;sol_name&#39;</span><span class="p">],</span><span class="nb">str</span><span class="p">(</span><span class="n">nwaters</span><span class="p">)])</span>
+	
+		<span class="bp">self</span><span class="o">.</span><span class="n">write_topology</span><span class="p">(</span><span class="s">&#39;solvate.top&#39;</span><span class="p">,</span><span class="n">restraints</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">minimization_method</span><span class="p">(</span><span class="s">&#39;solvate&#39;</span><span class="p">)</span>
+		
+		<span class="k">print</span> <span class="s">&quot;translating so the bilayer is in the middle&quot;</span>
+		<span class="n">call</span><span class="p">(</span><span class="s">&#39;mv solvate-minimized.gro solvate-minimized-unshifted.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+		<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;echo -e &quot;0</span><span class="se">\n</span><span class="s">&quot; |&#39;</span><span class="p">,</span>
+			<span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;trjconv&#39;</span><span class="p">],</span>
+			<span class="s">&#39;-f solvate-minimized-unshifted.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-o solvate-minimized.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-trans 0 0 &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;solvent_thickness&#39;</span><span class="p">]</span><span class="o">/</span><span class="mf">2.</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;lipid_water_buffer&#39;</span><span class="p">]),</span>
+			<span class="s">&#39;-s em-solvate-steep.tpr&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-pbc mol&#39;</span><span class="p">]</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-trjconv-solvate-shift-center&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>		
+</div>
+<div class="viewcode-block" id="Bilayer.counterionize"><a class="viewcode-back" href="../../amx.html#amx.bilayer.Bilayer.counterionize">[docs]</a>	<span class="k">def</span> <span class="nf">counterionize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;Add counterions to the water slab.&#39;&#39;&#39;</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;concentration_calc&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;exempt_lipids&#39;</span><span class="p">:</span>
+			<span class="k">print</span> <span class="s">&quot;running genion on the water only&quot;</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">write_topology</span><span class="p">(</span><span class="s">&#39;solvate-water.top&#39;</span><span class="p">,</span><span class="n">restraints</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span><span class="n">water_only</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;grompp&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-f input-em-steep-in.mdp&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-po genion-water.mdp&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-c solvate-empty.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-p solvate-water.top&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-o genion-water.tpr&#39;</span><span class="p">]</span>
+			<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-grompp-genion-water&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;echo -e &quot;keep 0</span><span class="se">\n</span><span class="s">r &#39;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;sol_name&#39;</span><span class="p">]</span><span class="o">+</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">keep 1</span><span class="se">\n</span><span class="s">q</span><span class="se">\n</span><span class="s">&quot; |&#39;</span><span class="p">,</span>
+				<span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;make_ndx&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-f solvate-empty.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-o counterions-empty.ndx&#39;</span><span class="p">]</span>
+			<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-make-ndx-counterions-empty&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="k">print</span> <span class="s">&quot;running diagnostic genion to get ion counts&quot;</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;genion&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-s genion-water.tpr&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-o counterions-water.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-conc &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;ion_strength&#39;</span><span class="p">]),</span>
+				<span class="s">&#39;-n counterions-empty.ndx&#39;</span><span class="p">]</span>
+			<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-genion-water&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="n">padd1</span><span class="p">,</span><span class="n">nadd1</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&quot;awk&quot;</span><span class="p">,</span><span class="s">&quot;&#39;/Will try to add/ {print $&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">col</span><span class="p">)</span><span class="o">+</span>\
+				<span class="s">&quot;}&#39;&quot;</span><span class="p">,</span><span class="s">&quot;log-genion-water&quot;</span><span class="p">],</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span><span class="mi">9</span><span class="p">]]</span>
+			<span class="n">total_ions</span> <span class="o">=</span> <span class="n">padd1</span><span class="o">+</span><span class="n">nadd1</span>
+			<span class="k">print</span> <span class="s">&quot;checking system charge&quot;</span>
+			<span class="n">call</span><span class="p">(</span><span class="s">&#39;cp solvate.top counterions-charge.top&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;grompp&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-f input-em-steep-in.mdp&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-po genion-charge.mdp&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-c solvate-minimized.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-p counterions-charge.top&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-o genion-charge.tpr&#39;</span><span class="p">]</span>
+			<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-grompp-genion-charge&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;echo -e &quot;keep 0</span><span class="se">\n</span><span class="s">r &#39;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;sol_name&#39;</span><span class="p">]</span><span class="o">+</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">keep 1</span><span class="se">\n</span><span class="s">q</span><span class="se">\n</span><span class="s">&quot; |&#39;</span><span class="p">,</span>
+				<span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;make_ndx&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-f solvate-minimized.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-o counterions-charge.ndx&#39;</span><span class="p">]</span>	
+			<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-make-ndx-counterions-charge&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;genion&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-s genion-charge.tpr&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-o counterions-charge.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-nname &#39;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;salt&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span>
+				<span class="s">&#39;-pname &#39;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;salt&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+				<span class="s">&#39;-neutral&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-conc &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;ion_strength&#39;</span><span class="p">]),</span>
+				<span class="s">&#39;-n counterions-charge.ndx&#39;</span><span class="p">]</span>
+			<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-genion-charge&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="n">padd2</span><span class="p">,</span><span class="n">nadd2</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&quot;awk&quot;</span><span class="p">,</span><span class="s">&quot;&#39;/Will try to add/ {print $&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">col</span><span class="p">)</span><span class="o">+</span>\
+				<span class="s">&quot;}&#39;&quot;</span><span class="p">,</span><span class="s">&quot;log-genion-charge&quot;</span><span class="p">],</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span><span class="mi">9</span><span class="p">]]</span>
+			<span class="n">charge_difference</span> <span class="o">=</span> <span class="n">padd2</span><span class="o">-</span><span class="n">nadd2</span>
+			<span class="n">diff</span> <span class="o">=</span> <span class="o">-</span><span class="n">charge_difference</span>
+			<span class="n">total</span> <span class="o">=</span> <span class="n">total_ions</span>
+			<span class="n">qn</span> <span class="o">=</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;nq&#39;</span><span class="p">]</span>
+			<span class="n">qp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;pq&#39;</span><span class="p">]</span>
+			<span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">total</span><span class="p">,</span><span class="n">total</span><span class="o">+</span><span class="mi">20</span><span class="p">):</span>
+					<span class="n">p</span> <span class="o">=</span> <span class="p">(</span><span class="n">qn</span><span class="o">*</span><span class="n">t</span><span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="n">diff</span><span class="p">))</span><span class="o">/</span><span class="nb">float</span><span class="p">(</span><span class="n">qn</span><span class="o">+</span><span class="n">qp</span><span class="p">)</span>
+					<span class="n">n</span> <span class="o">=</span> <span class="p">(</span><span class="n">qp</span><span class="o">*</span><span class="n">t</span><span class="o">+</span><span class="nb">float</span><span class="p">(</span><span class="n">diff</span><span class="p">))</span><span class="o">/</span><span class="nb">float</span><span class="p">(</span><span class="n">qn</span><span class="o">+</span><span class="n">qp</span><span class="p">)</span>
+					<span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">==</span> <span class="nb">float</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">int</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">==</span> <span class="nb">float</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+						<span class="n">pcount</span><span class="p">,</span><span class="n">ncount</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">p</span><span class="p">),</span><span class="nb">int</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+						<span class="k">break</span>
+			<span class="k">if</span> <span class="n">ncount</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">pcount</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span> 
+				<span class="k">print</span> <span class="s">&quot;WARNING: zero ions&quot;</span>
+			<span class="k">print</span> <span class="s">&quot;adding counterions&quot;</span>
+			<span class="n">call</span><span class="p">(</span><span class="s">&#39;cp solvate.top counterions.top&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;grompp&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-f input-em-steep-in.mdp&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-po genion.mdp&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-c solvate-minimized.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-p counterions.top&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-o genion.tpr&#39;</span><span class="p">]</span>
+			<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-grompp-genion&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;echo -e &quot;keep 0</span><span class="se">\n</span><span class="s">r &#39;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;sol_name&#39;</span><span class="p">]</span><span class="o">+</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">keep 1</span><span class="se">\n</span><span class="s">q</span><span class="se">\n</span><span class="s">&quot; |&#39;</span><span class="p">,</span>
+				<span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;make_ndx&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-f solvate-minimized.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-o counterions-waters.ndx&#39;</span><span class="p">]</span>
+			<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-make-ndx-counterions-waters&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;genion&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-s genion.tpr&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-o counterions.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-nname &#39;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;negative_ion_name&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-pname &#39;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;positive_ion_name&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-nn &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">ncount</span><span class="p">),</span>
+				<span class="s">&#39;-np &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">pcount</span><span class="p">),</span>
+				<span class="s">&#39;-n counterions-waters.ndx&#39;</span><span class="p">]</span>
+			<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-genion&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;concentration_calc&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;simple&#39;</span><span class="p">:</span>
+			<span class="k">print</span> <span class="s">&#39;adding counterions&#39;</span>
+			<span class="n">call</span><span class="p">(</span><span class="s">&#39;cp solvate.top counterions.top&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;grompp&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-f input-em-steep-in.mdp&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-po genion.mdp&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-c solvate-minimized.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-p counterions.top&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-o genion.tpr&#39;</span><span class="p">]</span>
+			<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-grompp-genion&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;echo -e &quot;keep 0</span><span class="se">\n</span><span class="s">r &#39;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;sol_name&#39;</span><span class="p">]</span><span class="o">+</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">keep 1</span><span class="se">\n</span><span class="s">q</span><span class="se">\n</span><span class="s">&quot; |&#39;</span><span class="p">,</span>
+				<span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;make_ndx&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-f solvate-minimized.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-o counterions-waters.ndx&#39;</span><span class="p">]</span>
+			<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-make-ndx-counterions-waters&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;genion&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-s genion.tpr&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-o counterions.gro&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-nname &#39;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;negative_ion_name&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-pname &#39;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;positive_ion_name&#39;</span><span class="p">],</span>
+				<span class="s">&#39;-neutral&#39;</span><span class="p">,</span>
+				<span class="s">&#39;-conc &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;ion_strength&#39;</span><span class="p">]),</span>
+				<span class="s">&#39;-n counterions-waters.ndx&#39;</span><span class="p">]</span>
+			<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-genion&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;except: unclear concentration_calc&#39;</span><span class="p">)</span>
+
+		<span class="c">#---diagnostic</span>
+		<span class="n">pcount</span><span class="p">,</span><span class="n">ncount</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&quot;awk&quot;</span><span class="p">,</span><span class="s">&quot;&#39;/Will try to add / {print $&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">col</span><span class="p">)</span><span class="o">+</span>\
+			<span class="s">&quot;}&#39;&quot;</span><span class="p">,</span><span class="s">&quot;log-genion&quot;</span><span class="p">],</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">))</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span><span class="mi">9</span><span class="p">]]</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">simscale</span> <span class="o">==</span> <span class="s">&#39;aamd&#39;</span><span class="p">:</span>
+			<span class="n">nwaters</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&#39;wc&#39;</span><span class="p">,</span><span class="s">&#39;-l solvate-empty-uncentered.gro&#39;</span><span class="p">],</span>
+				<span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span><span class="o">-</span><span class="mi">3</span><span class="p">)</span><span class="o">/</span><span class="mi">3</span>
+		<span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">simscale</span> <span class="o">==</span> <span class="s">&#39;cgmd&#39;</span><span class="p">:</span>
+			<span class="n">nwaters</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">checkout</span><span class="p">([</span><span class="s">&#39;wc&#39;</span><span class="p">,</span><span class="s">&#39;-l solvate-empty-uncentered.gro&#39;</span><span class="p">],</span>
+				<span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span><span class="o">-</span><span class="mi">3</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;positive_ion_name&#39;</span><span class="p">])</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">comps</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;positive_ion_name&#39;</span><span class="p">],</span><span class="nb">str</span><span class="p">(</span><span class="n">pcount</span><span class="p">)])</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;negative_ion_name&#39;</span><span class="p">])</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">comps</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;negative_ion_name&#39;</span><span class="p">],</span><span class="nb">str</span><span class="p">(</span><span class="n">ncount</span><span class="p">)])</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">comps</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">lnames</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s">&#39;sol_name&#39;</span><span class="p">])][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">nwaters</span> <span class="o">-</span> <span class="n">pcount</span> <span class="o">-</span> <span class="n">ncount</span><span class="p">)</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">write_topology</span><span class="p">(</span><span class="s">&#39;counterions.top&#39;</span><span class="p">,</span><span class="n">restraints</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">minimization_method</span><span class="p">(</span><span class="s">&#39;counterions&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Bilayer.grouping"><a class="viewcode-back" href="../../amx.html#amx.bilayer.Bilayer.grouping">[docs]</a>	<span class="k">def</span> <span class="nf">grouping</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">		Write the ``system-groups.ndx`` file for further simulation, which requires that the water and </span>
+<span class="sd">		lipids and possibly proteins are coupled to their own temperature baths.</span>
+<span class="sd">		&#39;&#39;&#39;</span>
+		<span class="k">print</span> <span class="s">&quot;writing groups ndx file&quot;</span>
+		<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;echo -ne &quot;keep 0</span><span class="se">\n</span><span class="s">r &#39;</span><span class="o">+</span>\
+			<span class="s">&#39; | r &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">l</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">lnames</span> <span class="k">if</span> <span class="n">l</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ion_residue_names</span><span class="p">]</span><span class="o">+</span><span class="p">[</span><span class="s">&#39;ION&#39;</span><span class="p">])</span><span class="o">+</span>\
+			<span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">+</span><span class="s">&#39;r &#39;</span><span class="o">+</span><span class="s">&#39; | r &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">l</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">lnames</span> <span class="k">if</span> <span class="n">l</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ion_residue_names</span><span class="p">])</span><span class="o">+</span>\
+			<span class="s">&#39;</span><span class="se">\n</span><span class="s">name 1 LIPIDS</span><span class="se">\n</span><span class="s">name 2 SOLV</span><span class="se">\n</span><span class="s">del 0</span><span class="se">\n</span><span class="s">q</span><span class="se">\n</span><span class="s">&quot; |&#39;</span><span class="p">,</span>
+			<span class="n">gmxpaths</span><span class="p">[</span><span class="s">&#39;make_ndx&#39;</span><span class="p">],</span>
+			<span class="s">&#39;-f counterions-minimized.gro&#39;</span><span class="p">,</span>
+			<span class="s">&#39;-o system-groups.ndx&#39;</span><span class="p">]</span>
+		<span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">logfile</span><span class="o">=</span><span class="s">&#39;log-make-ndx-groups&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="s">&#39;cp counterions-minimized.gro system.gro&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+		<span class="n">call</span><span class="p">(</span><span class="s">&#39;cp counterions.top system.top&#39;</span><span class="p">,</span><span class="n">cwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rootdir</span><span class="p">)</span>
+			</div></div>
+</pre></div>
+
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2014, Ryan Bradley.
+    </p>
+  </div>
+
+  <a href="https://github.com/snide/sphinx_rtd_theme">Sphinx theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../',
+            VERSION:'1.0.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
