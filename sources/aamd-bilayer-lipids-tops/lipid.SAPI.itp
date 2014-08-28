@@ -1356,8 +1356,4 @@ SAPI               3
    34    33    36    35     2 
    43    42    45    44     2 
 
-; Include Position restraint file
-#ifdef POSRES
-#include "SAPI.itp"
-#endif
 
