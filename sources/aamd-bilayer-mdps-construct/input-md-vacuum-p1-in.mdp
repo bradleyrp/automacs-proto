@@ -1,3 +1,5 @@
+define = -DPOSRES
+
 integrator = md
 nsteps = 100000
 dt = 0.001
@@ -38,7 +40,7 @@ ref_t = 310
 pcoupl = Berendsen
 pcoupltype = semiisotropic
 tau_p = 0.5
-ref_p = 500.0 1.0
+ref_p = 100.0 1.0
 compressibility = 4.5e-5 4.5e-5
 
 dispcorr = no

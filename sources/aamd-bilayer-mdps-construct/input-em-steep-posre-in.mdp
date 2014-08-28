@@ -1,3 +1,5 @@
+define = -DPOSRES
+
 integrator = steep
 emtol = 1000
 emstep = 0.1
