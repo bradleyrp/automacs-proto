@@ -156,7 +156,7 @@ class Bilayer:
 				str(i+4)+"}'",logfile],cwd=self.rootdir).strip()) for i in range(3)]
 		return boxdims
 		
-	def write_topology(self,topname,restraints=False,water_only=False):
+	def write_topology(self,topname,water_only=False):
 		'''Write the topology file from residue lists stored in ``self.lnames`` and ``self.complist``.'''
 		
 		print 'writing topology'
@@ -167,7 +167,7 @@ class Bilayer:
 			for lname in self.lnames:
 				if lname not in self.ion_residue_names: 
 					fp.write('#include "./lipids-tops/lipid.'+lname+'.itp"\n')
-					if restraints: fp.write('#include "./lipids-tops/restr.'+lname+'.itp"\n') 
+					fp.write('#include "./lipids-tops/restr.'+lname+'.itp"\n') 
 			fp.write('#include "charmm36.ff/tips3p.itp"\n')
 			fp.write('#include "charmm36.ff/ions.itp"\n\n')
 			fp.write('[ system ]\nBILAYER\n\n')
@@ -217,12 +217,14 @@ class Bilayer:
 		cmd = [gmxpaths['mdrun'],'-v','-deffnm em-'+name+'-cg']
 		call(cmd,logfile='log-mdrun-em-'+name+'-cg',cwd=self.rootdir)
 	
-		mdrun_logs = [[line for line in open(self.rootdir+fn,'r')] 
-			for fn in ['log-mdrun-em-'+name+'-steep','log-mdrun-em-'+name+'-cg']]
-		forces = [i[0] for i in [[float(line.strip().split()[3]) 
-			for line in d if line[:13] == 'Maximum force'] 
-			for d in mdrun_logs] if len(i) == 1]
-		bestmin = 'em-'+name+'-cg.gro' if forces[0] > forces[1] else 'em-'+name+'-steep.gro'
+		mdrun_logs = [[line for line in open(self.rootdir+fn,'r')] for fn in 
+			['log-mdrun-em-'+name+'-steep','log-mdrun-em-'+name+'-cg']]
+		forces = [i[0] if len(i) >= 1 else [] for i in [[float(line.strip().split()[3]) 
+			for line in d if line[:13] == 'Maximum force'] for d in mdrun_logs]]
+		if len(forces) == 0: raise Exception('except: both minimization methods failed')
+		if forces[0] == []: bestmin = 'em-'+name+'-cg.gro'
+		elif forces[1] == []: bestmin = 'em-'+name+'-steep.gro'
+		else: bestmin = 'em-'+name+'-cg.gro' if forces[0] > forces[1] else 'em-'+name+'-steep.gro'
 		call('cp '+bestmin+' '+name+'-minimized.gro',cwd=self.rootdir)
 	
 	def construction(self):
@@ -235,6 +237,18 @@ class Bilayer:
 		2. :class:`packing <Bilayer.packing>`
 		3. :class:`solvate <Bilayer.solvate>`
 		4. :class:`counterionize <Bilayer.counterionize>`
+		
+		For development or tweaking the input parameters, the system checks for the following files at these
+		corresponding stages.
+		
+		1. vacuum-minimized.gro
+		2. vacuum-packed.gro
+		3. solvate-minimized.gro
+		4. counterions-minimized.gro
+		5. system.gro
+		
+		If the system.gro file is absent, the script will regenerate the topology and group files. You may 
+		delete any of these key files to repeat a process when you re-run the script.
 		'''
 		if not os.path.isfile(self.rootdir+'vacuum-minimized.gro'): self.vacuum()
 		else: 
@@ -251,16 +265,16 @@ class Bilayer:
 			print 'skipping solvate because solvate-minimized.gro exists'
 			#---diagnostic
 			if self.simscale == 'aamd':
-				nwaters = (int(checkout(['wc','-l solvate-empty-uncentered.gro'],
+				nwaters = (int(checkout(['wc','-l','solvate-empty-uncentered.gro'],
 					cwd=self.rootdir).split()[0])-3)/3
 			elif self.simscale == 'cgmd':
-				nwaters = (int(checkout(['wc','-l solvate-empty-uncentered.gro'],
+				nwaters = (int(checkout(['wc','-l','solvate-empty-uncentered.gro'],
 					cwd=self.rootdir).split()[0])-3)				
 			self.lnames.append(self.settings['sol_name'])
 			self.comps.append([self.settings['sol_name'],str(nwaters)])
-		if not os.path.isfile(self.rootdir+'system.gro'): self.counterionize()
+		if not os.path.isfile(self.rootdir+'counterions-minimized.gro'): self.counterionize()
 		else: 
-			print 'skipping counterionize because system.gro exists'
+			print 'skipping counterionize because counterions-minimized.gro exists'
 			#---diagnostic
 			pcount,ncount = [int(checkout(['awk',"'/Will try to add / {print $"+str(col)+\
 				"}'","log-genion"],cwd=self.rootdir)) for col in [5,9]]
@@ -269,7 +283,7 @@ class Bilayer:
 			self.lnames.append(self.settings['negative_ion_name'])
 			self.comps.append([self.settings['negative_ion_name'],str(ncount)])
 			self.comps[self.lnames.index(self.settings['sol_name'])][1] = str(nwaters - pcount - ncount)
-		self.grouping()
+		if not os.path.isfile(self.rootdir+'system.gro'): self.grouping()
 	
 	def vacuum(self):	
 		'''Assemble monolayers into a bilayer and minimize.'''
@@ -346,7 +360,7 @@ class Bilayer:
 			'-box '+str(boxpad[0])+' '+str(boxpad[1])+' '+str(self.settings['zbuffer']/2.+boxdims[2])]
 		call(cmd,logfile='log-editconf-place-grid',cwd=self.rootdir)
 		
-		self.write_topology('vacuum.top',restraints=True)
+		self.write_topology('vacuum.top')
 		self.minimization_method('vacuum',posre=True)
 		
 	def packing(self):
@@ -386,7 +400,9 @@ class Bilayer:
 						'log-gmxcheck-md-vacuum-p'+str(mi)],cwd=self.rootdir).strip())
 					ts = float(checkout(["awk","'/Step / {print $3}'",
 						'log-gmxcheck-md-vacuum-p'+str(mi)],cwd=self.rootdir).strip())
+					#---note that rpb added a rounding function after an error in an AAMD test 2014.08.24
 					lasttime = float(int(float(lastframe)*ts))
+					lasttime = round(lasttime/10)*10
 					print 'last viable frame was at '+str(lasttime)+' ps'
 					print 'retrieving that frame'
 					cmd = [gmxpaths['trjconv'],
@@ -427,10 +443,10 @@ class Bilayer:
 
 		print "counting waters"
 		if self.simscale == 'aamd':
-			nwaters = (int(checkout(['wc','-l solvate-empty-uncentered.gro'],
+			nwaters = (int(checkout(['wc','-l','solvate-empty-uncentered.gro'],
 				cwd=self.rootdir).split()[0])-3)/3
 		elif self.simscale == 'cgmd':
-			nwaters = (int(checkout(['wc','-l solvate-empty-uncentered.gro'],
+			nwaters = (int(checkout(['wc','-l','solvate-empty-uncentered.gro'],
 				cwd=self.rootdir).split()[0])-3)
 
 		print "translating water box"
@@ -443,16 +459,21 @@ class Bilayer:
 		call(cmd,logfile='log-editconf-solvate-move-empty',cwd=self.rootdir)
 
 		print "concatenating water and bilayer"
+		#---note that the AAMD setup is more sensitive and likely to crash
+		#---...for that reason we use the "editdconf -d 0" output to make it more flush
+		#---...and assume that the 
 		#---swapped in the md-vacuum-p2-check-dims.gro for vacuum-packed.gro here
 		confs = [[line for line in open(self.rootdir+fn,'r')] 
-			for fn in ['md-vacuum-p2-check-dims.gro','solvate-empty.gro']]
+			for fn in [
+				('md-vacuum-p2-check-dims.gro'if self.simscale == 'aamd' else 'vacuum-packed.gro'),
+				'solvate-empty.gro']]
 		natoms = str(sum([len(conf)-3 for conf in confs]))
 		fp = open(self.rootdir+'solvate-unsized.gro','w')
 		fp.write('bilayer\n'+natoms+'\n')
 		for conf in confs:
 			for line in conf[2:-1]:
 				fp.write(line[:20]+' '+''.join([
-					'{value[0]:>3}.{value[1]:<3}'.format(value=str('{:.2f}'.format(float(i))).split('.'))
+					'{value[0]:>3}.{value[1]:<3}'.format(value=str('{0:.2f}'.format(float(i))).split('.'))
 					for i in line[20:].strip('\n').split()])+'\n')
 		fp.write(confs[0][-1])
 		fp.close()
@@ -475,15 +496,15 @@ class Bilayer:
 
 		print "counting waters and updating topology"
 		if self.simscale == 'aamd':
-			nwaters = (int(checkout(['wc','-l solvate-empty-uncentered.gro'],
+			nwaters = (int(checkout(['wc','-l','solvate-empty-uncentered.gro'],
 				cwd=self.rootdir).split()[0])-3)/3
 		elif self.simscale == 'cgmd':
-			nwaters = (int(checkout(['wc','-l solvate-empty-uncentered.gro'],
+			nwaters = (int(checkout(['wc','-l','solvate-empty-uncentered.gro'],
 				cwd=self.rootdir).split()[0])-3)
 		self.lnames.append(self.settings['sol_name'])
 		self.comps.append([self.settings['sol_name'],str(nwaters)])
 	
-		self.write_topology('solvate.top',restraints=True)
+		self.write_topology('solvate.top')
 		self.minimization_method('solvate')
 		
 		print "translating so the bilayer is in the middle"
@@ -501,7 +522,7 @@ class Bilayer:
 		'''Add counterions to the water slab.'''
 		if self.settings['concentration_calc'] == 'exempt_lipids':
 			print "running genion on the water only"
-			self.write_topology('solvate-water.top',restraints=True,water_only=True)
+			self.write_topology('solvate-water.top',water_only=True)
 			cmd = [gmxpaths['grompp'],
 				'-f input-em-steep-in.mdp',
 				'-po genion-water.mdp',
@@ -564,6 +585,7 @@ class Bilayer:
 				print "WARNING: zero ions"
 			print "adding counterions"
 			call('cp solvate.top counterions.top',cwd=self.rootdir)
+			self.write_topology('solvate.top')
 			cmd = [gmxpaths['grompp'],
 				'-f input-em-steep-in.mdp',
 				'-po genion.mdp',
@@ -615,10 +637,10 @@ class Bilayer:
 		pcount,ncount = [int(checkout(["awk","'/Will try to add / {print $"+str(col)+\
 			"}'","log-genion"],cwd=self.rootdir)) for col in [5,9]]
 		if self.simscale == 'aamd':
-			nwaters = (int(checkout(['wc','-l solvate-empty-uncentered.gro'],
+			nwaters = (int(checkout(['wc','-l','solvate-empty-uncentered.gro'],
 				cwd=self.rootdir).split()[0])-3)/3
 		elif self.simscale == 'cgmd':
-			nwaters = (int(checkout(['wc','-l solvate-empty-uncentered.gro'],
+			nwaters = (int(checkout(['wc','-l','solvate-empty-uncentered.gro'],
 				cwd=self.rootdir).split()[0])-3)
 		self.lnames.append(self.settings['positive_ion_name'])
 		self.comps.append([self.settings['positive_ion_name'],str(pcount)])
@@ -626,7 +648,7 @@ class Bilayer:
 		self.comps.append([self.settings['negative_ion_name'],str(ncount)])
 		self.comps[self.lnames.index(self.settings['sol_name'])][1] = str(nwaters - pcount - ncount)
 
-		self.write_topology('counterions.top',restraints=True)
+		self.write_topology('counterions.top')
 		self.minimization_method('counterions')
 
 	def grouping(self):
@@ -644,5 +666,5 @@ class Bilayer:
 			'-o system-groups.ndx']
 		call(cmd,logfile='log-make-ndx-groups',cwd=self.rootdir)
 		call('cp counterions-minimized.gro system.gro',cwd=self.rootdir)
-		call('cp counterions.top system.top',cwd=self.rootdir)
+		self.write_topology('system.top')
 			

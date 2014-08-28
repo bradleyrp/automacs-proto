@@ -15,6 +15,9 @@ execfile('settings')
 patlist = ['log-','em-all-','step-','.top$','.mdp$','.tpr$','.xtc$','.trr$','.gro$','.edr$','.log$','.cpt$',
 	'.itp$','cluster-','gmxpaths','gmxcalls','gmxjob','#','.dat','.pdb','script-','.jpeg$','.jpg$']
 	
+#---ignore reset delete candidates 
+whitelist = ['.git','^\.\/docs']
+	
 #---documentation page
 document_location = 'file://'+os.path.abspath(os.path.curdir)+'/docs/_build/html/index.html'
 	
@@ -198,7 +201,7 @@ def reset():
 			#---find files with patterns in patlist, excluding source files and 
 			if any([re.search(i,filename) for i in patlist]) and \
 				not re.search('source',root) and not re.search('input',root) \
-				and not re.search('amx',root):
+				and not re.search('amx',root) and not any([re.search(w,root) for w in whitelist]):
 				print root+'/'+filename
 	print '\ndata folders marked for deletion:\n'
 	for root,dirnames,filenames in os.walk(rootdir,followlinks=True):
@@ -218,7 +221,7 @@ def reset():
 				#---find files with patterns in patlist, excluding source files and 
 				if any([re.search(i,filename) for i in patlist]) and \
 					not re.search('source',root) and not re.search('input',root) \
-					and not re.search('amx',root):
+					and not re.search('amx',root) and not any([re.search(w,root) for w in whitelist]):
 					print 'rm '+root+'/'+filename
 					os.system('rm -r '+root+'/'+filename)
 					
@@ -456,8 +459,18 @@ def make(target):
 	fp.close()	
 	
 	#---write cluster-header if possible
-	if hostname != None and 'cluster_header_'+system_id in globals():
-		header_source = globals()['cluster_header_'+system_id]
+	if proc_settings != None:
+		if proc_settings['scratch']: scratch_suffix = '_scratch'
+		else: scratch_suffix = ''
+	if hostname != None and 'cluster_header_'+system_id+scratch_suffix in globals():
+		scriptvar = 'cluster_header_'+system_id+scratch_suffix
+		#---if the header is a list, then it must contain a header and a footer
+		if type(globals()[scriptvar]) == list:
+			header_source = globals()[scriptvar][0]
+			header_source_footer = globals()[scriptvar][1]
+		else:
+			header_source = globals()[scriptvar]
+			header_source_footer = None
 		header_source_mod = []
 		for line in header_source.split('\n'):
 			if line[:7] == '#PBS -l' and proc_settings != None:
@@ -471,6 +484,7 @@ def make(target):
 		fp = open('cluster-master-'+str(target),'w')
 		fp.write(header_source_mod)
 		fp.write(script_maker(target,module_commands=proc_settings['module']))
+		if header_source_footer != None: fp.write(header_source_footer)
 		fp.close()
 		#---write a simulation continuation script to the final step
 		fp = open(script_dict[target]['steps']['step_simulation']+'/cluster-md-continue','w')

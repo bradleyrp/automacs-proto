@@ -21,28 +21,75 @@ cluster_header_compbio_opterons = \
 #PBS -j eo 
 #PBS -q opterons
 #PBS -N gmxjob
-cd $PBS_O_WORKDIR
 echo "Job started on `hostname` at `date`"
+cd $PBS_O_WORKDIR
 """
+
 
 cluster_header_compbio_xeons = \
 """#!/bin/bash
 #PBS -l nodes=1:ppn=2,walltime=96:00:00
 #PBS -j eo 
 #PBS -N gmxjob
-cd $PBS_O_WORKDIR
 echo "Job started on `hostname` at `date`"
+cd $PBS_O_WORKDIR
 """
+
+cluster_header_compbio_opterons_scratch = [
+"""#!/bin/bash
+#PBS -l nodes=1:ppn=16,walltime=96:00:00
+#PBS -j eo 
+#PBS -q opterons
+#PBS -N gmxjob
+echo "Job started on `hostname` at `date`"
+cd $PBS_O_WORKDIR
+jobid=`echo $PBS_JOBID|cut -f1 -d '.'`     # get the id of the job
+rundir="/scratch/job-$jobid"               # complete path to temp dir  
+echo "Running on scratch in "$rundir       # report the directory
+mkdir $rundir                              # make the tempdir  
+cp -rv * $rundir                           # copy all files to tempdir
+cd $rundir                                 # change to tempdir
+""",
+"""
+mv -f * $PBS_O_WORKDIR                     # move all files to the home directory
+cd /scratch                                # leave the directory
+rmdir $rundir                              # remove the directory if it is empty
+exit
+"""]
+
+
+cluster_header_compbio_xeons_scratch = [
+"""#!/bin/bash
+#PBS -l nodes=1:ppn=2,walltime=96:00:00
+#PBS -j eo 
+#PBS -N gmxjob
+echo "Job started on `hostname` at `date`"
+cd $PBS_O_WORKDIR
+jobid=`echo $PBS_JOBID|cut -f1 -d '.'`     # get the id of the job
+rundir="/scratch/job-$jobid"               # complete path to temp dir  
+echo "Running on scratch in "$rundir       # report the directory
+mkdir $rundir                              # make the tempdir  
+cp -rv * $rundir                           # copy all files to tempdir
+cd $rundir                                 # change to tempdir
+""",
+"""
+mv -f * $PBS_O_WORKDIR                     # move all files to the home directory
+cd /scratch                                # leave the directory
+rmdir $rundir                              # remove the directory if it is empty
+exit
+"""]
 
 #---default number of nodes, processors per node, and walltime
 #---note the module item holds bash commands to set paths for gromacs utilities 
 default_proc_specs = {
 	'compbio_xeons':
 		{'nnodes':4,'ppn':2,'walltime':48,
-		'module':'module load gromacs-gcc'},
+		'module':'module load gromacs-gcc',
+		'scratch':False},
 	'compbio_opterons':
-		{'nodes':1,'ppn':16,'walltime':72,
-		'module':'module load gromacs-gcc'},
+		{'nodes':1,'ppn':16,'walltime':96,
+		'module':'module load gromacs-gcc',
+		'scratch':False},
 	}
 	
 #---gromacs paths
@@ -53,16 +100,16 @@ standard_gromacs_commands = [
 
 #---system-specific suffixes to the gromacs utilities
 gmx_suffixes = {
-	'compbio_xeons':'_mpi_d',
-	'compbio_opterons':'_mpi_d',
+	'compbio_xeons':'_mpi',
+	'compbio_opterons':'_mpi',
 	}
 
 #---system-specific commands to substitute for standard_gromacs_commands
 #---note some commands require a number of processors NPROCS which is substituted by ./controller make
 gmx_overrides = {
 	'local':{'mdrun':'mdrun -nt 4',},
-	'compbio_xeons':{'mdrun':'mpirun -np NPROCS mdrun_mpi_d',},
-	'compbio_opterons':{'mdrun':'mpirun -np NPROCS mdrun_mpi_d',},
+	'compbio_xeons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
+	'compbio_opterons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	}
 
 

@@ -14,7 +14,7 @@ gen_temp = 323
 gen_seed = -1
 
 constraint_algorithm = lincs
-;previous method used all-bonds but this was crashing so rpb changed it on 2014.08.24
+;previous method used all-bonds but this was crashing so rpb changed it to none on 2014.08.24
 ;constraints = all-bonds
 constraints = none
 lincs_iter = 1
