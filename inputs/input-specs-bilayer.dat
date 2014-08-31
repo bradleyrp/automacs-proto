@@ -5,17 +5,17 @@
 #---note you can set equal compositions on both monolayers 
 #---...by deleting nlipids1, complist1, and lipidnames1
 
-nlipids0 = 196
-complist0 = [6,3,1]
-lipidnames0 = ['DOPC','DOPS','PIP2']
-nlipids1 = 150
-complist1 = [4,1]
-lipidnames1 = ['DOPC','DOPS']
+nlipids0 = 400
+complist0 = [50,15,25,10]
+lipidnames0 = ['DOPE','DOPS','CHL1','SAPI']
+nlipids1 = 400
+complist1 = [3,1]
+lipidnames1 = ['POPC','CHL1']
 
 #---SIMULATION RESOLUTION
 
 #---note specify either 'cgmd' or 'aamd' to set the correct parameters
-simscale = 'cgmd'
+simscale = 'aamd'
 
 #---CONSTRUCTION SETTINGS
 
