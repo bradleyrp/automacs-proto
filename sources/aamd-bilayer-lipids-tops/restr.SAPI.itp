@@ -1,5 +1,5 @@
 ; position restraints for System of Gallium Rubidium Oxygen Manganese Argon Carbon Silicon
-
+#ifdef POSRES
 [ position_restraints ]
 ;  i funct       fcx        fcy        fcz
    1    1          0          0          0
@@ -145,3 +145,4 @@
  141    1          0          0          0
  142    1          0          0          0
  143    1          0          0          0
+#endif

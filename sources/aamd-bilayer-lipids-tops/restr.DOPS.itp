@@ -1,5 +1,5 @@
 ; position restraints for DOPS of Go Rough, Oppose Many Angry Chinese Serial killers
-
+#ifdef POSRES
 [ position_restraints ]
 ;  i funct       fcx        fcy        fcz
    1    1          0          0          0
@@ -133,3 +133,4 @@
  129    1          0          0          0
  130    1          0          0          0
  131    1          0          0          0
+#endif

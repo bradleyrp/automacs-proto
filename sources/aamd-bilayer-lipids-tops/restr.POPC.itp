@@ -1,5 +1,5 @@
 ; position restraints for System of Gromacs Runs One Microsecond At Cannonball Speeds
-
+#ifdef POSRES
 [ position_restraints ]
 ;  i funct       fcx        fcy        fcz
    1    1          0          0          0
@@ -136,3 +136,4 @@
  132    1          0          0          0
  133    1          0          0          0
  134    1          0          0          0
+#endif
