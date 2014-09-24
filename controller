@@ -34,10 +34,9 @@ helpstring = \
 \tdocs            : re-generates documentation (development only)
 \trender <gro>    : uses vmd and tachyon to render a bilayer snapshot
 \t                  from a gro (structure) file (add an optional
-\t                  tpr file to draw the bonds)\n
+\t                  tpr file to draw the bonds)
 \tlastframe       : start a utility for extracting the last frame
-                    of a crashed simulation
-\t
+                    of a crashed simulation\n
 \tmethods:
 \t-------
 \tcgmd-bilayer    : build a coarse-grained lipid bilayer
@@ -82,8 +81,37 @@ sed -i 's/cp $AMXPATH\/.*/cp $AMXPATH\/'$input_files'\/\* \.\//g' $step_simulati
 """,
 ]
 
+call_equil = """#---execute equilibration step
+cd $step_equilibration
+./script-equilibrate.pl
+if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
+cd ..
+\n"""
+
+call_sim = """#---execute simulation (continuation) step
+cd $step_simulation
+./script-sim.pl
+if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
+cd ..
+\n"""
+
+python_from_bash = """#---execute python step
+python -c "execfile('./amx/header');
+try: COMMAND;
+except Exception,e:
+	print str(e);
+	traceback.print_exc();
+	print 'fail';"
+go=$(tail ROOTDIR/log-script-master)
+if [[ "$go" =~ fail$ ]];then exit;fi
+\n"""
+
 #---BASH SCRIPT GENERATOR
 #-------------------------------------------------------------------------------------------------------------
+
+def multiresub(switches,text):
+	regex = re.compile("(%s)" % "|".join(map(re.escape,switches.keys())))
+	return regex.sub(lambda mo: switches[mo.string[mo.start():mo.end()]],text) 
 
 #---amx procedure details
 script_dict = {
@@ -97,16 +125,17 @@ script_dict = {
 			'simtype':'cgmd-bilayer',
 			'input_files':'cgmd-bilayer-equil',
 			},
-		'sequence':[
-			"""\n#---python scripts to build monolayer and bilayer\n"""+\
-			"""python -c "execfile('./amx/header');\n"""+\
-			"""MonolayerGrids(rootdir='s1-build-lipidgrid');"\n"""+\
-			"""python -c "execfile('./amx/header');\n"""+\
-			"""Bilayer(rootdir='s2-build-bilayer',previous_dir='s1-build-lipidgrid');"\n""",
-			"""\n#---execute equilibration step\n"""+\
-			"""cd $step_equilibration\n./script-equilibrate.pl\ncd ..\n""",
-			"""\n#---execute simulation (continuation) step\n"""+\
-			"""cd $step_simulation\n./script-sim.pl\ncd ..\n""",
+		'sequence':['\n',
+			multiresub(dict({
+				'ROOTDIR':'s1-build-lipidgrid',
+				'COMMAND':'MonolayerGrids(rootdir=\'s1-build-lipidgrid\')',
+				}),python_from_bash),
+			multiresub(dict({
+				'ROOTDIR':'s2-build-bilayer',
+				'COMMAND':'Bilayer(rootdir=\'s2-build-bilayer\',previous_dir=\'s1-build-lipidgrid\')',
+				}),python_from_bash),
+			call_equil,
+			call_sim,
 			],
 		},
 	'aamd-bilayer':{
@@ -119,17 +148,17 @@ script_dict = {
 			'simtype':'aamd-bilayer',
 			'input_files':'aamd-bilayer-equil',
 			},
-		'sequence':[
-			"""\n#---python scripts to build monolayer and bilayer\n"""+\
-			"""python -c "execfile('./amx/header');\n"""+\
-			"""MonolayerGrids(rootdir='s1-build-lipidgrid',"""+\
-			"""structs_dir='sources/aamd-bilayer-lipids-structs');"\n"""+\
-			"""python -c "execfile('./amx/header');\n"""+\
-			"""Bilayer(rootdir='s2-build-bilayer',previous_dir='s1-build-lipidgrid');"\n""",
-			"""\n#---execute equilibration step\n"""+\
-			"""cd $step_equilibration\n./script-equilibrate.pl\ncd ..\n""",
-			"""\n#---execute simulation (continuation) step\n"""+\
-			"""cd $step_simulation\n./script-sim.pl\ncd ..\n""",
+		'sequence':['\n',
+			multiresub(dict({
+				'ROOTDIR':'s1-build-lipidgrid',
+				'COMMAND':'MonolayerGrids(rootdir=\'s1-build-lipidgrid\')',
+				}),python_from_bash),
+			multiresub(dict({
+				'ROOTDIR':'s2-build-bilayer',
+				'COMMAND':'Bilayer(rootdir=\'s2-build-bilayer\',previous_dir=\'s1-build-lipidgrid\')',
+				}),python_from_bash),
+			call_equil,
+			call_sim,
 			],
 		},
 	'aamd-protein':{
@@ -141,31 +170,13 @@ script_dict = {
 			'simtype':'aamd-protein',
 			'input_files':'aamd-protein-equil',
 			},
-		'sequence':[
-			"""\n#---execute python construct step\n""",
-			"""python -c "execfile('./amx/header');\n""",
-			"""try: ProteinWater(rootdir='s1-build-protein-water');\n""",
-			"""except Exception,e:\n""",
-			"""\tprint str(e);\n""",
-			"""\ttraceback.print_exc();\n""",
-			"""\tprint 'fail';"\n\n""",
-			"""#---execute equilibration step\n""",
-			"""go=$(tail s1-build-protein-water/log-script-master)\n""",
-			"""if [[ ! "$go" =~ fail$ ]]; then\n""",
-			"""\tcd $step_equilibration\n""",
-			"""\t./script-equilibrate.pl\n""",
-			"""\tcd ..\n""",
-			"""else\n""",
-			"""echo "error: see s1-build-protein-water/log-script-master"\n""",
-			"""fi\n\n""",
-			"""#---execute simulation (continuation) step\n""",
-			"""if [[ ! "$go" =~ fail$ ]]; then\n""",
-			"""\tcd $step_simulation\n""",
-			"""\t./script-sim.pl\n""",
-			"""\tcd ..\n""",
-			"""else\n""",
-			"""echo "error: see s1-build-protein-water/log-script-master"\n""",
-			"""fi\n""",
+		'sequence':['\n',
+			multiresub(dict({
+				'ROOTDIR':'s1-build-protein-water',
+				'COMMAND':'ProteinWater(rootdir=\'s1-build-protein-water\')',
+				}),python_from_bash),
+			call_equil,
+			call_sim,		
 			],
 		},
 	}

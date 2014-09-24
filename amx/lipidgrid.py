@@ -320,7 +320,7 @@ class MonolayerGrids:
 				(0 if len(arrangement)/totside[ci] == float(len(arrangement))/totside[ci] else 1))]
 			print 'proposed configuration = \n'+'\n'.join([str(i) for i in arrangement])
 
-			#---vizualization feature
+			#---vizualization feature is disabled to prevent errors
 			try: 
 				import numpy
 				import matplotlib as mpl
@@ -331,7 +331,8 @@ class MonolayerGrids:
 				ax.set_title('lipid configuration')
 				afill = list(arrangement)
 				if len(afill[-1]) < len(afill[0]):
-					afill[-1] = afill[-1]+[float(len(complist)) for i in range(len(afill[0])-len(afill[-1]))]
+					afill[-1] = afill[-1]+[float(len(complist)) 
+						for i in range(len(afill[0])-len(afill[-1]))]
 					print 'note that fill values of '+str(len(complist))+' are empty'
 					bounds = range(len(complist)+1+1)
 				else: bounds = range(len(complist)+1)

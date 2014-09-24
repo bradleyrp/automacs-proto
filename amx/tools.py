@@ -79,10 +79,12 @@ def call(command,logfile=None,cwd=None,silent=False):
 					stdout=output,
 					stderr=output,
 					cwd=cwd)
-			except:
-				print 'execution error'
-				if re.match('mdrun',command): print 'continuing after gromacs mdrun error'
-				else: print sys.exc_info()[0]
+			except: 
+				raise Exception('except: execution error')
+				#---disabled the following code to ensure strict stops after an error
+				if 0:
+					if re.match('mdrun',command): print 'continuing after gromacs mdrun error'
+					else: print sys.exc_info()[0]
 			output.close()
 		else: 
 			if not silent: print 'executing command: "'+str(command)+'"'
@@ -90,9 +92,11 @@ def call(command,logfile=None,cwd=None,silent=False):
 			else: stderr = sys.stdout
 			try: subprocess.check_call(command,shell=True,stderr=stderr,cwd=cwd)
 			except:
-				print 'execution error'
-				if re.match('mdrun',command): print 'continuing after gromacs mdrun error'
-				else: print sys.exc_info()[0]
+				raise Exception('except: execution error')
+				#---disabled the following code to ensure strict stops after an error
+				if 0:
+					if re.match('mdrun',command): print 'continuing after gromacs mdrun error'
+					else: print sys.exc_info()[0]
 
 def checkout(command,cwd=None):
 	'''

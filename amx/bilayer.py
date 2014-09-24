@@ -134,7 +134,6 @@ class Bilayer:
 					copy(self.sources_dir+'cgmd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
 					copy(self.sources_dir+'martini.ff',self.rootdir+'martini.ff')
 					copy(self.sources_dir+'cgmd-bilayer-construct/*',self.rootdir)
-					copy(self.sources_dir+'cgmd-bilayer/solvate-water.gro',self.rootdir+'solvate-water.gro')
 				elif self.simscale == 'aamd':
 					copy(self.sources_dir+'aamd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
 					copy(self.sources_dir+'charmm36.ff',self.rootdir+'charmm36.ff')
