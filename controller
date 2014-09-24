@@ -24,21 +24,25 @@ document_location = 'file://'+os.path.abspath(os.path.curdir)+'/docs/_build/html
 helpstring = \
 """
 \tAutomacs (AMX) CONTROLLER.\n
-\t./controller <operation>
+\tmake <operation>
 \ttools for running automatic GROMACS simulations\n
 \toperations:
 \t----------
-\t"reset"          : clears the subdirectories of all run files
-\t"make <method>"  : generates PBS and bash scripts according 
-\t                   to settings in amx-bearings
-\t"make_docs"      : re-generates documentation (development only)
-\t"render <gro>    : uses vmd and tachyon to render a bilayer snapshot
-\t                   from a gro (structure) file (add an optional
-\t                   tpr file to draw the bonds)\n
+\treset           : clears the subdirectories of all run files
+\tmake <method>   : generates PBS and bash scripts according 
+\t                  to settings in amx-bearings
+\tdocs            : re-generates documentation (development only)
+\trender <gro>    : uses vmd and tachyon to render a bilayer snapshot
+\t                  from a gro (structure) file (add an optional
+\t                  tpr file to draw the bonds)\n
+\tlastframe       : start a utility for extracting the last frame
+                    of a crashed simulation
+\t
 \tmethods:
 \t-------
-\t"cgmd-bilayer"   : build a coarse-grained lipid bilayer
-\t"aamd-bilayer"   : build an atomistic lipid bilayer
+\tcgmd-bilayer    : build a coarse-grained lipid bilayer
+\taamd-bilayer    : build an atomistic lipid bilayer
+\taamd-protein    : build a protein-in-water simulation
 """
 
 document_string = \
@@ -57,28 +61,7 @@ document_string = \
 #---note that "preps" lists contain bash commands to copy general steps and connect the steps
 #---note that "scripts" lists contain bash commands to run the steps in sequence
 
-preps_amx_cgmd_bilayer = [
-"""
-#---copy equilibration files
-if ! [ -d "$step_equilibration" ]; then cp -r ./sources/general-equil ./$step_equilibration
-else cp -r ./sources/general-equil/* ./$step_equilibration;fi\n
-#---connect equilibration settings to the previous step
-sed -i 's/^SOURCEDIR.*/SOURCEDIR=\.\.\/'$step_bilayer'/g' $step_equilibration/settings.sh
-sed -i 's/SIMTYPE.*/SIMTYPE="'$simtype'"/g' $step_equilibration/settings.sh
-sed -i 's/cp $AMXPATH\/.*/cp $AMXPATH\/'$input_files'\/\* \.\//g' $step_equilibration/settings.sh
-""",
-"""
-#---copy simulation continuation files
-if ! [ -d "$step_simulation" ]; then cp -r ./sources/general-sim ./$step_simulation
-else cp -r ./sources/general-sim/* ./$step_simulation;fi\n
-#---connect simulation settings to the previous step
-sed -i 's/^SOURCEDIR.*/SOURCEDIR=\.\.\/'$step_equilibration'/g' $step_simulation/settings.sh
-sed -i 's/SIMTYPE.*/SIMTYPE="'$simtype'"/g' $step_simulation/settings.sh
-sed -i 's/cp $AMXPATH\/.*/cp $AMXPATH\/'$input_files'\/\* \.\//g' $step_simulation/settings.sh
-""",
-]
-
-preps_amx_aamd_bilayer = [
+prepare_equil_sim = [
 """
 #---copy equilibration files
 if ! [ -d "$step_equilibration" ]; then cp -r ./sources/general-equil ./$step_equilibration
@@ -105,7 +88,7 @@ sed -i 's/cp $AMXPATH\/.*/cp $AMXPATH\/'$input_files'\/\* \.\//g' $step_simulati
 #---amx procedure details
 script_dict = {
 	'cgmd-bilayer':{
-		'prep':preps_amx_cgmd_bilayer,
+		'prep':prepare_equil_sim,
 		'steps':{
 			'step_monolayer':'s1-build-lipidgrid',
 			'step_bilayer':'s2-build-bilayer',
@@ -127,7 +110,7 @@ script_dict = {
 			],
 		},
 	'aamd-bilayer':{
-		'prep':preps_amx_aamd_bilayer,
+		'prep':prepare_equil_sim,
 		'steps':{
 			'step_monolayer':'s1-build-lipidgrid',
 			'step_bilayer':'s2-build-bilayer',
@@ -147,6 +130,42 @@ script_dict = {
 			"""cd $step_equilibration\n./script-equilibrate.pl\ncd ..\n""",
 			"""\n#---execute simulation (continuation) step\n"""+\
 			"""cd $step_simulation\n./script-sim.pl\ncd ..\n""",
+			],
+		},
+	'aamd-protein':{
+		'prep':prepare_equil_sim,
+		'steps':{
+			'step_build':'s1-build-protein-water',
+			'step_equilibration':'s2-equil',
+			'step_simulation':'s3-sim',
+			'simtype':'aamd-protein',
+			'input_files':'aamd-protein-equil',
+			},
+		'sequence':[
+			"""\n#---execute python construct step\n""",
+			"""python -c "execfile('./amx/header');\n""",
+			"""try: ProteinWater(rootdir='s1-build-protein-water');\n""",
+			"""except Exception,e:\n""",
+			"""\tprint str(e);\n""",
+			"""\ttraceback.print_exc();\n""",
+			"""\tprint 'fail';"\n\n""",
+			"""#---execute equilibration step\n""",
+			"""go=$(tail s1-build-protein-water/log-script-master)\n""",
+			"""if [[ ! "$go" =~ fail$ ]]; then\n""",
+			"""\tcd $step_equilibration\n""",
+			"""\t./script-equilibrate.pl\n""",
+			"""\tcd ..\n""",
+			"""else\n""",
+			"""echo "error: see s1-build-protein-water/log-script-master"\n""",
+			"""fi\n\n""",
+			"""#---execute simulation (continuation) step\n""",
+			"""if [[ ! "$go" =~ fail$ ]]; then\n""",
+			"""\tcd $step_simulation\n""",
+			"""\t./script-sim.pl\n""",
+			"""\tcd ..\n""",
+			"""else\n""",
+			"""echo "error: see s1-build-protein-water/log-script-master"\n""",
+			"""fi\n""",
 			],
 		},
 	}
@@ -225,7 +244,7 @@ def reset():
 					print 'rm '+root+'/'+filename
 					os.system('rm -r '+root+'/'+filename)
 					
-def make_docs():
+def docs():
 	'''Regenerate the documentation using sphinx-apidoc and code in amx/gendoc.sh'''
 	os.system('./amx/script-make-docs.sh '+os.path.abspath('.'))
 
@@ -509,6 +528,9 @@ if __name__ == "__main__":
 			globals()[sys.argv[1].strip()](sys.argv[2],tpr=sys.argv[3])
 		else: print 'too many arguments'
 	else:	
+		#---note that it would be useful to also allow controller to run extra scripts 
+		#---...i.e. script-lastframe.py in the same way that the makefile allows
 		if sys.argv[1] in globals(): globals()[sys.argv[1].strip()]()
 		else: print 'invalid operation'
+		
 

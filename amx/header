@@ -1,7 +1,16 @@
 #!/usr/bin/python
 
-from amx.lipidgrid import MonolayerGrids
-from amx.bilayer import Bilayer
-from amx.tools import *
-import sys
+#---if imports fail it is because you are running from automacs root directory
+try:
+	from amx.lipidgrid import MonolayerGrids
+	from amx.bilayer import Bilayer
+	from amx.protein import ProteinWater
+	from amx.tools import *
+	import sys,traceback
+except: 
+	from lipidgrid import MonolayerGrids
+	from bilayer import Bilayer
+	from protein import ProteinWater
+	from tools import *
+	import sys,traceback
 

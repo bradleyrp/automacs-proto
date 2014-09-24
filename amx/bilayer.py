@@ -133,12 +133,12 @@ class Bilayer:
 				if self.simscale == 'cgmd':			
 					copy(self.sources_dir+'cgmd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
 					copy(self.sources_dir+'martini.ff',self.rootdir+'martini.ff')
-					copy(self.sources_dir+'cgmd-bilayer-mdps-construct/*',self.rootdir)
+					copy(self.sources_dir+'cgmd-bilayer-construct/*',self.rootdir)
 					copy(self.sources_dir+'cgmd-bilayer/solvate-water.gro',self.rootdir+'solvate-water.gro')
 				elif self.simscale == 'aamd':
 					copy(self.sources_dir+'aamd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
 					copy(self.sources_dir+'charmm36.ff',self.rootdir+'charmm36.ff')
-					copy(self.sources_dir+'aamd-bilayer-mdps-construct/*',self.rootdir)
+					copy(self.sources_dir+'aamd-bilayer-construct/*',self.rootdir)
 				else: raise Exception('except: unclear simulation resolution')
 			#---running lists of molecules and compositions
 			self.lnames,self.comps = [],[]
@@ -391,28 +391,6 @@ class Bilayer:
 				call(cmd,logfile='log-grompp-md-vacuum-p'+str(mi),cwd=self.rootdir)
 				cmd = [gmxpaths['mdrun'],'-v','-deffnm md-vacuum-p'+str(mi)]
 				call(cmd,logfile='log-mdrun-md-vacuum-p'+str(mi),cwd=self.rootdir)
-				#---sometimes the packing step crashes due to high forces so retreive gro
-				if not os.path.isfile('md-vacuum-p'+str(mi)+'.gro'):
-					cmd = [gmxpaths['gmxcheck'],
-						'-f md-vacuum-p1.xtc']
-					call(cmd,logfile='log-gmxcheck-md-vacuum-p'+str(mi),cwd=self.rootdir)
-					lastframe = int(checkout(["awk","'/Step / {print $2}'",
-						'log-gmxcheck-md-vacuum-p'+str(mi)],cwd=self.rootdir).strip())
-					ts = float(checkout(["awk","'/Step / {print $3}'",
-						'log-gmxcheck-md-vacuum-p'+str(mi)],cwd=self.rootdir).strip())
-					#---note that rpb added a rounding function after an error in an AAMD test 2014.08.24
-					lasttime = float(int(float(lastframe)*ts))
-					lasttime = round(lasttime/10)*10
-					print 'last viable frame was at '+str(lasttime)+' ps'
-					print 'retrieving that frame'
-					cmd = [gmxpaths['trjconv'],
-						'-f md-vacuum-p'+str(mi)+'.xtc',
-						'-o md-vacuum-p'+str(mi)+'.gro',
-						'-s md-vacuum-p'+str(mi)+'.tpr',
-						'-b '+str(lasttime),
-						'-e '+str(lasttime),]
-					call('echo -e "0\n" |'+' '.join(cmd),
-						logfile='log-trjconv-md-vacuum-p'+str(mi),cwd=self.rootdir)
 		call('cp md-vacuum-p'+str(mi)+'.gro vacuum-packed.gro',cwd=self.rootdir)
 
 	def solvate(self):
@@ -667,4 +645,4 @@ class Bilayer:
 		call(cmd,logfile='log-make-ndx-groups',cwd=self.rootdir)
 		call('cp counterions-minimized.gro system.gro',cwd=self.rootdir)
 		self.write_topology('system.top')
-			
+

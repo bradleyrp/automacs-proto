@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
@@ -144,7 +145,7 @@ changed according to the class specifications given below.</p>
 a few fairly standard geometric measurements. It relies on a small library of lipids structures and 
 topologies which are typically located in the <tt class="docutils literal"><span class="pre">sources</span></tt> directory.</p>
 <div class="figure align-center">
-<a class="reference internal image-reference" href="_images/automacs-cgmd-bilayer-monolayer.jpeg"><img alt="monolayer snapshot" src="_images/automacs-cgmd-bilayer-monolayer.jpeg" style="width: 75%;" /></a>
+<img alt="monolayer snapshot" src="_images/automacs-cgmd-bilayer-monolayer.jpeg" style="width: 75%;" />
 <p class="caption">Example monolayer configuration.</p>
 </div>
 <p>The image above is an example monolayer configuration written to <tt class="docutils literal"><span class="pre">place-grid-start.gro</span></tt>. You can see that 
@@ -227,7 +228,7 @@ and the user can choose to make the bilayer symmetric by only defining one compo
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>rootdir</strong> : str</p>
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>rootdir</strong> : str</p>
 <blockquote class="last">
 <div><p>relative path to perform the monolayer construction and save the final configuration file</p>
 </div></blockquote>
@@ -257,7 +258,7 @@ function.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>big</strong> : str</p>
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>big</strong> : str</p>
 <blockquote>
 <div><p>relative path to a structure (gro) file containing a row of lipids</p>
 </div></blockquote>
@@ -287,7 +288,7 @@ function is called repeatedly by the build_monolayer function.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>big</strong> : str</p>
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>big</strong> : str</p>
 <blockquote>
 <div><p>relative path to a structure (gro) file containing a grid of lipids</p>
 </div></blockquote>
@@ -316,7 +317,7 @@ combines them into a bilayer, minimizes in vacuum, simulates with restraints to 
 area, adds water and counterions, and performs a final minimization. The resulting structure will be ready for
 equilibration and production simulation.</p>
 <div class="figure align-center">
-<a class="reference internal image-reference" href="_images/automacs-cgmd-bilayer-bilayer.jpeg"><img alt="monolayer snapshot" src="_images/automacs-cgmd-bilayer-bilayer.jpeg" style="width: 75%;" /></a>
+<img alt="monolayer snapshot" src="_images/automacs-cgmd-bilayer-bilayer.jpeg" style="width: 75%;" />
 <p class="caption">Example bilayer configuration before adding solvent.</p>
 </div>
 <p>For simplicity, you build a bilayer by creating a <tt class="docutils literal"><span class="pre">Bilayer</span></tt> class instance. You must provide the location of
@@ -351,7 +352,7 @@ then restarted.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>rootdir</strong> : str</p>
+<tr class="field-odd field"><th class="field-name">Parameters :</th><td class="field-body"><p class="first"><strong>rootdir</strong> : str</p>
 <blockquote>
 <div><p>relative path to store simulation data</p>
 </div></blockquote>
@@ -377,6 +378,17 @@ the following order.</p>
 <li><a class="reference internal" href="#amx.bilayer.Bilayer.solvate" title="amx.bilayer.Bilayer.solvate"><tt class="xref py py-class docutils literal"><span class="pre">solvate</span></tt></a></li>
 <li><a class="reference internal" href="#amx.bilayer.Bilayer.counterionize" title="amx.bilayer.Bilayer.counterionize"><tt class="xref py py-class docutils literal"><span class="pre">counterionize</span></tt></a></li>
 </ol>
+<p>For development or tweaking the input parameters, the system checks for the following files at these
+corresponding stages.</p>
+<ol class="arabic simple">
+<li>vacuum-minimized.gro</li>
+<li>vacuum-packed.gro</li>
+<li>solvate-minimized.gro</li>
+<li>counterions-minimized.gro</li>
+<li>system.gro</li>
+</ol>
+<p>If the system.gro file is absent, the script will regenerate the topology and group files. You may 
+delete any of these key files to repeat a process when you re-run the script.</p>
 </dd></dl>
 
 <dl class="method">
@@ -431,7 +443,7 @@ before any relaxation steps.</p>
 
 <dl class="method">
 <dt id="amx.bilayer.Bilayer.write_topology">
-<tt class="descname">write_topology</tt><big>(</big><em>topname</em>, <em>restraints=False</em>, <em>water_only=False</em><big>)</big><a class="reference internal" href="_modules/amx/bilayer.html#Bilayer.write_topology"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.bilayer.Bilayer.write_topology" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">write_topology</tt><big>(</big><em>topname</em>, <em>water_only=False</em><big>)</big><a class="reference internal" href="_modules/amx/bilayer.html#Bilayer.write_topology"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#amx.bilayer.Bilayer.write_topology" title="Permalink to this definition">¶</a></dt>
 <dd><p>Write the topology file from residue lists stored in <tt class="docutils literal"><span class="pre">self.lnames</span></tt> and <tt class="docutils literal"><span class="pre">self.complist</span></tt>.</p>
 </dd></dl>
 
@@ -532,7 +544,7 @@ so that the tee object will always write to both places.</p>
 
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
-            URL_ROOT:'./',
+            URL_ROOT:'',
             VERSION:'1.0.0',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',

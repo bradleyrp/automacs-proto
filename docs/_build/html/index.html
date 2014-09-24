@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
@@ -103,7 +104,7 @@
 <h1>Automacs (AMX) Documentation<a class="headerlink" href="#automacs-amx-documentation" title="Permalink to this headline">¶</a></h1>
 <p>The following documentation explains how to use Automacs: the &#8220;automatic GROMACS&#8221; package.</p>
 <div class="figure align-center">
-<a class="reference internal image-reference" href="_images/automacs-cgmd-v614.jpeg"><img alt="monolayer snapshot" src="_images/automacs-cgmd-v614.jpeg" style="width: 75%;" /></a>
+<img alt="monolayer snapshot" src="_images/automacs-cgmd-v614.jpeg" style="width: 75%;" />
 <p class="caption">Proteins adhered to a coarse-grained lipid bilayer.</p>
 </div>
 <div class="toctree-wrapper compound">
@@ -149,10 +150,9 @@ easily infer the underlying GROMACS commands. For example, the <tt class="docuti
 is equivalent to a few simple commands in bash. For example, if we were performing a vacuum minimization,
 our <tt class="docutils literal"><span class="pre">Bilayer</span></tt> class instance might invoke <tt class="docutils literal"><span class="pre">self.minimization_method('vacuum')</span></tt> in which case the method
 above would execute the following command from an invisible terminal. <a class="footnote-reference" href="#id2" id="id1">[1]</a></p>
-<div class="highlight-python"><div class="highlight"><pre>grompp -f input-em-stepp-in.mdp \
+<div class="highlight-python"><pre>grompp -f input-em-stepp-in.mdp \
         -c vacuum.gro -p vacuum.top -o em-vacuum-stepp \
-        -po em-vacuum-steep -maxwarn 10
-</pre></div>
+        -po em-vacuum-steep -maxwarn 10</pre>
 </div>
 <p>The purpose of the <tt class="docutils literal"><span class="pre">amx</span></tt> module, then, is only to provide easily reproducible GROMACS functionality with a
 few extra features.</p>
@@ -215,7 +215,7 @@ provided the input files are there.</td></tr>
 
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
-            URL_ROOT:'./',
+            URL_ROOT:'',
             VERSION:'1.0.0',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',

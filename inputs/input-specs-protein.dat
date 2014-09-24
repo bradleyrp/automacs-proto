@@ -1,0 +1,40 @@
+#!/usr/bin/python
+
+#---STARTING CONFIGURATION
+#---specify the PDB file for the starting protein configuration located in sources
+input_filename = '3ala.pdb'
+
+#---SIMULATION RESOLUTION
+#---note specify either 'cgmd' or 'aamd' to set the correct parameters
+simscale = 'aamd'
+
+#---CONSTRUCTION SETTINGS
+
+'''
+wbuffer : distance to the edge of the box in nm which implicitly sets the amount of solvent
+force_field : which force_field to use for the simulation (options: charmm27 only)
+histype : protonation state for histidines (e = epsilon position, d = delta position, p = both)
+water_model : water model (options: tip3p)
+'''
+
+protein_construction_settings = {
+	'aamd': {
+		'wbuffer':1,
+		'force_field':'charmm27',
+		'histype':'d',
+		'water_model':'tip3p',
+		},
+	}
+	
+#---TOPOLOGY SPECIFICATIONS
+	
+topheader_martini = \
+"""#include "martini.ff/martini-v2.2.itp"
+#include "martini.ff/martini-v2.0-lipids.itp"
+#include "lipids-tops/PIP2.itp"
+#include "martini.ff/martini-v2.2-aminoacids.itp"
+#include "martini.ff/martini-v2.0-ions.itp"\n
+[ system ]
+MARTINI BILAYER
+[ molecules ]
+"""
