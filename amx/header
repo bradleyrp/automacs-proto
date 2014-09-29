@@ -10,7 +10,7 @@ try:
 	from amx.tools import *
 	import sys,traceback
 except:
-	#---? investigating errors with no messages
+	#---in case of legitimate error make sure the error message is printed
 	traceback.print_exc()
 	from amxsim import *
 	from lipidgrid import MonolayerGrids
