@@ -1,8 +1,0 @@
-2014.09.29.1701 START PROTEIN + WATER
-2014.09.29.1701 global name 'thiswillcauseerror' is not defined
- Traceback (most recent call last):
-   File "<string>", line 2, in <module>
-   File "amx/protein.py", line 63, in __init__
-     thiswillcauseerror()
- NameError: global name 'thiswillcauseerror' is not defined
-2014.09.29.1701 fail
