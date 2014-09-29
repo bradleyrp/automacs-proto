@@ -52,7 +52,7 @@ cd $rundir                                 # change to tempdir
 """
 mv -f * $PBS_O_WORKDIR                     # move all files to the home directory
 cd /scratch                                # leave the directory
-#rmdir $rundir                              # remove the directory if it is empty
+rmdir $rundir                              # remove the directory if it is empty
 exit
 """]
 
