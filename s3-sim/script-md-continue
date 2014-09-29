@@ -1,0 +1,14 @@
+#!/bin/bash
+
+#---definitions
+simtype=aamd-protein
+step_simulation=s3-sim
+step_build=s1-build-protein-water
+input_files=aamd-protein-equil
+step_equilibration=s2-equil
+#---execute simulation (continuation) step
+cd $step_simulation
+./script-sim.pl
+if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
+cd ..
+

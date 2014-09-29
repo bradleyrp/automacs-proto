@@ -1,0 +1,30 @@
+2014.09.29.1625 START PROTEIN + WATER
+2014.09.29.1625 ['/store-delta/worker/dev-amx-protein/automacs/sources/aamd-protein-construct/input-em-cg-in.mdp', '/store-delta/worker/dev-amx-protein/automacs/sources/aamd-protein-construct/input-em-steep-in.mdp']
+2014.09.29.1625 starting protein + water construction
+2014.09.29.1625 executing command: "awk '{gsub(/HIS /,"HID ");print}' < system-input.pdb > prep-protein-start.pdb"
+2014.09.29.1625 running pdb2gmx
+2014.09.29.1625 executing command: "pdb2gmx -f prep-protein-start.pdb -o vacuum-alone.gro -p vacuum-standard.top -ignh -i system-posre.itp -ff charmm27 -water tip3p" logfile = log-pdb2gmx
+2014.09.29.1625 printing protein topology file
+2014.09.29.1625 building box with 5nm of water
+2014.09.29.1625 executing command: "editconf -f vacuum-alone.gro -d 5 -o vacuum.gro" logfile = log-editconf-vacuum
+2014.09.29.1625 vacuum minimization, steepest descent
+2014.09.29.1625 executing command: "grompp -f input-em-steep-in.mdp -c vacuum.gro -p vacuum.top -o em-vacuum-steep -po em-vacuum-steep -maxwarn 10" logfile = log-grompp-em-vacuum-steep
+2014.09.29.1625 executing command: "mdrun -nt 1 -v -deffnm em-vacuum-steep" logfile = log-mdrun-em-vacuum-steep
+2014.09.29.1625 vacuum minimization, conjugate gradient
+2014.09.29.1625 executing command: "grompp -f input-em-cg-in.mdp -c em-vacuum-steep.gro -p vacuum.top -o em-vacuum-cg -po em-vacuum-cg -maxwarn 10" logfile = log-grompp-em-vacuum-cg
+2014.09.29.1625 executing command: "mdrun -nt 1 -v -deffnm em-vacuum-cg" logfile = log-mdrun-em-vacuum-cg
+2014.09.29.1625 except: execution error
+ Traceback (most recent call last):
+   File "<string>", line 2, in <module>
+   File "amx/protein.py", line 82, in __init__
+     self.construction()
+   File "amx/protein.py", line 85, in construction
+     if not os.path.isfile(self.rootdir+'vacuum-minimized.gro'): self.vacuum()
+   File "amx/protein.py", line 136, in vacuum
+     self.minimization_method('vacuum')
+   File "amx/amxsim.py", line 120, in minimization_method
+     call(cmd,logfile='log-mdrun-em-'+name+'-cg',cwd=self.rootdir)
+   File "amx/tools.py", line 83, in call
+     raise Exception('except: execution error')
+ Exception: except: execution error
+2014.09.29.1625 fail
