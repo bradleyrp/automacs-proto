@@ -9,6 +9,8 @@ try:
 	from amx.tools import *
 	import sys,traceback
 except:
+	#---? investigating errors with no messages
+	traceback.print_exc()
 	from amxsim import *
 	from lipidgrid import MonolayerGrids
 	from bilayer import Bilayer
