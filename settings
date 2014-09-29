@@ -80,8 +80,8 @@ exit
 #---formalize the collection of scripts to avoid using globals
 script_repo = {
 	'cluster_header_compbio_opterons_gpu':cluster_header_compbio_opterons,
-	'cluster_header_compbio_opterons':cluster_header_compbio_,
-	'cluster_header_compbio_opterons_scratch':cluster_header_compbio_,
+	'cluster_header_compbio_opterons':cluster_header_compbio_opterons,
+	'cluster_header_compbio_opterons_scratch':cluster_header_compbio_opterons_scratch,
 	'cluster_header_compbio_xeons':cluster_header_compbio_xeons,
 	'cluster_header_compbio_xeons_scratch':cluster_header_compbio_xeons_scratch,
 	}
