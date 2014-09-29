@@ -19,7 +19,7 @@ water_model : water model (options: tip3p)
 
 protein_construction_settings = {
 	'aamd': {
-		'wbuffer':1,
+		'wbuffer':5,
 		'force_field':'charmm27',
 		'histype':'d',
 		'water_model':'tip3p',

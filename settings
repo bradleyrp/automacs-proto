@@ -79,6 +79,12 @@ rmdir $rundir                              # remove the directory if it is empty
 exit
 """]
 
+script_repo = {
+	'cluster_header_compbio_opterons',cluster_header_compbio_opterons,
+	cluster_header_compbio_xeons,
+	
+	
+
 #---default number of nodes, processors per node, and walltime
 #---note the module item holds bash commands to set paths for gromacs utilities 
 default_proc_specs = {
