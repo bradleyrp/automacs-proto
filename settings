@@ -25,6 +25,7 @@ echo "Job started on `hostname` at `date`"
 cd $PBS_O_WORKDIR
 """
 
+cluster_header_compbio_opterons_gpu = cluster_header_compbio_opterons
 
 cluster_header_compbio_xeons = \
 """#!/bin/bash
