@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 #---if imports fail it is because you are running from automacs root directory
+import sys,traceback
 try:
 	from amx.amxsim import *
 	from amx.lipidgrid import MonolayerGrids
@@ -16,5 +17,4 @@ except:
 	from bilayer import Bilayer
 	from protein import ProteinWater
 	from tools import *
-	import sys,traceback
 
