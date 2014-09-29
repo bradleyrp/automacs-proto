@@ -1,0 +1,44 @@
+integrator = md
+tinit = 0
+dt = 0.002
+nsteps = 500000
+nstcomm = 100
+nstcalcenergy = 100
+comm-grps = Protein non-Protein
+
+nstxout = 5000
+nstvout = 5000
+nstlog = 1000
+nstenergy = 1000
+nstxtcout = 1000
+
+nstlist = 20
+ns_type = grid
+pbc = xyz
+
+cutoff-scheme = verlet
+coulombtype = PME
+pme_order = 4
+fourierspacing = 0.1125
+rcoulomb = 0.9
+rvdw = 0.9
+rlist = 0.9
+
+tcoupl = V-rescale
+tc_grps = Protein Non-Protein
+tau_t = 0.1 0.1
+ref_t = 300 300
+
+pcoupl = Parrinello-Rahman
+pcoupltype = isotropic
+tau_p = 2.0
+ref_p = 1.0
+compressibility = 4.5e-5
+
+dispcorr = EnerPres
+
+gen_vel = no
+
+constraints = h-bonds
+constraint_algorithm = lincs
+continuation = no

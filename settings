@@ -77,6 +77,15 @@ rmdir $rundir                              # remove the directory if it is empty
 exit
 """]
 
+'''
+HOW TO ADD CLUSTER SPECS
+	1. Add the header string/list to script_repo
+	2. Add default specifications to default_proc_specs
+	3. Add the key you used in default_proc_specs to valid_hostnames with a regex-able HOSTNAME identifier
+	4. Add the key and a suffix to gmx_suffixes if necesary
+	4. Add the key and a suffix to gmx_overrides if necesary
+'''
+
 #---formalize the collection of scripts to avoid using globals
 script_repo = {
 	'cluster_header_compbio_opterons_gpu':cluster_header_compbio_opterons_scratch,
@@ -113,6 +122,7 @@ standard_gromacs_commands = [
 gmx_suffixes = {
 	'compbio_xeons':'_mpi',
 	'compbio_opterons':'_mpi',
+	'compbio_opterons_gpu':'_mpi',
 	}
 
 #---system-specific commands to substitute for standard_gromacs_commands

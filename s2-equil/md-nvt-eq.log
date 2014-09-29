@@ -1,0 +1,94 @@
+Log file opened on Mon Sep 29 17:01:13 2014
+Host: dark.site  pid: 1020  nodeid: 0  nnodes:  1
+Gromacs version:    VERSION 4.6.5
+Precision:          single
+Memory model:       64 bit
+MPI library:        thread_mpi
+OpenMP support:     enabled
+GPU support:        disabled
+invsqrt routine:    gmx_software_invsqrt(x)
+CPU acceleration:   SSE2
+FFT library:        fftw-3.3.3-sse2
+Large file support: enabled
+RDTSCP usage:       disabled
+Built on:           Tue Feb 11 08:21:56 UTC 2014
+Built by:           abuild@build30 [CMAKE]
+Build OS/arch:      Linux 3.11.6-4-default x86_64
+Build CPU vendor:   AuthenticAMD
+Build CPU brand:    Six-Core AMD Opteron(tm) Processor 2427
+Build CPU family:   16   Model: 8   Stepping: 0
+Build CPU features: apic clfsh cmov cx8 cx16 lahf_lm misalignsse mmx msr pdpe1gb popcnt pse sse2 sse3 sse4a
+C compiler:         /usr/bin/cc GNU cc (SUSE Linux) 4.7.2 20130108 [gcc-4_7-branch revision 195012]
+C compiler flags:   -msse2    -Wextra -Wno-missing-field-initializers -Wno-sign-compare -Wall -Wno-unused -Wunused-value   -fomit-frame-pointer -funroll-all-loops -fexcess-precision=fast  -fmessage-length=0 -O2 -Wall -D_FORTIFY_SOURCE=2 -fstack-protector -funwind-tables -fasynchronous-unwind-tables -g -fno-strict-aliasing
+
+
+                         :-)  G  R  O  M  A  C  S  (-:
+
+                Gravel Rubs Often Many Awfully Cauterized Sores
+
+                            :-)  VERSION 4.6.5  (-:
+
+        Contributions from Mark Abraham, Emile Apol, Rossen Apostolov, 
+           Herman J.C. Berendsen, Aldert van Buuren, Pär Bjelkmar,  
+     Rudi van Drunen, Anton Feenstra, Gerrit Groenhof, Christoph Junghans, 
+        Peter Kasson, Carsten Kutzner, Per Larsson, Pieter Meulenhoff, 
+           Teemu Murtola, Szilard Pall, Sander Pronk, Roland Schulz, 
+                Michael Shirts, Alfons Sijbers, Peter Tieleman,
+
+               Berk Hess, David van der Spoel, and Erik Lindahl.
+
+       Copyright (c) 1991-2000, University of Groningen, The Netherlands.
+         Copyright (c) 2001-2012,2013, The GROMACS development team at
+        Uppsala University & The Royal Institute of Technology, Sweden.
+            check out http://www.gromacs.org for more information.
+
+         This program is free software; you can redistribute it and/or
+       modify it under the terms of the GNU Lesser General Public License
+        as published by the Free Software Foundation; either version 2.1
+             of the License, or (at your option) any later version.
+
+                                :-)  mdrun  (-:
+
+
+++++ PLEASE READ AND CITE THE FOLLOWING REFERENCE ++++
+B. Hess and C. Kutzner and D. van der Spoel and E. Lindahl
+GROMACS 4: Algorithms for highly efficient, load-balanced, and scalable
+molecular simulation
+J. Chem. Theory Comput. 4 (2008) pp. 435-447
+-------- -------- --- Thank You --- -------- --------
+
+
+++++ PLEASE READ AND CITE THE FOLLOWING REFERENCE ++++
+D. van der Spoel, E. Lindahl, B. Hess, G. Groenhof, A. E. Mark and H. J. C.
+Berendsen
+GROMACS: Fast, Flexible and Free
+J. Comp. Chem. 26 (2005) pp. 1701-1719
+-------- -------- --- Thank You --- -------- --------
+
+
+++++ PLEASE READ AND CITE THE FOLLOWING REFERENCE ++++
+E. Lindahl and B. Hess and D. van der Spoel
+GROMACS 3.0: A package for molecular simulation and trajectory analysis
+J. Mol. Mod. 7 (2001) pp. 306-317
+-------- -------- --- Thank You --- -------- --------
+
+
+++++ PLEASE READ AND CITE THE FOLLOWING REFERENCE ++++
+H. J. C. Berendsen, D. van der Spoel and R. van Drunen
+GROMACS: A message-passing parallel molecular dynamics implementation
+Comp. Phys. Comm. 91 (1995) pp. 43-56
+-------- -------- --- Thank You --- -------- --------
+
+
+-------------------------------------------------------
+Program mdrun, VERSION 4.6.5
+Source code file: /home/abuild/rpmbuild/BUILD/gromacs-4.6.5/src/gmxlib/gmxfio.c, line: 524
+
+Can not open file:
+md-nvt-eq.tpr
+For more information and tips for troubleshooting, please check the GROMACS
+website at http://www.gromacs.org/Documentation/Errors
+-------------------------------------------------------
+
+"I used to be blond and stupid, but now I dyed it black" (Miss Li)
+

@@ -1,0 +1,20 @@
+settings.sh: line 18: [: *.cp: integer expression expected
+cp: cannot stat ‘../s2-equil/md.part0000.tpr’: No such file or directory
+cp: cannot stat ‘../s2-equil/md.part0000.cpt’: No such file or directory
+SIMULATION CONTINUATION
+time = 2014.09.29.1701.01
+simtype = aamd-protein
+running: tpbconv, production MD run continuation
+caught gmx error: Can not open file:
+fail
+time = 2014.09.29.1701.01
+settings.sh: line 18: [: *.cp: integer expression expected
+cp: cannot stat ‘../s2-equil/md.part0000.tpr’: No such file or directory
+cp: cannot stat ‘../s2-equil/md.part0000.cpt’: No such file or directory
+SIMULATION CONTINUATION
+time = 2014.09.29.1701.13
+simtype = aamd-protein
+running: tpbconv, production MD run continuation
+caught gmx error: Can not open file:
+fail
+time = 2014.09.29.1701.13

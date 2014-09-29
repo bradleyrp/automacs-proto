@@ -1,0 +1,66 @@
+                         :-)  G  R  O  M  A  C  S  (-:
+
+                Gravel Rubs Often Many Awfully Cauterized Sores
+
+                            :-)  VERSION 4.6.5  (-:
+
+        Contributions from Mark Abraham, Emile Apol, Rossen Apostolov, 
+           Herman J.C. Berendsen, Aldert van Buuren, Pär Bjelkmar,  
+     Rudi van Drunen, Anton Feenstra, Gerrit Groenhof, Christoph Junghans, 
+        Peter Kasson, Carsten Kutzner, Per Larsson, Pieter Meulenhoff, 
+           Teemu Murtola, Szilard Pall, Sander Pronk, Roland Schulz, 
+                Michael Shirts, Alfons Sijbers, Peter Tieleman,
+
+               Berk Hess, David van der Spoel, and Erik Lindahl.
+
+       Copyright (c) 1991-2000, University of Groningen, The Netherlands.
+         Copyright (c) 2001-2012,2013, The GROMACS development team at
+        Uppsala University & The Royal Institute of Technology, Sweden.
+            check out http://www.gromacs.org for more information.
+
+         This program is free software; you can redistribute it and/or
+       modify it under the terms of the GNU Lesser General Public License
+        as published by the Free Software Foundation; either version 2.1
+             of the License, or (at your option) any later version.
+
+                               :-)  tpbconv  (-:
+
+Option     Filename  Type         Description
+------------------------------------------------------------
+  -s md.part0000.tpr  Input        Run input file: tpr tpb tpa
+  -f       traj.trr  Input, Opt.  Full precision trajectory: trr trj cpt
+  -e       ener.edr  Input, Opt.  Energy file
+  -n      index.ndx  Input, Opt.  Index file
+  -o md.part0001.tpr  Output       Run input file: tpr tpb tpa
+
+Option       Type   Value   Description
+------------------------------------------------------
+-[no]h       bool   no      Print help info and quit
+-[no]version bool   no      Print version info and quit
+-nice        int    0       Set the nicelevel
+-extend      real   50000   Extend runtime by this amount (ps)
+-until       real   0       Extend runtime until this ending time (ps)
+-nsteps      int    0       Change the number of steps
+-time        real   -1      Continue from frame at this time (ps) instead of
+                            the last frame
+-[no]zeroq   bool   no      Set the charges of a group (from the index) to
+                            zero
+-[no]vel     bool   yes     Require velocities from trajectory
+-[no]cont    bool   yes     For exact continuation, the constraints should
+                            not be applied before the first step
+-init_fep_state int    0       fep state to initialize from
+
+Reading toplogy and stuff from md.part0000.tpr
+
+-------------------------------------------------------
+Program tpbconv, VERSION 4.6.5
+Source code file: /home/abuild/rpmbuild/BUILD/gromacs-4.6.5/src/gmxlib/gmxfio.c, line: 524
+
+Can not open file:
+md.part0000.tpr
+For more information and tips for troubleshooting, please check the GROMACS
+website at http://www.gromacs.org/Documentation/Errors
+-------------------------------------------------------
+
+"I used to be blond and stupid, but now I dyed it black" (Miss Li)
+

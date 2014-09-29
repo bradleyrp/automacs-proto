@@ -1,0 +1,146 @@
+                         :-)  G  R  O  M  A  C  S  (-:
+
+                Gravel Rubs Often Many Awfully Cauterized Sores
+
+                            :-)  VERSION 4.6.5  (-:
+
+        Contributions from Mark Abraham, Emile Apol, Rossen Apostolov, 
+           Herman J.C. Berendsen, Aldert van Buuren, Pär Bjelkmar,  
+     Rudi van Drunen, Anton Feenstra, Gerrit Groenhof, Christoph Junghans, 
+        Peter Kasson, Carsten Kutzner, Per Larsson, Pieter Meulenhoff, 
+           Teemu Murtola, Szilard Pall, Sander Pronk, Roland Schulz, 
+                Michael Shirts, Alfons Sijbers, Peter Tieleman,
+
+               Berk Hess, David van der Spoel, and Erik Lindahl.
+
+       Copyright (c) 1991-2000, University of Groningen, The Netherlands.
+         Copyright (c) 2001-2012,2013, The GROMACS development team at
+        Uppsala University & The Royal Institute of Technology, Sweden.
+            check out http://www.gromacs.org for more information.
+
+         This program is free software; you can redistribute it and/or
+       modify it under the terms of the GNU Lesser General Public License
+        as published by the Free Software Foundation; either version 2.1
+             of the License, or (at your option) any later version.
+
+                                :-)  mdrun  (-:
+
+Option     Filename  Type         Description
+------------------------------------------------------------
+  -s  md-nvt-eq.tpr  Input        Run input file: tpr tpb tpa
+  -o  md-nvt-eq.trr  Output       Full precision trajectory: trr trj cpt
+  -x  md-nvt-eq.xtc  Output, Opt. Compressed trajectory (portable xdr format)
+-cpi  md-nvt-eq.cpt  Input, Opt.  Checkpoint file
+-cpo  md-nvt-eq.cpt  Output, Opt. Checkpoint file
+  -c  md-nvt-eq.gro  Output       Structure file: gro g96 pdb etc.
+  -e  md-nvt-eq.edr  Output       Energy file
+  -g  md-nvt-eq.log  Output       Log file
+-dhdl md-nvt-eq.xvg  Output, Opt. xvgr/xmgr file
+-field  md-nvt-eq.xvg  Output, Opt. xvgr/xmgr file
+-table  md-nvt-eq.xvg  Input, Opt.  xvgr/xmgr file
+-tabletf  md-nvt-eq.xvg  Input, Opt.  xvgr/xmgr file
+-tablep  md-nvt-eq.xvg  Input, Opt.  xvgr/xmgr file
+-tableb  md-nvt-eq.xvg  Input, Opt.  xvgr/xmgr file
+-rerun  md-nvt-eq.xtc  Input, Opt.  Trajectory: xtc trr trj gro g96 pdb cpt
+-tpi  md-nvt-eq.xvg  Output, Opt. xvgr/xmgr file
+-tpid md-nvt-eq.xvg  Output, Opt. xvgr/xmgr file
+ -ei  md-nvt-eq.edi  Input, Opt.  ED sampling input
+ -eo  md-nvt-eq.xvg  Output, Opt. xvgr/xmgr file
+  -j  md-nvt-eq.gct  Input, Opt.  General coupling stuff
+ -jo  md-nvt-eq.gct  Output, Opt. General coupling stuff
+-ffout  md-nvt-eq.xvg  Output, Opt. xvgr/xmgr file
+-devout  md-nvt-eq.xvg  Output, Opt. xvgr/xmgr file
+-runav  md-nvt-eq.xvg  Output, Opt. xvgr/xmgr file
+ -px  md-nvt-eq.xvg  Output, Opt. xvgr/xmgr file
+ -pf  md-nvt-eq.xvg  Output, Opt. xvgr/xmgr file
+ -ro  md-nvt-eq.xvg  Output, Opt. xvgr/xmgr file
+ -ra  md-nvt-eq.log  Output, Opt. Log file
+ -rs  md-nvt-eq.log  Output, Opt. Log file
+ -rt  md-nvt-eq.log  Output, Opt. Log file
+-mtx  md-nvt-eq.mtx  Output, Opt. Hessian matrix
+ -dn  md-nvt-eq.ndx  Output, Opt. Index file
+-multidir md-nvt-eq  Input, Opt., Mult. Run directory
+-membed  md-nvt-eq.dat  Input, Opt.  Generic data file
+ -mp  md-nvt-eq.top  Input, Opt.  Topology file
+ -mn  md-nvt-eq.ndx  Input, Opt.  Index file
+
+Option       Type   Value   Description
+------------------------------------------------------
+-[no]h       bool   no      Print help info and quit
+-[no]version bool   no      Print version info and quit
+-nice        int    0       Set the nicelevel
+-deffnm      string md-nvt-eq  Set the default filename for all file options
+-xvg         enum   xmgrace  xvg plot formatting: xmgrace, xmgr or none
+-[no]pd      bool   no      Use particle decompostion
+-dd          vector 0 0 0   Domain decomposition grid, 0 is optimize
+-ddorder     enum   interleave  DD node order: interleave, pp_pme or cartesian
+-npme        int    -1      Number of separate nodes to be used for PME, -1
+                            is guess
+-nt          int    1       Total number of threads to start (0 is guess)
+-ntmpi       int    0       Number of thread-MPI threads to start (0 is guess)
+-ntomp       int    0       Number of OpenMP threads per MPI process/thread
+                            to start (0 is guess)
+-ntomp_pme   int    0       Number of OpenMP threads per MPI process/thread
+                            to start (0 is -ntomp)
+-pin         enum   auto    Fix threads (or processes) to specific cores:
+                            auto, on or off
+-pinoffset   int    0       The starting logical core number for pinning to
+                            cores; used to avoid pinning threads from
+                            different mdrun instances to the same core
+-pinstride   int    0       Pinning distance in logical cores for threads,
+                            use 0 to minimize the number of threads per
+                            physical core
+-gpu_id      string         List of GPU device id-s to use, specifies the
+                            per-node PP rank to GPU mapping
+-[no]ddcheck bool   yes     Check for all bonded interactions with DD
+-rdd         real   0       The maximum distance for bonded interactions with
+                            DD (nm), 0 is determine from initial coordinates
+-rcon        real   0       Maximum distance for P-LINCS (nm), 0 is estimate
+-dlb         enum   auto    Dynamic load balancing (with DD): auto, no or yes
+-dds         real   0.8     Minimum allowed dlb scaling of the DD cell size
+-gcom        int    -1      Global communication frequency
+-nb          enum   auto    Calculate non-bonded interactions on: auto, cpu,
+                            gpu or gpu_cpu
+-[no]tunepme bool   yes     Optimize PME load between PP/PME nodes or GPU/CPU
+-[no]testverlet bool   no      Test the Verlet non-bonded scheme
+-[no]v       bool   yes     Be loud and noisy
+-[no]compact bool   yes     Write a compact log file
+-[no]seppot  bool   no      Write separate V and dVdl terms for each
+                            interaction type and node to the log file(s)
+-pforce      real   -1      Print all forces larger than this (kJ/mol nm)
+-[no]reprod  bool   no      Try to avoid optimizations that affect binary
+                            reproducibility
+-cpt         real   15      Checkpoint interval (minutes)
+-[no]cpnum   bool   no      Keep and number checkpoint files
+-[no]append  bool   yes     Append to previous output files when continuing
+                            from checkpoint instead of adding the simulation
+                            part number to all file names
+-nsteps      step   -2      Run this number of steps, overrides .mdp file
+                            option
+-maxh        real   -1      Terminate after 0.99 times this time (hours)
+-multi       int    0       Do multiple simulations in parallel
+-replex      int    0       Attempt replica exchange periodically with this
+                            period (steps)
+-nex         int    0       Number of random exchanges to carry out each
+                            exchange interval (N^3 is one suggestion).  -nex
+                            zero or not specified gives neighbor replica
+                            exchange.
+-reseed      int    -1      Seed for replica exchange, -1 is generate a seed
+-[no]ionize  bool   no      Do a simulation including the effect of an X-Ray
+                            bombardment on your system
+
+
+Back Off! I just backed up md-nvt-eq.log to ./#md-nvt-eq.log.1#
+
+-------------------------------------------------------
+Program mdrun, VERSION 4.6.5
+Source code file: /home/abuild/rpmbuild/BUILD/gromacs-4.6.5/src/gmxlib/gmxfio.c, line: 524
+
+Can not open file:
+md-nvt-eq.tpr
+For more information and tips for troubleshooting, please check the GROMACS
+website at http://www.gromacs.org/Documentation/Errors
+-------------------------------------------------------
+
+"I used to be blond and stupid, but now I dyed it black" (Miss Li)
+

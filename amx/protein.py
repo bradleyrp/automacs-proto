@@ -9,14 +9,8 @@ if os.path.isfile('/etc/pythonstart'):
 	execfile('/etc/pythonstart')
 
 #---imports
-import os
-import sys
-import time
-import datetime
+import os,ys,time,datetime,re
 from tools import call,checkout,tee,copy
-from numpy import array
-import numpy as np
-import re
 import amxsim
 
 #---locate gmxpaths
@@ -33,7 +27,7 @@ class ProteinWater(amxsim.AMXSimulation):
 	def __init__(self,rootdir=None,**kwargs):
 		#---set paths for the previous and current steps
 		self.rootdir = os.path.abspath(os.path.expanduser(rootdir))+'/'
-
+		
 		#---manually specify the sources directory and the inputs file
 		if 'sources_dir' in kwargs.keys(): 
 			self.sources_dir = os.path.abspath(os.path.expanduser(kwargs['sources_dir']))+'/'
@@ -51,8 +45,7 @@ class ProteinWater(amxsim.AMXSimulation):
 		else:
 			#---make root directory
 			if not os.path.isdir(self.rootdir): 
-				#os.mkdir(rootdir)
-				os.system('mkdir '+rootdir)
+				os.mkdir(rootdir)
 				needs_file_transfers = True
 			else: needs_file_transfers = False
 			#---start the logger

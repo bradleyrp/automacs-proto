@@ -1,0 +1,42 @@
+cp: cannot stat ‘../s1-build-protein-water/system.gro’: No such file or directory
+cp: cannot stat ‘../s1-build-protein-water/system.top’: No such file or directory
+cp: cannot stat ‘../s1-build-protein-water/system-groups.ndx’: No such file or directory
+cp: cannot stat ‘../s1-build-protein-water/*.itp’: No such file or directory
+cp: cannot stat ‘../s1-build-protein-water/composition.dat’: No such file or directory
+cp: cannot stat ‘../s1-build-protein-water/*.ff’: No such file or directory
+cp: cannot stat ‘../s1-build-protein-water/lipids-tops’: No such file or directory
+Use of uninitialized value $steplist{"nvt-short"} in numeric eq (==) at ./script-equilibrate.pl line 43.
+EQUILIBRATION ROUTINE
+time = 2014.09.29.1701.01
+simtype = aamd-protein
+skipping nvt-short
+cp system-input.gro md-nvt-eq-short.gro
+cp: cannot stat ‘system-input.gro’: No such file or directory
+running: grompp, equilibration, NVT
+logfile = log-grompp-md-nvt
+time = 2014.09.29.1701.01
+running: mdrun, equilibration, NVT
+caught gmx error: Can not open file:
+fail
+time = 2014.09.29.1701.01
+cp: cannot stat ‘../s1-build-protein-water/system.gro’: No such file or directory
+cp: cannot stat ‘../s1-build-protein-water/system.top’: No such file or directory
+cp: cannot stat ‘../s1-build-protein-water/system-groups.ndx’: No such file or directory
+cp: cannot stat ‘../s1-build-protein-water/*.itp’: No such file or directory
+cp: cannot stat ‘../s1-build-protein-water/composition.dat’: No such file or directory
+cp: cannot stat ‘../s1-build-protein-water/*.ff’: No such file or directory
+cp: cannot stat ‘../s1-build-protein-water/lipids-tops’: No such file or directory
+Use of uninitialized value $steplist{"nvt-short"} in numeric eq (==) at ./script-equilibrate.pl line 43.
+EQUILIBRATION ROUTINE
+time = 2014.09.29.1701.13
+simtype = aamd-protein
+skipping nvt-short
+cp system-input.gro md-nvt-eq-short.gro
+cp: cannot stat ‘system-input.gro’: No such file or directory
+running: grompp, equilibration, NVT
+logfile = log-grompp-md-nvt
+time = 2014.09.29.1701.13
+running: mdrun, equilibration, NVT
+caught gmx error: Can not open file:
+fail
+time = 2014.09.29.1701.13
