@@ -494,14 +494,14 @@ def make(target):
 	if proc_settings != None:
 		if proc_settings['scratch']: scratch_suffix = '_scratch'
 		else: scratch_suffix = ''
-	if hostname != None and 'cluster_header_'+system_id+scratch_suffix in globals():
-		scriptvar = 'cluster_header_'+system_id+scratch_suffix
+	if hostname != None and 'cluster_header_'+system_id+scratch_suffix in script_repo:
+		scripttext = script_repo['cluster_header_'+system_id+scratch_suffix]
 		#---if the header is a list, then it must contain a header and a footer
-		if type(globals()[scriptvar]) == list:
-			header_source = globals()[scriptvar][0]
-			header_source_footer = globals()[scriptvar][1]
+		if type(scripttext) == list:
+			header_source = scripttext[0]
+			header_source_footer = scripttext[1]
 		else:
-			header_source = globals()[scriptvar]
+			header_source = scripttext
 			header_source_footer = None
 		header_source_mod = []
 		for line in header_source.split('\n'):
