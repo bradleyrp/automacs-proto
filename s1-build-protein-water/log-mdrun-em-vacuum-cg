@@ -1,171 +1,0 @@
-                         :-)  G  R  O  M  A  C  S  (-:
-
-                Guyana Rwanda Oman Macau Angola Cameroon Senegal
-
-                            :-)  VERSION 4.6.5  (-:
-
-        Contributions from Mark Abraham, Emile Apol, Rossen Apostolov, 
-           Herman J.C. Berendsen, Aldert van Buuren, Pär Bjelkmar,  
-     Rudi van Drunen, Anton Feenstra, Gerrit Groenhof, Christoph Junghans, 
-        Peter Kasson, Carsten Kutzner, Per Larsson, Pieter Meulenhoff, 
-           Teemu Murtola, Szilard Pall, Sander Pronk, Roland Schulz, 
-                Michael Shirts, Alfons Sijbers, Peter Tieleman,
-
-               Berk Hess, David van der Spoel, and Erik Lindahl.
-
-       Copyright (c) 1991-2000, University of Groningen, The Netherlands.
-         Copyright (c) 2001-2012,2013, The GROMACS development team at
-        Uppsala University & The Royal Institute of Technology, Sweden.
-            check out http://www.gromacs.org for more information.
-
-         This program is free software; you can redistribute it and/or
-       modify it under the terms of the GNU Lesser General Public License
-        as published by the Free Software Foundation; either version 2.1
-             of the License, or (at your option) any later version.
-
-                                :-)  mdrun  (-:
-
-Option     Filename  Type         Description
-------------------------------------------------------------
-  -s em-vacuum-cg.tpr  Input        Run input file: tpr tpb tpa
-  -o em-vacuum-cg.trr  Output       Full precision trajectory: trr trj cpt
-  -x em-vacuum-cg.xtc  Output, Opt. Compressed trajectory (portable xdr
-                                   format)
--cpi em-vacuum-cg.cpt  Input, Opt.  Checkpoint file
--cpo em-vacuum-cg.cpt  Output, Opt. Checkpoint file
-  -c em-vacuum-cg.gro  Output       Structure file: gro g96 pdb etc.
-  -e em-vacuum-cg.edr  Output       Energy file
-  -g em-vacuum-cg.log  Output       Log file
--dhdl em-vacuum-cg.xvg  Output, Opt. xvgr/xmgr file
--field em-vacuum-cg.xvg  Output, Opt. xvgr/xmgr file
--table em-vacuum-cg.xvg  Input, Opt.  xvgr/xmgr file
--tabletf em-vacuum-cg.xvg  Input, Opt.  xvgr/xmgr file
--tablep em-vacuum-cg.xvg  Input, Opt.  xvgr/xmgr file
--tableb em-vacuum-cg.xvg  Input, Opt.  xvgr/xmgr file
--rerun em-vacuum-cg.xtc  Input, Opt.  Trajectory: xtc trr trj gro g96 pdb cpt
--tpi em-vacuum-cg.xvg  Output, Opt. xvgr/xmgr file
--tpid em-vacuum-cg.xvg  Output, Opt. xvgr/xmgr file
- -ei em-vacuum-cg.edi  Input, Opt.  ED sampling input
- -eo em-vacuum-cg.xvg  Output, Opt. xvgr/xmgr file
-  -j em-vacuum-cg.gct  Input, Opt.  General coupling stuff
- -jo em-vacuum-cg.gct  Output, Opt. General coupling stuff
--ffout em-vacuum-cg.xvg  Output, Opt. xvgr/xmgr file
--devout em-vacuum-cg.xvg  Output, Opt. xvgr/xmgr file
--runav em-vacuum-cg.xvg  Output, Opt. xvgr/xmgr file
- -px em-vacuum-cg.xvg  Output, Opt. xvgr/xmgr file
- -pf em-vacuum-cg.xvg  Output, Opt. xvgr/xmgr file
- -ro em-vacuum-cg.xvg  Output, Opt. xvgr/xmgr file
- -ra em-vacuum-cg.log  Output, Opt. Log file
- -rs em-vacuum-cg.log  Output, Opt. Log file
- -rt em-vacuum-cg.log  Output, Opt. Log file
--mtx em-vacuum-cg.mtx  Output, Opt. Hessian matrix
- -dn em-vacuum-cg.ndx  Output, Opt. Index file
--multidir   em-vacuum-cg  Input, Opt., Mult. Run directory
--membed em-vacuum-cg.dat  Input, Opt.  Generic data file
- -mp em-vacuum-cg.top  Input, Opt.  Topology file
- -mn em-vacuum-cg.ndx  Input, Opt.  Index file
-
-Option       Type   Value   Description
-------------------------------------------------------
--[no]h       bool   no      Print help info and quit
--[no]version bool   no      Print version info and quit
--nice        int    0       Set the nicelevel
--deffnm      string em-vacuum-cg  Set the default filename for all file
-                            options
--xvg         enum   xmgrace  xvg plot formatting: xmgrace, xmgr or none
--[no]pd      bool   no      Use particle decompostion
--dd          vector 0 0 0   Domain decomposition grid, 0 is optimize
--ddorder     enum   interleave  DD node order: interleave, pp_pme or cartesian
--npme        int    -1      Number of separate nodes to be used for PME, -1
-                            is guess
--nt          int    1       Total number of threads to start (0 is guess)
--ntmpi       int    0       Number of thread-MPI threads to start (0 is guess)
--ntomp       int    0       Number of OpenMP threads per MPI process/thread
-                            to start (0 is guess)
--ntomp_pme   int    0       Number of OpenMP threads per MPI process/thread
-                            to start (0 is -ntomp)
--pin         enum   auto    Fix threads (or processes) to specific cores:
-                            auto, on or off
--pinoffset   int    0       The starting logical core number for pinning to
-                            cores; used to avoid pinning threads from
-                            different mdrun instances to the same core
--pinstride   int    0       Pinning distance in logical cores for threads,
-                            use 0 to minimize the number of threads per
-                            physical core
--gpu_id      string         List of GPU device id-s to use, specifies the
-                            per-node PP rank to GPU mapping
--[no]ddcheck bool   yes     Check for all bonded interactions with DD
--rdd         real   0       The maximum distance for bonded interactions with
-                            DD (nm), 0 is determine from initial coordinates
--rcon        real   0       Maximum distance for P-LINCS (nm), 0 is estimate
--dlb         enum   auto    Dynamic load balancing (with DD): auto, no or yes
--dds         real   0.8     Minimum allowed dlb scaling of the DD cell size
--gcom        int    -1      Global communication frequency
--nb          enum   auto    Calculate non-bonded interactions on: auto, cpu,
-                            gpu or gpu_cpu
--[no]tunepme bool   yes     Optimize PME load between PP/PME nodes or GPU/CPU
--[no]testverlet bool   no      Test the Verlet non-bonded scheme
--[no]v       bool   yes     Be loud and noisy
--[no]compact bool   yes     Write a compact log file
--[no]seppot  bool   no      Write separate V and dVdl terms for each
-                            interaction type and node to the log file(s)
--pforce      real   -1      Print all forces larger than this (kJ/mol nm)
--[no]reprod  bool   no      Try to avoid optimizations that affect binary
-                            reproducibility
--cpt         real   15      Checkpoint interval (minutes)
--[no]cpnum   bool   no      Keep and number checkpoint files
--[no]append  bool   yes     Append to previous output files when continuing
-                            from checkpoint instead of adding the simulation
-                            part number to all file names
--nsteps      step   -2      Run this number of steps, overrides .mdp file
-                            option
--maxh        real   -1      Terminate after 0.99 times this time (hours)
--multi       int    0       Do multiple simulations in parallel
--replex      int    0       Attempt replica exchange periodically with this
-                            period (steps)
--nex         int    0       Number of random exchanges to carry out each
-                            exchange interval (N^3 is one suggestion).  -nex
-                            zero or not specified gives neighbor replica
-                            exchange.
--reseed      int    -1      Seed for replica exchange, -1 is generate a seed
--[no]ionize  bool   no      Do a simulation including the effect of an X-Ray
-                            bombardment on your system
-
-Reading file em-vacuum-cg.tpr, VERSION 4.6.5 (single precision)
-Using 1 MPI thread
-Compiled acceleration: SSE2 (Gromacs could use AVX_256 on this machine, which is better)
-
-Polak-Ribiere Conjugate Gradients:
-   Tolerance (Fmax)   =  1.00000e+01
-   Number of steps    =        50000
-   F-max             =  4.52173e+02 on atom 27
-   F-Norm            =  2.06630e+02
-
-Step 0, Epot=8.468585e+01, Fnorm=8.210e+01, Fmax=1.849e+02 (atom 23)
-Step 1, Epot=8.451416e+01, Fnorm=7.204e+01, Fmax=1.807e+02 (atom 21)
-Step 2, Epot=8.415198e+01, Fnorm=6.794e+01, Fmax=1.216e+02 (atom 15)
-Step 3, Epot=8.391870e+01, Fnorm=1.490e+02, Fmax=3.444e+02 (atom 13)
-Step 4, Epot=8.349359e+01, Fnorm=4.691e+01, Fmax=9.162e+01 (atom 31)
-Step 5, Epot=8.336676e+01, Fnorm=4.376e+01, Fmax=8.832e+01 (atom 12)
-Step 6, Epot=8.320294e+01, Fnorm=5.594e+01, Fmax=1.349e+02 (atom 31)
-Step 7, Epot=8.272784e+01, Fnorm=1.002e+02, Fmax=3.077e+02 (atom 11)
-Step 8, Epot=8.124146e+01, Fnorm=2.478e+02, Fmax=5.909e+02 (atom 13)
-Step 9, Epot=8.020404e+01, Fnorm=1.058e+02, Fmax=2.446e+02 (atom 11)
-Step 10, Epot=7.975854e+01, Fnorm=1.308e+02, Fmax=3.397e+02 (atom 23)
-Step 11, Epot=7.952502e+01, Fnorm=7.241e+01, Fmax=1.958e+02 (atom 31)
-Step 12, Epot=7.937793e+01, Fnorm=4.681e+01, Fmax=1.295e+02 (atom 31)
-Step 13, Epot=7.927179e+01, Fnorm=3.831e+01, Fmax=9.330e+01 (atom 11)
-Step 14, Epot=7.920807e+01, Fnorm=6.481e+01, Fmax=2.296e+02 (atom 11)
-Step 15, Epot=7.917047e+01, Fnorm=7.611e+01, Fmax=2.664e+02 (atom 11)
-Step 16, Epot=7.908722e+01, Fnorm=5.258e+01, Fmax=1.597e+02 (atom 11)
-Step 17, Epot=7.905646e+01, Fnorm=6.166e+01, Fmax=2.072e+02 (atom 11)
-Step 18, Epot=7.898779e+01, Fnorm=3.960e+01, Fmax=1.186e+02 (atom 11)
-Step 19, Epot=7.895892e+01, Fnorm=4.167e+01, Fmax=1.343e+02 (atom 11)
-Step 20, Epot=7.892761e+01, Fnorm=3.113e+01, Fmax=8.274e+01 (atom 11)
-Step 21, Epot=7.890594e+01, Fnorm=3.296e+01, Fmax=9.461e+01 (atom 11)
-Step 22, Epot=7.888220e+01, Fnorm=2.645e+01, Fmax=6.146e+01 (atom 11)
-Step 23, Epot=7.883270e+01, Fnorm=2.468e+01, Fmax=5.300e+01 (atom 11)
-Step 24, Epot=7.881458e+01, Fnorm=4.907e+01, Fmax=1.705e+02 (atom 11)
-Step 25, Epot=7.873462e+01, Fnorm=8.112e+01, Fmax=3.019e+02 (atom 11)
-Step 26, Epot=7.856226e+01, Fnorm=4.317e+01, Fmax=1.470e+02 (atom 11)
-Step 27, Epot=7.844739e+01, Fnorm=5.691e+01, Fmax=2.074e+02 (atom 11)
