@@ -96,7 +96,7 @@ default_proc_specs = {
 		{'nodes':1,'ppn':16,'walltime':96,
 		'module':'module load gromacs-gcc',
 		'scratch':False},
-	'compbio_opterons_gpus':
+	'compbio_opterons_gpu':
 		{'nodes':1,'ppn':16,'walltime':96,
 		'module':'module load gromacs-gcc-cuda',
 		'scratch':False},
