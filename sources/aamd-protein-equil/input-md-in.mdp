@@ -1,26 +1,28 @@
-define = -DPOSRES
-
 integrator = md
 tinit = 0
 dt = 0.002
-nsteps = 50000
-nstcomm = 1
+nsteps = 500000
+nstcomm = 100
+nstcalcenergy = 100
+comm-grps = Protein non-Protein
 
-nstxout = 500
-nstvout = 500
-nstlog = 100
-nstenergy = 100
+nstxout = 5000
+nstvout = 5000
+nstlog = 1000
+nstenergy = 1000
+nstxtcout = 1000
 
-nstlist = 5
+nstlist = 20
 ns_type = grid
 pbc = xyz
-rlist = 1
 
+cutoff-scheme = verlet
 coulombtype = PME
 pme_order = 4
-fourierspacing = 0.16
-rcoulomb = 1
-rvdw = 1
+fourierspacing = 0.1125
+rcoulomb = 0.9
+rvdw = 0.9
+rlist = 0.9
 
 tcoupl = V-rescale
 tc_grps = Protein Non-Protein
@@ -37,6 +39,6 @@ dispcorr = EnerPres
 
 gen_vel = no
 
-constraints = all-bonds
+constraints = h-bonds
 constraint_algorithm = lincs
 continuation = no

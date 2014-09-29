@@ -5,12 +5,14 @@ try:
 	from amx.lipidgrid import MonolayerGrids
 	from amx.bilayer import Bilayer
 	from amx.protein import ProteinWater
+	from amx.amxsim import *
 	from amx.tools import *
 	import sys,traceback
 except: 
 	from lipidgrid import MonolayerGrids
 	from bilayer import Bilayer
 	from protein import ProteinWater
+	from amxsim import *
 	from tools import *
 	import sys,traceback
 

@@ -1,0 +1,46 @@
+define = -DPOSRES
+
+integrator = md
+tinit = 0
+dt = 0.0001
+nsteps = 500000
+nstcomm = 100
+nstcalcenergy = 100
+comm-grps = Protein non-Protein
+
+nstxout = 1000
+nstvout = 1000
+nstlog = 100
+nstenergy = 100
+nstxtcout = 500
+
+nstlist = 20
+ns_type = grid
+pbc = xyz
+
+cutoff-scheme = verlet
+coulombtype = PME
+pme_order = 4
+fourierspacing = 0.1125
+rcoulomb = 0.9
+rvdw = 0.9
+rlist = 0.9
+
+tcoupl = V-rescale
+tc_grps = Protein Non-Protein
+tau_t = 0.1 0.1
+ref_t = 300 300
+
+pcoupl = Berendsen
+pcoupltype = isotropic
+tau_p = 1.0
+ref_p = 1.0
+compressibility = 4.5e-5
+
+dispcorr = EnerPres
+
+gen_vel = yes
+
+constraints = all-bonds
+constraint_algorithm = lincs
+continuation = no

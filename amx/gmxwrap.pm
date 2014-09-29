@@ -62,7 +62,7 @@ sub errorscan {
 			if ($line =~ /$sig/) {
 				$line =~ s/\s+$//;
 				reporter "caught gmx error: " . $line;
-				reporter "fail"
+				reporter "fail";
 				$error = 1;
 			}
 		}

@@ -29,14 +29,14 @@ helpstring = \
 \toperations:
 \t----------
 \treset           : clears the subdirectories of all run files
-\tmake <method>   : generates PBS and bash scripts according 
+\t<method>        : generates PBS and bash scripts according 
 \t                  to settings in amx-bearings
 \tdocs            : re-generates documentation (development only)
 \trender <gro>    : uses vmd and tachyon to render a bilayer snapshot
 \t                  from a gro (structure) file (add an optional
 \t                  tpr file to draw the bonds)
 \tlastframe       : start a utility for extracting the last frame
-                    of a crashed simulation\n
+\t                  of a crashed simulation\n
 \tmethods:
 \t-------
 \tcgmd-bilayer    : build a coarse-grained lipid bilayer
@@ -51,7 +51,7 @@ document_string = \
 \taccording to the docstrings. This means that the code is also 
 \theavily commented and should be readable as well. Visit the 
 \tfollowing link to view the documentation.\n
-\t"""+str('file://'+os.path.abspath(os.path.curdir)+'/docs/_build/html/index.html')+"\n\n"
+"""+str('file://'+os.path.abspath(os.path.curdir)+'/docs/_build/html/index.html')+"\n\n"
 
 #---BASH SCRIPT CONSTANTS
 #-------------------------------------------------------------------------------------------------------------
@@ -66,7 +66,7 @@ prepare_equil_sim = [
 if ! [ -d "$step_equilibration" ]; then cp -r ./sources/general-equil ./$step_equilibration
 else cp -r ./sources/general-equil/* ./$step_equilibration;fi\n
 #---connect equilibration settings to the previous step
-sed -i 's/^SOURCEDIR.*/SOURCEDIR=\.\.\/'$step_bilayer'/g' $step_equilibration/settings.sh
+sed -i 's/^SOURCEDIR.*/SOURCEDIR=\.\.\/'$step_build'/g' $step_equilibration/settings.sh
 sed -i 's/SIMTYPE.*/SIMTYPE="'$simtype'"/g' $step_equilibration/settings.sh
 sed -i 's/cp $AMXPATH\/.*/cp $AMXPATH\/'$input_files'\/\* \.\//g' $step_equilibration/settings.sh
 """,
@@ -142,7 +142,7 @@ script_dict = {
 		'prep':prepare_equil_sim,
 		'steps':{
 			'step_monolayer':'s1-build-lipidgrid',
-			'step_bilayer':'s2-build-bilayer',
+			'step_build':'s2-build-bilayer',
 			'step_equilibration':'s3-equil',
 			'step_simulation':'s4-sim',
 			'simtype':'aamd-bilayer',
@@ -162,7 +162,9 @@ script_dict = {
 			],
 		},
 	'aamd-protein':{
-		'prep':prepare_equil_sim,
+		'prep':[prepare_equil_sim[0]+\
+			"sed -i 's/STEPSTRING.*/STEPSTRING=\"nvt npt\"/g' $step_equilibration/settings.sh"]+\
+			prepare_equil_sim[1:],
 		'steps':{
 			'step_build':'s1-build-protein-water',
 			'step_equilibration':'s2-equil',

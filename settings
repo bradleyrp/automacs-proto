@@ -9,7 +9,7 @@ dictionary also keeps track of the available architectures for each hostname.
 #---here the hostname is a single word excluding punctuation which can be matched to the true hostname
 #---note that the first element in the corresponding list is the default architecture
 valid_hostnames = {
-	'compbio':['opterons','xeons'],
+	'compbio':['opterons_gpu','opterons','xeons'],
 	}
 
 #---header file definitions
@@ -90,6 +90,10 @@ default_proc_specs = {
 		{'nodes':1,'ppn':16,'walltime':96,
 		'module':'module load gromacs-gcc',
 		'scratch':False},
+	'compbio_opterons_gpus':
+		{'nodes':1,'ppn':16,'walltime':96,
+		'module':'module load gromacs-gcc-cuda',
+		'scratch':False},
 	}
 	
 #---gromacs paths
@@ -107,7 +111,7 @@ gmx_suffixes = {
 #---system-specific commands to substitute for standard_gromacs_commands
 #---note some commands require a number of processors NPROCS which is substituted by ./controller make
 gmx_overrides = {
-	'local':{'mdrun':'mdrun -nt 4',},
+	'local':{'mdrun':'mdrun -nt 1',},
 	'compbio_xeons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	'compbio_opterons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	}

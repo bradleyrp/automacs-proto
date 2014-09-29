@@ -144,87 +144,6 @@ class Bilayer:
 			#---call the master construction procedure
 			print 'starting bilayer construction'
 			self.construction()
-
-	def get_box_vectors(self,logfile,new=True):
-		'''Read box vectors from editconf output stored in a log file.'''
-		if new:
-			boxdims = [float(checkout(["awk","'/new box vectors/ {print $"+\
-				str(i+5)+"}'",logfile],cwd=self.rootdir).strip()) for i in range(3)]
-		else:
-			boxdims = [float(checkout(["awk","'/    box vectors/ {print $"+\
-				str(i+4)+"}'",logfile],cwd=self.rootdir).strip()) for i in range(3)]
-		return boxdims
-		
-	def write_topology(self,topname,water_only=False):
-		'''Write the topology file from residue lists stored in ``self.lnames`` and ``self.complist``.'''
-		
-		print 'writing topology'
-		#---atomistic topology disabled here
-		if self.simscale == 'aamd':
-			fp = open(self.rootdir+topname,'w')
-			fp.write('#include "charmm36.ff/forcefield.itp"\n')
-			for lname in self.lnames:
-				if lname not in self.ion_residue_names: 
-					fp.write('#include "./lipids-tops/lipid.'+lname+'.itp"\n')
-					fp.write('#include "./lipids-tops/restr.'+lname+'.itp"\n') 
-			fp.write('#include "charmm36.ff/tips3p.itp"\n')
-			fp.write('#include "charmm36.ff/ions.itp"\n\n')
-			fp.write('[ system ]\nBILAYER\n\n')
-			fp.write('[ molecules ]\n')
-			for l in range(len(self.lnames)): 
-				if not water_only or self.lnames[l] == self.settings['sol_name']:
-					fp.write(self.lnames[l]+' '+self.comps[l][1]+'\n')
-			fp.close()
-		elif self.simscale == 'cgmd':
-			#---define ion names for exclusion from topology update function
-			self.ion_residue_names = [self.settings['sol_name'],'MG','NA','CL','Cal']
-			fp = open(self.rootdir+topname,'w')
-			fp.write(self.params['topheader_martini'])			
-			for l in range(len(self.lnames)): 
-				if not water_only or self.lnames[l] == self.settings['sol_name']: 
-					fp.write(self.lnames[l]+' '+self.comps[l][1]+'\n')
-			fp.close()
-		else: raise Exception('except: unclear procedure to write topology')
-	
-	def minimization_method(self,name,posre=False):
-		'''
-		Generic minimization method with a drop-in name and standard inputs. This function takes a file
-		suffix and performs a minimization on the corresponding ``gro`` file.
-		'''
-		print name+" minimization, steepest descent"
-		cmd = [gmxpaths['grompp'],
-			'-f input-em-steep-'+('posre-' if posre else '')+'in.mdp',
-			'-c '+name+'.gro',
-			'-p '+name+'.top',
-			'-o em-'+name+'-steep',
-			'-po em-'+name+'-steep',
-			'-maxwarn 10']
-		call(cmd,logfile='log-grompp-em-'+name+'-steep',cwd=self.rootdir)
-		cmd = [gmxpaths['mdrun'],'-v','-deffnm em-'+name+'-steep']
-		call(cmd,logfile='log-mdrun-em-'+name+'-steep',cwd=self.rootdir)
-
-		print name+" minimization, conjugate gradient"
-		cmd = [gmxpaths['grompp'],
-			'-f input-em-cg-'+('posre-' if posre else '')+'in.mdp',
-			'-c em-'+name+'-steep.gro',
-			'-p '+name+'.top',
-			'-o em-'+name+'-cg',
-			'-po em-'+name+'-cg',
-			'-maxwarn 10']
-		print ' '.join(cmd)
-		call(cmd,logfile='log-grompp-em-'+name+'-cg',cwd=self.rootdir)
-		cmd = [gmxpaths['mdrun'],'-v','-deffnm em-'+name+'-cg']
-		call(cmd,logfile='log-mdrun-em-'+name+'-cg',cwd=self.rootdir)
-	
-		mdrun_logs = [[line for line in open(self.rootdir+fn,'r')] for fn in 
-			['log-mdrun-em-'+name+'-steep','log-mdrun-em-'+name+'-cg']]
-		forces = [i[0] if len(i) >= 1 else [] for i in [[float(line.strip().split()[3]) 
-			for line in d if line[:13] == 'Maximum force'] for d in mdrun_logs]]
-		if len(forces) == 0: raise Exception('except: both minimization methods failed')
-		if forces[0] == []: bestmin = 'em-'+name+'-cg.gro'
-		elif forces[1] == []: bestmin = 'em-'+name+'-steep.gro'
-		else: bestmin = 'em-'+name+'-cg.gro' if forces[0] > forces[1] else 'em-'+name+'-steep.gro'
-		call('cp '+bestmin+' '+name+'-minimized.gro',cwd=self.rootdir)
 	
 	def construction(self):
 		'''
@@ -282,7 +201,7 @@ class Bilayer:
 			self.lnames.append(self.settings['negative_ion_name'])
 			self.comps.append([self.settings['negative_ion_name'],str(ncount)])
 			self.comps[self.lnames.index(self.settings['sol_name'])][1] = str(nwaters - pcount - ncount)
-		if not os.path.isfile(self.rootdir+'system.gro'): self.grouping()
+		if not os.path.isfile(self.rootdir+'system.gro'): self.grouping(grouptype='bilayer')
 	
 	def vacuum(self):	
 		'''Assemble monolayers into a bilayer and minimize.'''
@@ -359,7 +278,7 @@ class Bilayer:
 			'-box '+str(boxpad[0])+' '+str(boxpad[1])+' '+str(self.settings['zbuffer']/2.+boxdims[2])]
 		call(cmd,logfile='log-editconf-place-grid',cwd=self.rootdir)
 		
-		self.write_topology('vacuum.top')
+		self.write_topology_bilayer('vacuum.top')
 		self.minimization_method('vacuum',posre=True)
 		
 	def packing(self):
@@ -481,7 +400,7 @@ class Bilayer:
 		self.lnames.append(self.settings['sol_name'])
 		self.comps.append([self.settings['sol_name'],str(nwaters)])
 	
-		self.write_topology('solvate.top')
+		self.write_topology_bilayer('solvate.top')
 		self.minimization_method('solvate')
 		
 		print "translating so the bilayer is in the middle"
@@ -499,7 +418,7 @@ class Bilayer:
 		'''Add counterions to the water slab.'''
 		if self.settings['concentration_calc'] == 'exempt_lipids':
 			print "running genion on the water only"
-			self.write_topology('solvate-water.top',water_only=True)
+			self.write_topology_bilayer('solvate-water.top',water_only=True)
 			cmd = [gmxpaths['grompp'],
 				'-f input-em-steep-in.mdp',
 				'-po genion-water.mdp',
@@ -562,7 +481,7 @@ class Bilayer:
 				print "WARNING: zero ions"
 			print "adding counterions"
 			call('cp solvate.top counterions.top',cwd=self.rootdir)
-			self.write_topology('solvate.top')
+			self.write_topology_bilayer('solvate.top')
 			cmd = [gmxpaths['grompp'],
 				'-f input-em-steep-in.mdp',
 				'-po genion.mdp',
@@ -625,23 +544,9 @@ class Bilayer:
 		self.comps.append([self.settings['negative_ion_name'],str(ncount)])
 		self.comps[self.lnames.index(self.settings['sol_name'])][1] = str(nwaters - pcount - ncount)
 
-		self.write_topology('counterions.top')
+		self.write_topology_bilayer('counterions.top')
 		self.minimization_method('counterions')
-
-	def grouping(self):
-		'''
-		Write the ``system-groups.ndx`` file for further simulation, which requires that the water and 
-		lipids and possibly proteins are coupled to their own temperature baths.
-		'''
-		print "writing groups ndx file"
-		cmd = ['echo -ne "keep 0\nr '+\
-			' | r '.join([l for l in self.lnames if l not in self.ion_residue_names]+['ION'])+\
-			'\n'+'r '+' | r '.join([l for l in self.lnames if l in self.ion_residue_names])+\
-			'\nname 1 LIPIDS\nname 2 SOLV\ndel 0\nq\n" |',
-			gmxpaths['make_ndx'],
-			'-f counterions-minimized.gro',
-			'-o system-groups.ndx']
-		call(cmd,logfile='log-make-ndx-groups',cwd=self.rootdir)
+		
 		call('cp counterions-minimized.gro system.gro',cwd=self.rootdir)
-		self.write_topology('system.top')
-
+		self.write_topology_bilayer('system.top')
+		

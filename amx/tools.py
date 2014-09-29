@@ -124,6 +124,7 @@ def copy(source,destination):
 	'''
 	#---check if wildcard in the source in which case use glob
 	if '*' in source:
+		print glob.glob(source)
 		for filename in glob.glob(source):
 			shutil.copy(filename,destination)
 	#---otherwise try a copytree and if that fails just use copy
@@ -133,44 +134,34 @@ def copy(source,destination):
 			if exc.errno == errno.ENOTDIR: shutil.copy(source,destination)
 			else: raise
 
-class LastFrame:
+def LastFrame(prefix,rootdir,gmxpaths):
 	'''
-	This class is used to retreive the last frame of a particular simulation.\n
-	The user supplies a filename prefix and root directory (via kwargs prefix and rootdir) and the program
-	will check for the corresponding gro file. If it's absent, it checks for an xtc file with the supplied
-	prefix and then extracts the last frame from it.
+	This function is used to retreive the last frame of a particular simulation.\n
+	The user supplies a filename prefix and root directory (via kwargs `prefix` and `rootdir`) and this
+	function will check for the corresponding <prefix>.gro file. If it's absent, it checks for a <prefix>.xtc 
+	file and extract the last frame from it.
 	'''
-	def __init__(self,prefix=None,rootdir=None,gmxpaths=None):
-		if rootdir == None: rootdir = '.'
-		else: self.rootdir = rootdir+'/'
-		if prefix == None: raise Exception('except: needs name prefix')
-		else: self.prefix = prefix
-		if gmxpaths == None: raise Exception('except: needs gmxpaths')
-		else: self.gmxpaths = gmxpaths
-		self.get_last_frame()
-	def get_last_frame(self):
-		'''Function which gets the last frame of an xtc file'''
-		if not os.path.isfile(self.rootdir+self.prefix+'.gro'):
-			print 'configuration is missing so we will extract the last frame'
-			cmd = [self.gmxpaths['gmxcheck'],
-				'-f '+self.prefix+'.xtc']
-			call(cmd,logfile='log-gmxcheck-'+self.prefix,cwd=self.rootdir)
-			lastframe = int(checkout(["awk","'/Step / {print $2}'",
-				'log-gmxcheck-'+self.prefix],cwd=self.rootdir).strip())
-			ts = float(checkout(["awk","'/Step / {print $3}'",
-				'log-gmxcheck-'+self.prefix],cwd=self.rootdir).strip())
-			#---note that rpb added a rounding function after an error in an AAMD test 2014.08.24
-			lasttime = float(int(float(lastframe)*ts))
-			lasttime = round(lasttime/10)*10
-			print 'last viable frame was at '+str(lasttime)+' ps'
-			print 'retrieving that frame'
-			cmd = [self.gmxpaths['trjconv'],
-				'-f '+self.prefix+'.xtc',
-				'-o '+self.prefix+'.gro',
-				'-s '+self.prefix+'.tpr',
-				'-b '+str(lasttime),
-				'-e '+str(lasttime),]
-			call('echo -e "0\n" |'+' '.join(cmd),
-				logfile='log-trjconv-'+self.prefix,cwd=self.rootdir)
-		else: print 'configuration file is already available'
+	if not os.path.isfile(rootdir+'/'+prefix+'.gro'):
+		print 'configuration is missing so we will extract the last frame'
+		cmd = [gmxpaths['gmxcheck'],
+			'-f '+prefix+'.xtc']
+		call(cmd,logfile='log-gmxcheck-'+prefix,cwd=rootdir)
+		lastframe = int(checkout(["awk","'/Step / {print $2}'",
+			'log-gmxcheck-'+prefix],cwd=rootdir).strip())
+		ts = float(checkout(["awk","'/Step / {print $3}'",
+			'log-gmxcheck-'+prefix],cwd=rootdir).strip())
+		#---note that rpb added a rounding function after an error in an AAMD test 2014.08.24
+		lasttime = float(int(float(lastframe)*ts))
+		lasttime = round(lasttime/10)*10
+		print 'last viable frame was at '+str(lasttime)+' ps'
+		print 'retrieving that frame'
+		cmd = [gmxpaths['trjconv'],
+			'-f '+prefix+'.xtc',
+			'-o '+prefix+'.gro',
+			'-s '+prefix+'.tpr',
+			'-b '+str(lasttime),
+			'-e '+str(lasttime),]
+		call('echo -e "0\n" |'+' '.join(cmd),
+			logfile='log-trjconv-'+prefix,cwd=rootdir)
+	else: print 'configuration file is already available'
 

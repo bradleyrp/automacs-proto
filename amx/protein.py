@@ -14,6 +14,10 @@ import sys
 import time
 import datetime
 from tools import call,checkout,tee,copy
+from numpy import array
+import numpy as np
+import re
+import amxsim
 
 #---locate gmxpaths
 if os.path.isfile('gmxpaths.conf'): gmxpaths_path = './'
@@ -24,7 +28,7 @@ gmxpaths = dict([[i.split()[0],' '.join(i.split()[1:])]
 	for i in open(gmxpaths_path+'gmxpaths.conf','r') 
 	if i.strip()[0] != '#'])
 
-class ProteinWater:
+class ProteinWater(amxsim.AMXSimulation):
 
 	def __init__(self,rootdir=None,**kwargs):
 		#---set paths for the previous and current steps
@@ -60,7 +64,7 @@ class ProteinWater:
 			self.simscale = self.params['simscale']
 			self.settings = self.params['protein_construction_settings'][self.simscale]
 			#---copy input files if this is a fresh start
-			copy(self.sources_dir+'aamd-protein/'+self.params['input_filename'],
+			copy(self.sources_dir+'aamd-protein-structs/'+self.params['input_filename'],
 				self.rootdir+'system-input.pdb')
 			#---copy input files from standard sources i.e. the forcefield only if absent
 			if needs_file_transfers:
@@ -68,52 +72,15 @@ class ProteinWater:
 				if self.simscale == 'aamd':
 					copy(self.sources_dir+'aamd-protein-construct/*',self.rootdir)
 				else: raise Exception('except: unclear simulation resolution')
-			#---running lists of molecules and compositions
-			self.lnames,self.comps = [],[]
+			#---running list of composition
+			#---note that this method is only set to simulate a single protein
+			self.nprots = 1
+			self.npoz,self.nneg = 0,0
+			self.nsol = 0
 			#---call the master construction procedure
 			print 'starting protein + water construction'
 			self.construction()
 			
-	def minimization_method(self,name,posre=False):
-		'''
-		Generic minimization method with a drop-in name and standard inputs. This function takes a file
-		suffix and performs a minimization on the corresponding ``gro`` file.
-		'''
-		print name+" minimization, steepest descent"
-		cmd = [gmxpaths['grompp'],
-			'-f input-em-steep-'+('posre-' if posre else '')+'in.mdp',
-			'-c '+name+'.gro',
-			'-p '+name+'.top',
-			'-o em-'+name+'-steep',
-			'-po em-'+name+'-steep',
-			'-maxwarn 10']
-		call(cmd,logfile='log-grompp-em-'+name+'-steep',cwd=self.rootdir)
-		cmd = [gmxpaths['mdrun'],'-v','-deffnm em-'+name+'-steep']
-		call(cmd,logfile='log-mdrun-em-'+name+'-steep',cwd=self.rootdir)
-
-		print name+" minimization, conjugate gradient"
-		cmd = [gmxpaths['grompp'],
-			'-f input-em-cg-'+('posre-' if posre else '')+'in.mdp',
-			'-c em-'+name+'-steep.gro',
-			'-p '+name+'.top',
-			'-o em-'+name+'-cg',
-			'-po em-'+name+'-cg',
-			'-maxwarn 10']
-		print ' '.join(cmd)
-		call(cmd,logfile='log-grompp-em-'+name+'-cg',cwd=self.rootdir)
-		cmd = [gmxpaths['mdrun'],'-v','-deffnm em-'+name+'-cg']
-		call(cmd,logfile='log-mdrun-em-'+name+'-cg',cwd=self.rootdir)
-	
-		mdrun_logs = [[line for line in open(self.rootdir+fn,'r')] for fn in 
-			['log-mdrun-em-'+name+'-steep','log-mdrun-em-'+name+'-cg']]
-		forces = [i[0] if len(i) >= 1 else [] for i in [[float(line.strip().split()[3]) 
-			for line in d if line[:13] == 'Maximum force'] for d in mdrun_logs]]
-		if len(forces) == 0: raise Exception('except: both minimization methods failed')
-		if forces[0] == []: bestmin = 'em-'+name+'-cg.gro'
-		elif forces[1] == []: bestmin = 'em-'+name+'-steep.gro'
-		else: bestmin = 'em-'+name+'-cg.gro' if forces[0] > forces[1] else 'em-'+name+'-steep.gro'
-		call('cp '+bestmin+' '+name+'-minimized.gro',cwd=self.rootdir)
-	
 	def construction(self):
 		if not os.path.isfile(self.rootdir+'vacuum-minimized.gro'): self.vacuum()
 		else: print 'skipping vacuum construction because vacuum-minimized.gro exists'
@@ -134,37 +101,121 @@ class ProteinWater:
 		cmd = [gmxpaths['pdb2gmx'],
 			'-f prep-protein-start.pdb',
 			'-o vacuum-alone.gro',
-			'-p vacuum.top',
+			'-p vacuum-standard.top',
 			'-ignh',
 			'-i system-posre.itp',
 			'-ff '+self.settings['force_field'],
-			'-water '+self.settings['water_model'],
-			]
-		print ' '.join(cmd)
+			'-water '+self.settings['water_model']]
 		call(cmd,logfile='log-pdb2gmx',cwd=self.rootdir)
-
+		
+		#---intervening step will isolate the ITP data from the TOP file to use standardized TOP
+		with open(self.rootdir+'vacuum-standard.top','r') as f: topfile = f.read()	
+		fp = open(self.rootdir+'protein.itp','w') 
+		for line in topfile.split('\n'):
+			#---skip any part of the top that follows the water topology and/or system composition
+			if re.match('; Include water topology',line): break
+			if re.match('; Include topology for ions',line): break
+			if re.match('\[ system \]',line): break
+			#---you must extract forcefield.itp from the file to prevent redundant includes
+			if not re.match(".+forcefield\.itp",line) and not \
+				re.match("; Include forcefield parameters",line): 
+				fp.write(line+'\n')
+		fp.close()
+		
+		#---note that this method is currently set to only simulate one protein
+		self.nprots = 1
+		self.write_topology_protein('vacuum.top')
+		
 		print "building box with "+str(self.settings['wbuffer'])+'nm of water'
 		cmd = [gmxpaths['editconf'],
 			'-f vacuum-alone.gro',
 			'-d '+str(self.settings['wbuffer']),
-			'-o vacuum.gro',
-			]
-		print ' '.join(cmd)
+			'-o vacuum.gro']
 		call(cmd,logfile='log-editconf-vacuum',cwd=self.rootdir)
 		
 		self.minimization_method('vacuum')
+
+		print "checking the size of the protein"
+		cmd = [gmxpaths['editconf'],
+			'-f vacuum-minimized.gro',
+			'-o solvate-box-alone.gro',
+			'-d 0']
+		call(cmd,logfile='log-editconf-checksize',cwd=self.rootdir)
+		boxdims = self.get_box_vectors('log-editconf-checksize')
 		
-		#--->>>> UNDER DEVELOPMENT AFTER HERE
+		boxvecs = [i+2*self.settings['wbuffer'] for i in boxdims]
+		if self.settings['cube']: 
+			print "the box will be a cube"
+			boxvecs = [max(boxvecs) for i in range(3)]
+		print "box vectors = "+str(boxvecs)
+
+		print "centering the protein in a new box"
+		center = [i/2. for i in boxvecs]
+		cmd = [gmxpaths['editconf'],
+			'-f vacuum-minimized.gro',
+			'-o solvate-protein.gro',
+			'-center '+str(center[0])+' '+str(center[1])+' '+str(center[2]),
+			'-box '+str(boxvecs[0])+' '+str(boxvecs[1])+' '+str(boxvecs[2])]
+		call(cmd,logfile='log-editconf-center-protein',cwd=self.rootdir)
+
+		print "solvating the protein in a water box"		
+		copy(self.rootdir+'vacuum.top',self.rootdir+'solvate-standard.top')
+		cmd = [gmxpaths['genbox'],
+			'-cp solvate-protein.gro',
+			'-cs spc216.gro',
+			'-o solvate-dense.gro',
+			'-p solvate-standard.top']
+		call(cmd,logfile='log-genbox-solvate',cwd=self.rootdir)
+
+		#---note script-construct.sh included a VMD water trimming step here
+		copy(self.rootdir+'solvate-dense.gro',self.rootdir+'solvate.gro')
+
+		cmd = ['echo -e "q\n" |',
+			gmxpaths['make_ndx'],
+			'-f solvate.gro',
+			'-o solvate-water-check.ndx']
+		call(cmd,logfile='log-make-ndx-solvate-check',cwd=self.rootdir)	
+		self.nsol = int(checkout(["awk","'/ "+self.settings['sol_name']+" / {print $4}'",
+			"log-make-ndx-solvate-check"],cwd=self.rootdir))/3
+		self.write_topology_protein('solvate.top')
+
+		print "minimizing with solvent"
+		self.minimization_method('solvate')
 		
-		print "running "
-		cmd = [gmxpaths[''],
-			]
-		print ' '.join(cmd)
-		call(cmd,logfile='log-',cwd=self.rootdir)
+		print "adding counterions"
+		copy(self.rootdir+'solvate.top',self.rootdir+'counterions.top')
+		cmd = [gmxpaths['grompp'],
+			'-f input-em-steep-in.mdp',
+			'-po genion.mdp',
+			'-c solvate-minimized.gro',
+			'-p counterions.top',
+			'-o genion.tpr']
+		call(cmd,logfile='log-grompp-genion',cwd=self.rootdir)
+		cmd = ['echo -e "keep 0\nr '+self.settings['sol_name']+'\nkeep 1\nq\n" |',
+			gmxpaths['make_ndx'],
+			'-f solvate-minimized.gro',
+			'-o solvate-waters.ndx']
+		call(cmd,logfile='log-make-ndx-counterions-check',cwd=self.rootdir)
+		cmd = [gmxpaths['genion'],
+			'-s genion.tpr',
+			'-o counterions.gro',
+			'-conc '+str(self.settings['ion_strength']),
+			'-n solvate-waters.ndx',
+			'-neutral']
+		call(cmd,logfile='log-genion',cwd=self.rootdir)
+	
+		print "updating topology with counterions"
+		self.npoz,self.nneg = [int(checkout(["awk","'/Will try to add / {print $"+str(col)+\
+			"}'","log-genion"],cwd=self.rootdir)) for col in [5,9]]
+		self.nsol = self.nsol - self.npoz - self.nneg
+		self.write_topology_protein('counterions.top')
 		
+		print "minimizing with solvent"
+		self.minimization_method('counterions')
 		
+		print "completed minimization"
+		copy(self.rootdir+'counterions-minimized.gro',self.rootdir+'system.gro')
+		copy(self.rootdir+'counterions.top',self.rootdir+'system.top')
+		self.grouping(grouptype='standard')
 		
-		
-		
-		
-		
+
