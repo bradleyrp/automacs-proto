@@ -9,7 +9,7 @@ if os.path.isfile('/etc/pythonstart'):
 	execfile('/etc/pythonstart')
 
 #---imports
-import os,ys,time,datetime,re
+import os,sys,time,datetime,re
 from tools import call,checkout,tee,copy
 import amxsim
 
