@@ -51,7 +51,8 @@ class ProteinWater(amxsim.AMXSimulation):
 		else:
 			#---make root directory
 			if not os.path.isdir(self.rootdir): 
-				os.mkdir(rootdir)
+				#os.mkdir(rootdir)
+				os.system('mkdir '+rootdir)
 				needs_file_transfers = True
 			else: needs_file_transfers = False
 			#---start the logger
