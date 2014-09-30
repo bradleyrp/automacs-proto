@@ -84,11 +84,11 @@ class ProteinWater(amxsim.AMXSimulation):
 		#---fix histidine naming according to the convention set by the force field
 		if self.settings['force_field'] == 'charmm27':
 			if self.settings['histype'] == 'd':
-				hisfix = "awk '{gsub(/HIS /,\"HID \");print}' < system-input.pdb > prep-protein-start.pdb"
+				hisfix = "awk '{gsub(/HIS /,\"HISD\");print}' < system-input.pdb > prep-protein-start.pdb"
 			if self.settings['histype'] == 'e':
-				hisfix = "awk '{gsub(/HIS /,\"HSE \");print}' < system-input.pdb > prep-protein-start.pdb"
+				hisfix = "awk '{gsub(/HIS /,\"HISE\");print}' < system-input.pdb > prep-protein-start.pdb"
 			if self.settings['histype'] == 'p':
-				hisfix = "awk '{gsub(/HIS /,\"HSP \");print}' < system-input.pdb > prep-protein-start.pdb"
+				hisfix = "awk '{gsub(/HIS /,\"HISP\");print}' < system-input.pdb > prep-protein-start.pdb"
 			call(hisfix,cwd=self.rootdir)
 
 		print "running pdb2gmx"
