@@ -79,6 +79,12 @@ class ProteinWater(amxsim.AMXSimulation):
 	def construction(self):
 		if not os.path.isfile(self.rootdir+'vacuum-minimized.gro'): self.vacuum()
 		else: print 'skipping vacuum construction because vacuum-minimized.gro exists'
+		if not os.path.isfile(self.rootdir+'solvate-minimized.gro'): self.solvate()
+		else: print 'skipping solvate construction because solvate-minimized.gro exists'
+		if not os.path.isfile(self.rootdir+'counterions-minimized.gro'): self.counterions()
+		else: print 'skipping counterions construction because counterions-minimized.gro exists'
+		if not os.path.isfile(self.rootdir+'system.gro'): self.groups()
+		else: print 'skipping the grouping step because system.gro exists'
 
 	def vacuum(self):
 
@@ -103,9 +109,6 @@ class ProteinWater(amxsim.AMXSimulation):
 			'-water '+self.settings['water_model']]
 		call(cmd,logfile='log-pdb2gmx',cwd=self.rootdir)
 		
-		#---get the protein identifier
-
-
 		#---intervening step will isolate the ITP data from the TOP file to use standardized TOP
 		with open(self.rootdir+'vacuum-standard.top','r') as f: topfile = f.read()	
 		fp = open(self.rootdir+'protein.itp','w') 
@@ -133,6 +136,8 @@ class ProteinWater(amxsim.AMXSimulation):
 		call(cmd,logfile='log-editconf-vacuum',cwd=self.rootdir)
 		
 		self.minimization_method('vacuum')
+
+	def solvate(self):
 
 		print "checking the size of the protein"
 		cmd = [gmxpaths['editconf'],
@@ -180,7 +185,9 @@ class ProteinWater(amxsim.AMXSimulation):
 
 		print "minimizing with solvent"
 		self.minimization_method('solvate')
-		
+
+	def counterions(self):
+
 		print "adding counterions"
 		copy(self.rootdir+'solvate.top',self.rootdir+'counterions.top')
 		cmd = [gmxpaths['grompp'],
@@ -211,7 +218,9 @@ class ProteinWater(amxsim.AMXSimulation):
 		
 		print "minimizing with solvent"
 		self.minimization_method('counterions')
-		
+
+	def groups(self):
+
 		print "completed minimization"
 		copy(self.rootdir+'counterions-minimized.gro',self.rootdir+'system.gro')
 		copy(self.rootdir+'counterions.top',self.rootdir+'system.top')
