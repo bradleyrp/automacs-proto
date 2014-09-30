@@ -71,6 +71,7 @@ class ProteinWater(amxsim.AMXSimulation):
 			self.nprots = 1
 			self.npoz,self.nneg = 0,0
 			self.nsol = 0
+			self.protname = 'Protein'
 			#---call the master construction procedure
 			print 'starting protein + water construction'
 			self.construction()
@@ -102,10 +103,14 @@ class ProteinWater(amxsim.AMXSimulation):
 			'-water '+self.settings['water_model']]
 		call(cmd,logfile='log-pdb2gmx',cwd=self.rootdir)
 		
+		#---get the protein identifier
+
+
 		#---intervening step will isolate the ITP data from the TOP file to use standardized TOP
 		with open(self.rootdir+'vacuum-standard.top','r') as f: topfile = f.read()	
 		fp = open(self.rootdir+'protein.itp','w') 
 		for line in topfile.split('\n'):
+			if line.split(' ')[0][:7] == "Protein": self.protname = line.split(' ')[0]
 			#---skip any part of the top that follows the water topology and/or system composition
 			if re.match('; Include water topology',line): break
 			if re.match('; Include topology for ions',line): break
