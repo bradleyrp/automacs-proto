@@ -174,11 +174,10 @@ class ProteinWater(amxsim.AMXSimulation):
 		#---note script-construct.sh included a VMD water trimming step here
 		copy(self.rootdir+'solvate-dense.gro',self.rootdir+'solvate.gro')
 
-		cmd = ['echo -e "q\n" |',
-			gmxpaths['make_ndx'],
+		cmd = [gmxpaths['make_ndx'],
 			'-f solvate.gro',
 			'-o solvate-water-check.ndx']
-		call(cmd,logfile='log-make-ndx-solvate-check',cwd=self.rootdir)	
+		call(cmd,logfile='log-make-ndx-solvate-check',cwd=self.rootdir,inpipe="q\n")	
 		self.nsol = int(checkout(["awk","'/ "+self.settings['sol_name']+" / {print $4}'",
 			"log-make-ndx-solvate-check"],cwd=self.rootdir))/3
 		self.write_topology_protein('solvate.top')
@@ -197,11 +196,11 @@ class ProteinWater(amxsim.AMXSimulation):
 			'-p counterions.top',
 			'-o genion.tpr']
 		call(cmd,logfile='log-grompp-genion',cwd=self.rootdir)
-		cmd = ['echo -e "keep 0\nr '+self.settings['sol_name']+'\nkeep 1\nq\n" |',
-			gmxpaths['make_ndx'],
+		cmd = [gmxpaths['make_ndx'],
 			'-f solvate-minimized.gro',
 			'-o solvate-waters.ndx']
-		call(cmd,logfile='log-make-ndx-counterions-check',cwd=self.rootdir)
+		call(cmd,logfile='log-make-ndx-counterions-check',cwd=self.rootdir,
+			inpipe='keep 0\nr '+self.settings['sol_name']+'\nkeep 1\nq\n')
 		cmd = [gmxpaths['genion'],
 			'-s genion.tpr',
 			'-o counterions.gro',

@@ -59,16 +59,17 @@ class tee(object):
 			if obj != '\n': f.write(st+' ')
 			f.write(obj)
 
-def call(command,logfile=None,cwd=None,silent=False):
+def call(command,logfile=None,cwd=None,silent=False,inpipe=None):
 	'''
 	Wrapper for system calls in a different directory with a dedicated log file.
 	'''
-	if type(command) == list: command = ' '.join(command)
-	#---newlines indicates a special case that must be called directly i.e. piping user input to a program
-	if '\n' in command.strip('\n'): 
-		if logfile == None: os.system(('cd '+cwd+';' if cwd != None else '')+command)
-		else: os.system(('cd '+cwd+';' if cwd != None else '')+command+' &> '+logfile)
+	if inpipe != None:
+		output = open(('' if cwd == None else cwd)+logfile,'wb')
+		if type(command) == list: command = ' '.join(command)
+		p = subprocess.Popen(command,stdout=output,stdin=subprocess.PIPE,stderr=output,cwd=cwd,shell=True)
+		catch = p.communicate(input=inpipe)[0]
 	else:
+		if type(command) == list: command = ' '.join(command)
 		if logfile != None:
 			output = open(('' if cwd == None else cwd)+logfile,'wb')
 			if type(command) == list: command = ' '.join(command)
@@ -79,24 +80,14 @@ def call(command,logfile=None,cwd=None,silent=False):
 					stdout=output,
 					stderr=output,
 					cwd=cwd)
-			except: 
-				raise Exception('except: execution error')
-				#---disabled the following code to ensure strict stops after an error
-				if 0:
-					if re.match('mdrun',command): print 'continuing after gromacs mdrun error'
-					else: print sys.exc_info()[0]
+			except: raise Exception('except: execution error')
 			output.close()
 		else: 
 			if not silent: print 'executing command: "'+str(command)+'"'
 			if str(sys.stdout.__class__) == "<class 'amx.tools.tee'>": stderr = sys.stdout.files[0]
 			else: stderr = sys.stdout
 			try: subprocess.check_call(command,shell=True,stderr=stderr,cwd=cwd)
-			except:
-				raise Exception('except: execution error')
-				#---disabled the following code to ensure strict stops after an error
-				if 0:
-					if re.match('mdrun',command): print 'continuing after gromacs mdrun error'
-					else: print sys.exc_info()[0]
+			except: raise Exception('except: execution error')
 
 def checkout(command,cwd=None):
 	'''
@@ -161,7 +152,6 @@ def LastFrame(prefix,rootdir,gmxpaths):
 			'-s '+prefix+'.tpr',
 			'-b '+str(lasttime),
 			'-e '+str(lasttime),]
-		call('echo -e "0\n" |'+' '.join(cmd),
-			logfile='log-trjconv-'+prefix,cwd=rootdir)
+		call(cmd,logfile='log-trjconv-'+prefix,cwd=rootdir,inpipe='0\n')
 	else: print 'configuration file is already available'
 

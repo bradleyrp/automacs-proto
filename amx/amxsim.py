@@ -137,20 +137,19 @@ class AMXSimulation:
 		print "writing groups ndx file"
 		if grouptype == 'standard':
 			#---write a naive groups file
-			cmd = ['echo -ne "q\n" |',
-				gmxpaths['make_ndx'],
+			cmd = [gmxpaths['make_ndx'],
 				'-f system.gro',
 				'-o system-groups.ndx']
-			call(cmd,logfile='log-make-ndx-groups',cwd=self.rootdir)
+			call(cmd,logfile='log-make-ndx-groups',cwd=self.rootdir,inpipe='q\n')
 		elif grouptype == 'bilayer':
-			#---write a groups file suitable for bilayers with separate lipid and solvent groups
-			cmd = ['echo -ne "keep 0\nr '+\
+			inpipe = 'keep 0\nr '+\
 				' | r '.join([l for l in self.lnames if l not in self.ion_residue_names]+['ION'])+\
 				'\n'+'r '+' | r '.join([l for l in self.lnames if l in self.ion_residue_names])+\
-				'\nname 1 LIPIDS\nname 2 SOLV\ndel 0\nq\n" |',
-				gmxpaths['make_ndx'],
+				'\nname 1 LIPIDS\nname 2 SOLV\ndel 0\nq\n'
+			#---write a groups file suitable for bilayers with separate lipid and solvent groups
+			cmd = [gmxpaths['make_ndx'],
 				'-f counterions-minimized.gro',
 				'-o system-groups.ndx']
-			call(cmd,logfile='log-make-ndx-groups',cwd=self.rootdir)
+			call(cmd,logfile='log-make-ndx-groups',cwd=self.rootdir,inpipe=inpipe)
 		else: raise Exception('except: incomprehensible group type')
 

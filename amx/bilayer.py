@@ -405,14 +405,13 @@ class Bilayer:
 		
 		print "translating so the bilayer is in the middle"
 		call('mv solvate-minimized.gro solvate-minimized-unshifted.gro',cwd=self.rootdir)
-		cmd = ['echo -e "0\n" |',
-			gmxpaths['trjconv'],
+		cmd = [gmxpaths['trjconv'],
 			'-f solvate-minimized-unshifted.gro',
 			'-o solvate-minimized.gro',
 			'-trans 0 0 '+str(-1*self.settings['solvent_thickness']/2.-self.settings['lipid_water_buffer']),
 			'-s em-solvate-steep.tpr',
 			'-pbc mol']
-		call(cmd,logfile='log-trjconv-solvate-shift-center',cwd=self.rootdir)		
+		call(cmd,logfile='log-trjconv-solvate-shift-center',cwd=self.rootdir,inpipe='0\n')		
 
 	def counterionize(self):
 		'''Add counterions to the water slab.'''
@@ -426,11 +425,11 @@ class Bilayer:
 				'-p solvate-water.top',
 				'-o genion-water.tpr']
 			call(cmd,logfile='log-grompp-genion-water',cwd=self.rootdir)
-			cmd = ['echo -e "keep 0\nr '+self.settings['sol_name']+'\nkeep 1\nq\n" |',
-				gmxpaths['make_ndx'],
+			cmd = [gmxpaths['make_ndx'],
 				'-f solvate-empty.gro',
 				'-o counterions-empty.ndx']
-			call(cmd,logfile='log-make-ndx-counterions-empty',cwd=self.rootdir)
+			call(cmd,logfile='log-make-ndx-counterions-empty',cwd=self.rootdir,
+				inpipe='keep 0\nr '+self.settings['sol_name']+'\nkeep 1\nq\n')
 			print "running diagnostic genion to get ion counts"
 			cmd = [gmxpaths['genion'],
 				'-s genion-water.tpr',
@@ -450,11 +449,11 @@ class Bilayer:
 				'-p counterions-charge.top',
 				'-o genion-charge.tpr']
 			call(cmd,logfile='log-grompp-genion-charge',cwd=self.rootdir)
-			cmd = ['echo -e "keep 0\nr '+self.settings['sol_name']+'\nkeep 1\nq\n" |',
-				gmxpaths['make_ndx'],
+			cmd = [gmxpaths['make_ndx'],
 				'-f solvate-minimized.gro',
 				'-o counterions-charge.ndx']	
-			call(cmd,logfile='log-make-ndx-counterions-charge',cwd=self.rootdir)
+			call(cmd,logfile='log-make-ndx-counterions-charge',cwd=self.rootdir,
+				inpipe='keep 0\nr '+self.settings['sol_name']+'\nkeep 1\nq\n')
 			cmd = [gmxpaths['genion'],
 				'-s genion-charge.tpr',
 				'-o counterions-charge.gro',
@@ -489,11 +488,11 @@ class Bilayer:
 				'-p counterions.top',
 				'-o genion.tpr']
 			call(cmd,logfile='log-grompp-genion',cwd=self.rootdir)
-			cmd = ['echo -e "keep 0\nr '+self.settings['sol_name']+'\nkeep 1\nq\n" |',
-				gmxpaths['make_ndx'],
+			cmd = [gmxpaths['make_ndx'],
 				'-f solvate-minimized.gro',
 				'-o counterions-waters.ndx']
-			call(cmd,logfile='log-make-ndx-counterions-waters',cwd=self.rootdir)
+			call(cmd,logfile='log-make-ndx-counterions-waters',cwd=self.rootdir,
+				inpipe='keep 0\nr '+self.settings['sol_name']+'\nkeep 1\nq\n')
 			cmd = [gmxpaths['genion'],
 				'-s genion.tpr',
 				'-o counterions.gro',
@@ -513,11 +512,11 @@ class Bilayer:
 				'-p counterions.top',
 				'-o genion.tpr']
 			call(cmd,logfile='log-grompp-genion',cwd=self.rootdir)
-			cmd = ['echo -e "keep 0\nr '+self.settings['sol_name']+'\nkeep 1\nq\n" |',
-				gmxpaths['make_ndx'],
+			cmd = [gmxpaths['make_ndx'],
 				'-f solvate-minimized.gro',
 				'-o counterions-waters.ndx']
-			call(cmd,logfile='log-make-ndx-counterions-waters',cwd=self.rootdir)
+			call(cmd,logfile='log-make-ndx-counterions-waters',cwd=self.rootdir,
+				inpipe='keep 0\nr '+self.settings['sol_name']+'\nkeep 1\nq\n')
 			cmd = [gmxpaths['genion'],
 				'-s genion.tpr',
 				'-o counterions.gro',
