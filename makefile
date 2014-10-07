@@ -15,6 +15,8 @@ cgmd-bilayer:
 	./controller make cgmd-bilayer	
 aamd-protein: 
 	./controller make aamd-protein	
+cgmd-protein: 
+	./controller make cgmd-protein
 clean: 
 	./controller reset
 reset: 

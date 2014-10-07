@@ -181,6 +181,26 @@ script_dict = {
 			call_sim,		
 			],
 		},
+	'cgmd-protein':{
+		'prep':[prepare_equil_sim[0]+\
+			"sed -i 's/STEPSTRING.*/STEPSTRING=\"nvt-short nvt npt\"/g' $step_equilibration/settings.sh"]+\
+			prepare_equil_sim[1:],
+		'steps':{
+			'step_build':'s1-build-protein-water',
+			'step_equilibration':'s2-equil',
+			'step_simulation':'s3-sim',
+			'simtype':'cgmd-protein',
+			'input_files':'cgmd-protein-equil',
+			},
+		'sequence':['\n',
+			multiresub(dict({
+				'ROOTDIR':'s1-build-protein-water',
+				'COMMAND':'ProteinWater(rootdir=\'s1-build-protein-water\')',
+				}),python_from_bash),
+			call_equil,
+			call_sim,		
+			],
+		},
 	}
 
 def script_maker(target,module_commands=None,sim_only=False):
@@ -273,7 +293,7 @@ color Display Background white
 display resize 800 800
 display projection orthographic
 set ind [molinfo top]
-mol modstyle 0 0 Licorice 2.3
+mol modstyle 0 0 Licorice 1.3
 mouse stoprotation
 rotate z by 45
 rotate x by -45
@@ -362,8 +382,14 @@ def render(gropath,tpr=None,no_solvent=False,xyz=False):
 	'''
 	Wrapper for VMD-based scripts for rendering images of the bilayer.
 	'''
+	#---the function is designed to use kwargs but the user can send a list through make instead
+	if type(gropath) == list:
+		for item in list(gropath):
+			if item[-4:] == '.gro': gropath = item
+			if item[-4:] == '.tpr': tpr = item
+			if item == 'xyz': xyz = True
+			if item == 'nosol' or item == 'nowater' or item == 'no_solvent': no_solvent = True
 	letter = ['x','y','z']
-	
 	if xyz: codes = rendercode_xyz
 	elif no_solvent == False: codes = [rendercode]
 	else: codes = [rendercode_no_solvent]
@@ -471,6 +497,9 @@ def make(target):
 		elif system_id in gmx_suffixes.keys(): 
 			fp.write(key+' '+key+gmx_suffixes[system_id]+'\n')
 		else: fp.write(key+' '+key+'\n')
+	#---extra tool paths
+	for key in tool_paths.keys():
+		fp.write(key+' '+tool_paths[key]+'\n')
 	fp.close()
 
 	#---write the local script
@@ -537,9 +566,9 @@ if __name__ == "__main__":
 	elif len(sys.argv) > 1 and sys.argv[1] in ['make','render','render_latest']:
 		if len(sys.argv) < 3: print 'need a target'
 		elif len(sys.argv) == 3: globals()[sys.argv[1].strip()](sys.argv[2])
-		elif len(sys.argv) == 4 and sys.argv[1] in ['render']:
-			globals()[sys.argv[1].strip()](sys.argv[2],tpr=sys.argv[3])
-		else: print 'too many arguments'
+		elif len(sys.argv) > 3 and sys.argv[1] in ['render','render_latest']:
+			globals()[sys.argv[1].strip()](sys.argv[2:])
+		else: print 'too many arguments for this option'
 	else:	
 		#---note that it would be useful to also allow controller to run extra scripts 
 		#---...i.e. script-lastframe.py in the same way that the makefile allows

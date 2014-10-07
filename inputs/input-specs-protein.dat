@@ -2,11 +2,11 @@
 
 #---STARTING CONFIGURATION
 #---specify the PDB file for the starting protein configuration located in sources
-input_filename = '3ala.pdb'
+input_filename = '1UNP.pdb'
 
 #---SIMULATION RESOLUTION
 #---note specify either 'cgmd' or 'aamd' to set the correct parameters
-simscale = 'aamd'
+simscale = 'cgmd'
 
 #---CONSTRUCTION SETTINGS
 
@@ -25,9 +25,20 @@ protein_construction_settings = {
 		'water_model':'tip3p',
 		'cube':False,
 		'sol_name':'SOL',
+		'solvent_structure':'spc216.gro',
 		'positive_counterion_name':'NA',
 		'negative_counterion_name':'CL',
 		'ion_strength':0.150,
+		},
+	'cgmd': {
+		'wbuffer':4,
+		'cube':False,
+		'sol_name':'W',
+		'solvent_structure':'solvate-water.gro',
+		'positive_counterion_name':'NA+',
+		'negative_counterion_name':'CL-',
+		'ion_strength':0.150,
+		'protein_water_gap':3,
 		},
 	}
 	

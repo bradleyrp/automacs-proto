@@ -115,7 +115,7 @@ default_proc_specs = {
 #---gromacs paths
 standard_gromacs_commands = [
 	'mdrun','grompp','tpbconv','editconf','genbox','make_ndx','genion',
-	'trjconv','gmxcheck','pdb2gmx',
+	'trjconv','gmxcheck','pdb2gmx','genconf',
 	]
 
 #---system-specific suffixes to the gromacs utilities
@@ -128,10 +128,16 @@ gmx_suffixes = {
 #---system-specific commands to substitute for standard_gromacs_commands
 #---note some commands require a number of processors NPROCS which is substituted by ./controller make
 gmx_overrides = {
-	'local':{'mdrun':'mdrun -nt 1',},
+	'local':{'mdrun':'mdrun -nt 4',},
 	'compbio_xeons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	'compbio_opterons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	}
 
+#---paths to extra tools
+#---set paths to DSSP executable and martinize.py for MARTINI protein simulations from scratch
+tool_paths = {
+	'dssp':'~/libs/dssp-2.0.4-linux-amd64',
+	'martinize':'~/libs/martinize.py',
+	}
 
 

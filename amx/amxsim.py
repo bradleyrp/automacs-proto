@@ -89,6 +89,23 @@ class AMXSimulation:
 			fp.write(self.settings['positive_counterion_name']+' '+str(self.npoz)+'\n')
 			fp.write(self.settings['negative_counterion_name']+' '+str(self.nneg)+'\n')
 			fp.close()
+		if self.simscale == 'cgmd':
+			fp = open(self.rootdir+topname,'w')
+			fp.write('#include "martini.ff/martini-v2.2.itp"'+'\n')
+			fp.write('#include "martini.ff/martini-v2.0-lipids.itp"'+'\n')
+			for lipid_itp in self.itp_lipid: fp.write('#include "lipids-tops/'+lipid_itp+'.itp"'+'\n')
+			fp.write('#include "martini.ff/martini-v2.2-aminoacids.itp"'+'\n')
+			fp.write('#include "martini.ff/martini-v2.0-ions.itp"'+'\n')
+			for protein_itp in self.itp_protein: fp.write('#include "'+protein_itp+'.itp"'+'\n')
+			fp.write('[ system ]'+'\n')
+			fp.write('PROTEIN, MARTINI, IN WATER'+'\n')
+			fp.write('[ molecules ]'+'\n')
+			for i in range(len(self.itp_protein)): 
+				fp.write(self.itp_protein[i]+' '+str(self.nprots[i])+'\n')
+			fp.write(self.settings['sol_name']+' '+str(self.nsol)+'\n')
+			fp.write(self.settings['positive_counterion_name']+' '+str(self.npoz)+'\n')
+			fp.write(self.settings['negative_counterion_name']+' '+str(self.nneg)+'\n')
+			fp.close()
 	
 	def minimization_method(self,name,posre=False):
 		'''
@@ -141,6 +158,13 @@ class AMXSimulation:
 				'-f system.gro',
 				'-o system-groups.ndx']
 			call(cmd,logfile='log-make-ndx-groups',cwd=self.rootdir,inpipe='q\n')
+		elif grouptype == 'cgmd_water':
+			inpipe = 'keep 1\nr W | r ION\nname 0 PROTEIN\nname 1 SOLV\nq\n'
+			#---write a groups file suitable for bilayers with separate lipid and solvent groups
+			cmd = [gmxpaths['make_ndx'],
+				'-f counterions-minimized.gro',
+				'-o system-groups.ndx']
+			call(cmd,logfile='log-make-ndx-groups',cwd=self.rootdir,inpipe=inpipe)
 		elif grouptype == 'bilayer':
 			inpipe = 'keep 0\nr '+\
 				' | r '.join([l for l in self.lnames if l not in self.ion_residue_names]+['ION'])+\

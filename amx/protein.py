@@ -4,7 +4,7 @@
 #---created 2014.09.23 by ryan bradley
 
 #---development features
-import os
+import os,subprocess
 if os.path.isfile('/etc/pythonstart'):
 	execfile('/etc/pythonstart')
 
@@ -65,6 +65,9 @@ class ProteinWater(amxsim.AMXSimulation):
 				#---scale-specific copy commands
 				if self.simscale == 'aamd':
 					copy(self.sources_dir+'aamd-protein-construct/*',self.rootdir)
+				elif self.simscale == 'cgmd':
+					copy(self.sources_dir+'cgmd-protein-construct/*',self.rootdir)
+					copy(self.sources_dir+'martini.ff',self.rootdir+'martini.ff')
 				else: raise Exception('except: unclear simulation resolution')
 			#---running list of composition
 			#---note that this method is only set to simulate a single protein
@@ -77,14 +80,67 @@ class ProteinWater(amxsim.AMXSimulation):
 			self.construction()
 			
 	def construction(self):
-		if not os.path.isfile(self.rootdir+'vacuum-minimized.gro'): self.vacuum()
-		else: print 'skipping vacuum construction because vacuum-minimized.gro exists'
+		if self.simscale == 'aamd':
+			if not os.path.isfile(self.rootdir+'vacuum-minimized.gro'): self.vacuum()
+			else: print 'skipping vacuum construction because vacuum-minimized.gro exists'
+		elif self.simscale == 'cgmd':	
+			if not os.path.isfile(self.rootdir+'vacuum-minimized.gro'): self.vacuum_cgmd()
+			else: print 'skipping vacuum construction because vacuum-minimized.gro exists'
+		else: raise Exception('except: unclear simulation scale')
 		if not os.path.isfile(self.rootdir+'solvate-minimized.gro'): self.solvate()
 		else: print 'skipping solvate construction because solvate-minimized.gro exists'
 		if not os.path.isfile(self.rootdir+'counterions-minimized.gro'): self.counterions()
 		else: print 'skipping counterions construction because counterions-minimized.gro exists'
 		if not os.path.isfile(self.rootdir+'system.gro'): self.groups()
 		else: print 'skipping the grouping step because system.gro exists'
+	
+	def vacuum_cgmd(self):
+
+		exstring_dssp = 'except: cannot find dssp at '+gmxpaths['dssp']+\
+			'\nconsider using the following syntax to download for 64-bit linux:'+\
+			'\n\twget ftp://ftp.cmbi.ru.nl/pub/software/dssp/dssp-2.0.4-linux-amd64'+\
+			'\n\tor navigate to ftp://ftp.cmbi.ru.nl/pub/software/dssp/'
+			
+		exstring_martinize = 'except: cannot find martinize at '+gmxpaths['martinize']+\
+			'\nconsider using the following syntax to download:'+\
+			'\n\twget http://md.chem.rug.nl/cgmartini/images/tools/martinize/martinize-2.4/martinize.py'+\
+			'\n\tor navigate to http://md.chem.rug.nl/cgmartini/index.php/tools2/proteins-and-bilayers'
+	
+		#---first test to see if executables are available
+		if not os.path.isfile(os.path.expanduser(gmxpaths['dssp'])): raise Exception(exstring_dssp)
+		if not os.path.isfile(os.path.expanduser(gmxpaths['martinize'])): raise Exception(exstring_martinize)	
+	
+		cmd = [gmxpaths['martinize'],
+			'-f system-input.pdb',
+			'-o system-original.top',
+			'-x protein-cg.pdb',
+			'-ff martini22','-ed',
+			'-dssp '+gmxpaths['dssp']]
+		call(cmd,logfile='log-martinize',cwd=self.rootdir)
+		
+		with open(self.rootdir+'system-original.top') as fp: lines = fp.readlines()
+		self.itp_protein = [l.split()[0] for l in lines if l[:7] == 'Protein']
+
+		#---note that this section leaves out lipids
+		self.itp_lipid = []
+		
+		#---note that this method is currently set to only simulate one protein
+		self.nprots = [1]
+		self.write_topology_protein('vacuum.top')
+		
+		cmd = [gmxpaths['editconf'],
+			'-f protein-cg.pdb',
+			'-o vacuum-alone.gro']
+		call(cmd,logfile='log-editconf-convert',cwd=self.rootdir)
+	
+		print "building box with "+str(self.settings['wbuffer'])+'nm of water'
+		cmd = [gmxpaths['editconf'],
+			'-f vacuum-alone.gro',
+			'-d '+str(self.settings['wbuffer']),
+			'-o vacuum.gro','-c']
+		call(cmd,logfile='log-editconf-vacuum',cwd=self.rootdir)
+		
+		self.minimization_method('vacuum')
 
 	def vacuum(self):
 
@@ -161,25 +217,70 @@ class ProteinWater(amxsim.AMXSimulation):
 			'-center '+str(center[0])+' '+str(center[1])+' '+str(center[2]),
 			'-box '+str(boxvecs[0])+' '+str(boxvecs[1])+' '+str(boxvecs[2])]
 		call(cmd,logfile='log-editconf-center-protein',cwd=self.rootdir)
+		
+		print 'center details = '
+		print center
+		print boxvecs		
 
-		print "solvating the protein in a water box"		
-		copy(self.rootdir+'vacuum.top',self.rootdir+'solvate-standard.top')
-		cmd = [gmxpaths['genbox'],
-			'-cp solvate-protein.gro',
-			'-cs spc216.gro',
-			'-o solvate-dense.gro',
-			'-p solvate-standard.top']
-		call(cmd,logfile='log-genbox-solvate',cwd=self.rootdir)
+		if self.simscale == 'aamd': 
 
-		#---note script-construct.sh included a VMD water trimming step here
-		copy(self.rootdir+'solvate-dense.gro',self.rootdir+'solvate.gro')
+			#---note script-construct.sh included a VMD water trimming step here
+			print "solvating the protein in a water box"		
+			copy(self.rootdir+'vacuum.top',self.rootdir+'solvate-standard.top')
+			cmd = [gmxpaths['genbox'],
+				'-cp solvate-protein.gro',
+				'-cs '+self.settings['solvent_structure'],
+				'-o solvate-dense.gro',
+				'-p solvate-standard.top']
+			call(cmd,logfile='log-genbox-solvate',cwd=self.rootdir)
+			copy(self.rootdir+'solvate-dense.gro',self.rootdir+'solvate.gro')
+
+		elif self.simscale == 'cgmd':
+
+			#---manually create a large water box
+			print 'creating a custom water box'
+			nmult = [int(i/3.644+1) for i in boxvecs]
+			print 'numlt = '+str(nmult)
+			cmd = [gmxpaths['genconf'],
+				'-f '+self.settings['solvent_structure'],
+				'-o solvate-water-big.gro',
+				'-nbox '+' '.join([str(i) for i in nmult])]
+			call(cmd,logfile='log-genconf-replicate',cwd=self.rootdir)
+			#---concatenate the protein and water box
+			with open(self.rootdir+'solvate-protein.gro','r') as fp: gro1 = fp.readlines()
+			with open(self.rootdir+'solvate-water-big.gro','r') as fp: gro2 = fp.readlines()
+			natoms = int(gro1[1].strip())+int(gro2[1].strip())
+			with open(self.rootdir+'solvate-merge.gro','w') as fp:
+				fp.write('protein+water merged\n')
+				fp.write(str(natoms)+'\n')
+				for line in gro1[2:-1]: fp.write(line)
+				for line in gro2[2:]: fp.write(line)		
+			vmdtrim = [
+				'mol new solvate-merge.gro',
+				'set sel [atomselect top \"(all not (name '+self.settings['sol_name']+\
+				' and within '+str(self.settings['protein_water_gap'])+\
+				' of not name '+self.settings['sol_name']+')) and '+\
+				'(x>=0 and x<='+str(10*boxvecs[0])+' and y>=0 and y<= '+str(10*boxvecs[1])+\
+				' and z>=0 and z<= '+str(10*boxvecs[2])+')"]',
+				'$sel writepdb '+self.rootdir+'solvate-vmd.pdb',
+				'exit',]			
+			with open(self.rootdir+'script-vmd-trim.tcl','w') as fp:
+				for line in vmdtrim: fp.write(line+'\n')
+			vmdlog = open(self.rootdir+'log-script-vmd-trim','w')
+			p = subprocess.Popen('vmd -dispdev text -e script-vmd-trim.tcl',
+				stdout=vmdlog,stderr=vmdlog,cwd=self.rootdir,shell=True)
+			p.communicate()
+			cmd = [gmxpaths['editconf'],
+				'-f solvate-vmd.pdb',
+				'-o solvate.gro','-resnr 1','-d 0']
+			call(cmd,logfile='log-editconf-convert',cwd=self.rootdir)
 
 		cmd = [gmxpaths['make_ndx'],
 			'-f solvate.gro',
 			'-o solvate-water-check.ndx']
 		call(cmd,logfile='log-make-ndx-solvate-check',cwd=self.rootdir,inpipe="q\n")	
 		self.nsol = int(checkout(["awk","'/ "+self.settings['sol_name']+" / {print $4}'",
-			"log-make-ndx-solvate-check"],cwd=self.rootdir))/3
+			"log-make-ndx-solvate-check"],cwd=self.rootdir))/(3 if self.simscale == 'aamd' else 1)
 		self.write_topology_protein('solvate.top')
 
 		print "minimizing with solvent"
@@ -223,6 +324,8 @@ class ProteinWater(amxsim.AMXSimulation):
 		print "completed minimization"
 		copy(self.rootdir+'counterions-minimized.gro',self.rootdir+'system.gro')
 		copy(self.rootdir+'counterions.top',self.rootdir+'system.top')
-		self.grouping(grouptype='standard')
+		if self.simscale == 'aamd': grouptype = 'standard'
+		if self.simscale == 'cgmd': grouptype = 'cgmd_water'
+		self.grouping(grouptype=grouptype)
 		
 
