@@ -119,7 +119,7 @@ script_dict = {
 		'prep':prepare_equil_sim,
 		'steps':{
 			'step_monolayer':'s1-build-lipidgrid',
-			'step_bilayer':'s2-build-bilayer',
+			'step_build':'s2-build-bilayer',
 			'step_equilibration':'s3-equil',
 			'step_simulation':'s4-sim',
 			'simtype':'cgmd-bilayer',
