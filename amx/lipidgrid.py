@@ -366,8 +366,8 @@ class MonolayerGrids:
 					call('mv out.gro in.gro',cwd=rootdir,silent=True)
 					next_lipid = lipidlist[arrangement[j][i]]
 					self.combinator('in.gro',next_lipid,'out.gro',spacing=spacing,rootdir=rootdir)
-				estr=gmxpaths['editconf']+' -f out.gro -o row'+str(j)+'.gro -d 0 -resnr 1 &> log-editconf-out'
-				call(estr,cwd=rootdir,silent=True)
+				estr=gmxpaths['editconf']+' -f out.gro -o row'+str(j)+'.gro -d 0 -resnr 1'
+				call(estr,cwd=rootdir,silent=True,logfile='log-editconf-out')
 				call('rm in.gro',cwd=rootdir,silent=True)
 				call('rm out.gro',cwd=rootdir,silent=True)
 			self.combinator_row('row0.gro','row1.gro','grid.gro',spacing=spacing,rootdir=rootdir)
