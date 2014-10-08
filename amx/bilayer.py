@@ -202,7 +202,10 @@ class Bilayer(amxsim.AMXSimulation):
 			self.lnames.append(self.settings['negative_ion_name'])
 			self.comps.append([self.settings['negative_ion_name'],str(ncount)])
 			self.comps[self.lnames.index(self.settings['sol_name'])][1] = str(nwaters - pcount - ncount)
-		if not os.path.isfile(self.rootdir+'system.gro'): self.grouping(grouptype='bilayer')
+		if not os.path.isfile(self.rootdir+'system.gro'):
+			call('cp counterions-minimized.gro system.gro',cwd=self.rootdir)
+		if not os.path.isfile(self.rootdir+'system.top'): self.write_topology_bilayer('system.top')
+		if not os.path.isfile(self.rootdir+'system-groups.ndx'): self.grouping(grouptype='bilayer')
 	
 	def vacuum(self):	
 		'''Assemble monolayers into a bilayer and minimize.'''
@@ -546,7 +549,4 @@ class Bilayer(amxsim.AMXSimulation):
 
 		self.write_topology_bilayer('counterions.top')
 		self.minimization_method('counterions')
-		
-		call('cp counterions-minimized.gro system.gro',cwd=self.rootdir)
-		self.write_topology_bilayer('system.top')
-		
+				
