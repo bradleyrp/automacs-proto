@@ -47,6 +47,7 @@ import sys
 import time
 import datetime
 from tools import call,checkout,tee,copy
+import amxsim
 
 #---locate gmxpaths
 if os.path.isfile('gmxpaths.conf'): gmxpaths_path = './'
