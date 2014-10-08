@@ -218,10 +218,6 @@ class ProteinWater(amxsim.AMXSimulation):
 			'-box '+str(boxvecs[0])+' '+str(boxvecs[1])+' '+str(boxvecs[2])]
 		call(cmd,logfile='log-editconf-center-protein',cwd=self.rootdir)
 		
-		print 'center details = '
-		print center
-		print boxvecs		
-
 		if self.simscale == 'aamd': 
 
 			#---note script-construct.sh included a VMD water trimming step here
@@ -240,7 +236,6 @@ class ProteinWater(amxsim.AMXSimulation):
 			#---manually create a large water box
 			print 'creating a custom water box'
 			nmult = [int(i/3.644+1) for i in boxvecs]
-			print 'numlt = '+str(nmult)
 			cmd = [gmxpaths['genconf'],
 				'-f '+self.settings['solvent_structure'],
 				'-o solvate-water-big.gro',

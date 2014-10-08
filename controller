@@ -1,15 +1,15 @@
 #!/usr/bin/python
 
-import os
-import re
-import sys
+import os,re,sys
 import subprocess
 import socket
+import glob
 
 #---SETTINGS
 #-------------------------------------------------------------------------------------------------------------
 
 execfile('settings')
+from amx.tools import checkout
 
 #---regex list for files to remove
 patlist = ['log-','em-all-','step-','.top$','.mdp$','.tpr$','.xtc$','.trr$','.gro$','.edr$','.log$','.cpt$',
@@ -285,8 +285,7 @@ def docs():
 #---RENDERING
 #-------------------------------------------------------------------------------------------------------------
 
-#---VMD script to render an isometric-style view of the bilayer
-rendercode = \
+rendercode_with_solvent = \
 """
 source sources/codebase/cg_bonds.tcl
 color Display Background white
@@ -305,18 +304,42 @@ render Tachyon fig-snapshot-$picname {
 quit
 """
 
-rendercode_no_solvent = \
+rendercode = \
 """
+package require pbctools
 source sources/codebase/cg_bonds.tcl
 color Display Background white
 display resize 800 800
 display projection orthographic
 set ind [molinfo top]
-mol modstyle 0 0 Licorice 2.3
-mol modselect 0 0 "all not resname W and not resname ION and not water"
+mol modstyle 0 0 Licorice 1.3
+mol modselect 0 0 "all not resname W and not resname ION and not water 
+and (not name SC1 and not name SC2 and not name SC3 and not name SC4)"
 mouse stoprotation
 rotate z by 45
 rotate x by -45
+render Tachyon fig-snapshot-$picname {
+	tachyon -aasamples 12 %s -format TARGA -o %s.tga; 
+	convert %s.tga %s.jpeg; 
+	rm %s.tga; rm %s;
+	}
+quit
+"""
+
+rendercode_askance = \
+"""
+package require pbctools
+source sources/codebase/cg_bonds.tcl
+color Display Background white
+display resize 800 800
+display projection orthographic
+set ind [molinfo top]
+mol modstyle 0 0 Licorice 1.3
+mol modselect 0 0 "all not resname W and not resname ION and not water 
+and (not name SC1 and not name SC2 and not name SC3 and not name SC4)"
+mouse stoprotation
+rotate z by 60
+rotate x by -80
 render Tachyon fig-snapshot-$picname {
 	tachyon -aasamples 12 %s -format TARGA -o %s.tga; 
 	convert %s.tga %s.jpeg; 
@@ -378,7 +401,7 @@ render Tachyon fig-snapshot-$picname {
 quit
 """,]
 	
-def render(gropath,tpr=None,no_solvent=False,xyz=False):
+def render(gropath,tpr=None,no_solvent=True,xyz=False,itpfile=None,structcolor=False,box=True):
 	'''
 	Wrapper for VMD-based scripts for rendering images of the bilayer.
 	'''
@@ -389,16 +412,40 @@ def render(gropath,tpr=None,no_solvent=False,xyz=False):
 			if item[-4:] == '.tpr': tpr = item
 			if item == 'xyz': xyz = True
 			if item == 'nosol' or item == 'nowater' or item == 'no_solvent': no_solvent = True
-	letter = ['x','y','z']
+			if item[-4:] == '.itp': itpfile = item
+			if item == 'structcolor': structcolor = True
+			if item == 'askance': askance = True
+	#---select the render script according to some of the flags
+	#---note that this is a relatively freewheeling way to handle flags and may produce weird logic
 	if xyz: codes = rendercode_xyz
-	elif no_solvent == False: codes = [rendercode]
-	else: codes = [rendercode_no_solvent]
+	elif no_solvent == False: codes = [rendercode_with_solvent]
+	elif askance: codes = [rendercode_askance]
+	else: codes = [rendercode]
+	#---loop over figures
+	letter = ['x','y','z']
 	for ci in range(len(codes)):
 		code = codes[ci]
 		grofile = gropath.split('/')[-1][:-4]
 		fp = open('script-temporary-prep.tcl','w')
 		fp.write('#!/bin/bash\n\n')
-		fp.write('mol new '+gropath+'\n')
+		#---if user wants to color by structure, use secondary structure string from itp file	
+		if itpfile != None and structcolor:
+			ssstring = checkout(["awk","\'f{print;f=0} /; Secondary Structure:/{f=1}\'",itpfile])
+			ssstring = ssstring.strip(';').strip(' ')
+			ssstring = ''.join([(i if i not in ['1','2'] else 'C') for i in ssstring])
+			fp.write('set ssstring "'+' '.join(i for i in ssstring)+'"\n')
+			fp.write('mol default color {Structure}'+'\n')
+			fp.write('mol new '+gropath+'\n')
+			fp.write('for {set i 1} {$i <= 119} {incr i} {'+'\n')
+			fp.write('\tset sel [atomselect top "resid $i"]'+'\n')
+			fp.write('\t$sel set structure [lrange $ssstring [expr $i] [expr $i]]'+'\n')
+			fp.write('}'+'\n')
+		elif structcolor:
+			raise Exception('except: please supply the ITP with the secondary structure in the header '+\
+				'if you would like to color the protein by structure')
+		else: fp.write('mol new '+gropath+'\n')
+		if box: fp.write('package require pbctools\npbc box -color black'+'\n')
+		#---use cg_bonds.tcl to draw bonds if a tpr is available
 		if os.path.isfile(gropath[:-4]+'.tpr'):
 			fp.write('source sources/codebase/cg_bonds.tcl\n')
 			fp.write('cg_bonds -tpr '+gropath[:-4]+'.tpr\n')
@@ -457,6 +504,11 @@ def make(target):
 	'''
 	print helpstring
 	print "\tGenerating script.\n"
+	
+	#---update the input specs file simscale parameter according to the target simulation
+	simscale = 'cgmd' if any([j=='cgmd' for j in target.split('-')]) else 'aamd'
+	for fn in glob.glob('./inputs/input-specs*'):
+		sub = subprocess.call(['sed','-i',"s/^.*simscale.*$/simscale = \'"+simscale+"\'/",fn])
 	
 	#---determine location
 	hostname = None
