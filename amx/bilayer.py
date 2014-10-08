@@ -60,7 +60,7 @@ gmxpaths = dict([[i.split()[0],' '.join(i.split()[1:])]
 #---CLASS
 #-------------------------------------------------------------------------------------------------------------
 
-class Bilayer:
+class Bilayer(amxsim.AMXSimulation):
 	'''
 	Class which generates a solvated bilayer with counterions from monolayer configurations.
 	
