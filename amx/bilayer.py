@@ -306,6 +306,7 @@ class Bilayer(amxsim.AMXSimulation):
 				cmd = [gmxpaths['grompp'],
 					'-f '+packing_mdps[mi-1],
 					'-c '+('vacuum-minimized.gro' if mi == 1 else 'md-vacuum-p'+str(mi-1)+'.gro'),
+					'-r vacuum-minimized.gro',
 					'-p vacuum.top',
 					'-o md-vacuum-p'+str(mi),
 					'-po md-vacuum-p'+str(mi),
