@@ -80,14 +80,20 @@ def call(command,logfile=None,cwd=None,silent=False,inpipe=None):
 					stdout=output,
 					stderr=output,
 					cwd=cwd)
-			except: raise Exception('except: execution error')
+			except: 
+				if logfile[-3:] == '-cg' and re.search('mdrun-em',logfile):
+					print 'warning: failed conjugate gradient descent but will procede'
+				else: raise Exception('except: execution error')
 			output.close()
 		else: 
 			if not silent: print 'executing command: "'+str(command)+'"'
 			if str(sys.stdout.__class__) == "<class 'amx.tools.tee'>": stderr = sys.stdout.files[0]
 			else: stderr = sys.stdout
 			try: subprocess.check_call(command,shell=True,stderr=stderr,cwd=cwd)
-			except: raise Exception('except: execution error')
+			except:
+				if logfile[-3:] == '-cg' and re.search('mdrun-em',logfile):
+					print 'warning: failed conjugate gradient descent but will procede'
+				else: raise Exception('except: execution error')
 
 def checkout(command,cwd=None):
 	'''

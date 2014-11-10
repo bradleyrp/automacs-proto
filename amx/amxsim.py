@@ -84,7 +84,10 @@ class AMXSimulation:
 			fp.write('#include "charmm27.ff/ions.itp"\n\n')
 			fp.write('[ system ]\nPROTEIN+WATER\n\n')
 			fp.write('[ molecules ]\n')
-			fp.write(self.protname+' '+str(self.nprots)+'\n')
+			if type(self.protname) == list:
+				for i in range(len(self.protname)):
+					fp.write(self.protname[i]+' '+str(self.nprots[i])+'\n')
+			else: fp.write(self.protname+' '+str(self.nprots)+'\n')
 			fp.write(self.settings['sol_name']+' '+str(self.nsol)+'\n')
 			fp.write(self.settings['positive_counterion_name']+' '+str(self.npoz)+'\n')
 			fp.write(self.settings['negative_counterion_name']+' '+str(self.nneg)+'\n')

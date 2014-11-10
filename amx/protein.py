@@ -153,10 +153,28 @@ class ProteinWater(amxsim.AMXSimulation):
 			if self.settings['histype'] == 'p':
 				hisfix = "awk '{gsub(/HIS /,\"HISP\");print}' < system-input.pdb > prep-protein-start.pdb"
 			call(hisfix,cwd=self.rootdir)
+			
+		print "stripping non-protein molecules"
+		cmd = [gmxpaths['make_ndx'],
+			'-f prep-protein-start.pdb',
+			'-o prep-index-protein.ndx']
+		call(cmd,logfile='log-make-ndx-prep-protein',cwd=self.rootdir,inpipe="q\n")
+		protgrp = int(checkout(["awk","'/\s+Protein\s+:/ {print $1}'",
+			"log-make-ndx-prep-protein"],cwd=self.rootdir).strip())
+		cmd = [gmxpaths['make_ndx'],
+			'-f prep-protein-start.pdb',
+			'-o prep-index-protein-only.ndx']
+		call(cmd,logfile='log-make-ndx-prep-protein-only',cwd=self.rootdir,
+			inpipe="keep "+str(protgrp)+"\nq\n")
+		cmd = [gmxpaths['editconf'],
+			'-f prep-protein-start.pdb',
+			'-o prep-protein-start-stripped.pdb',
+			'-n prep-index-protein-only.ndx']
+		call(cmd,logfile='log-editconf-prep-protein-strip',cwd=self.rootdir)
 
 		print "running pdb2gmx"
 		cmd = [gmxpaths['pdb2gmx'],
-			'-f prep-protein-start.pdb',
+			'-f prep-protein-start-stripped.pdb',
 			'-o vacuum-alone.gro',
 			'-p vacuum-standard.top',
 			'-ignh',
@@ -166,10 +184,22 @@ class ProteinWater(amxsim.AMXSimulation):
 		call(cmd,logfile='log-pdb2gmx',cwd=self.rootdir)
 		
 		#---intervening step will isolate the ITP data from the TOP file to use standardized TOP
-		with open(self.rootdir+'vacuum-standard.top','r') as f: topfile = f.read()	
+		with open(self.rootdir+'vacuum-standard.top','r') as f: topfile = f.read()
+		#---extract protein chain names here if necessary
+		chains = []
+		for line in topfile.split('\n'):
+			if re.match('^Protein',line):
+				chains.append(line.split(' ')[0])
+		if len(chains) > 1:
+			#---assume one domain per chain
+			self.nprots = [1 for i in chains]
+			self.protname = chains
+		else:	
+			self.protname = chains[0]
+			self.nprots = 1
 		fp = open(self.rootdir+'protein.itp','w') 
 		for line in topfile.split('\n'):
-			if line.split(' ')[0][:7] == "Protein": self.protname = line.split(' ')[0]
+			#if line.split(' ')[0][:7] == "Protein": self.protname = line.split(' ')[0]
 			#---skip any part of the top that follows the water topology and/or system composition
 			if re.match('; Include water topology',line): break
 			if re.match('; Include topology for ions',line): break
@@ -181,7 +211,6 @@ class ProteinWater(amxsim.AMXSimulation):
 		fp.close()
 		
 		#---note that this method is currently set to only simulate one protein
-		self.nprots = 1
 		self.write_topology_protein('vacuum.top')
 		
 		print "building box with "+str(self.settings['wbuffer'])+'nm of water'

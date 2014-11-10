@@ -2,11 +2,11 @@
 
 #---STARTING CONFIGURATION
 #---specify the PDB file for the starting protein configuration located in sources
-input_filename = '1UNP.pdb'
+input_filename = '1LP1.pdb'
 
 #---SIMULATION RESOLUTION
 #---note specify either 'cgmd' or 'aamd' to set the correct parameters
-simscale = 'cgmd'
+simscale = 'aamd'
 
 #---CONSTRUCTION SETTINGS
 
@@ -19,7 +19,7 @@ water_model : water model (options: tip3p)
 
 protein_construction_settings = {
 	'aamd': {
-		'wbuffer':2,
+		'wbuffer':1,
 		'force_field':'charmm27',
 		'histype':'d',
 		'water_model':'tip3p',
