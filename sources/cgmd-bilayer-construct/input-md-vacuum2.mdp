@@ -48,7 +48,7 @@ ref_t = 310
 Pcoupl = Berendsen
 Pcoupltype = semiisotropic
 tau_p = 0.5 0.5
-compressibility = 3e-5 3e-5
+compressibility = 3e-5 0
 ref_p = 10.0 1.0
 
 gen_vel = no
