@@ -81,7 +81,7 @@ exit
 HOW TO ADD CLUSTER SPECS
 	1. Add the header string/list to script_repo
 	2. Add default specifications to default_proc_specs
-	3. Add the key you used in default_proc_specs to valid_hostnames with a regex-able HOSTNAME identifier
+	3. Add the key you used valid in_default_proc specs to_hostnames with a regex-able HOSTNAME identifier
 	4. Add the key and a suffix to gmx_suffixes if necesary
 	4. Add the key and a suffix to gmx_overrides if necesary
 '''
@@ -138,6 +138,7 @@ gmx_overrides = {
 tool_paths = {
 	'dssp':'~/libs/dssp-2.0.4-linux-amd64',
 	'martinize':'~/libs/martinize.py',
+	'modeller':'mod9.14',
 	}
 
 

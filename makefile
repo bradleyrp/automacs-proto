@@ -17,6 +17,8 @@ aamd-protein:
 	./controller make aamd-protein	
 cgmd-protein: 
 	./controller make cgmd-protein
+protein-homology: 
+	./controller make protein-homology
 clean: 
 	./controller reset
 reset: 
@@ -35,3 +37,4 @@ dev:
 	echo -e "y\ny\n" | ./controller reset
 	./controller make aamd-protein
 	./script-master-aamd-protein
+	

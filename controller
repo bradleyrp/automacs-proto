@@ -201,6 +201,19 @@ script_dict = {
 			call_sim,		
 			],
 		},
+	'protein-homology':{
+		'prep':[],
+		'steps':{
+			'step_homology':'s1-homology',
+			'input_files':'aamd-protein-homology',
+			},
+		'sequence':['\n',
+			multiresub(dict({
+				'ROOTDIR':'s1-homology',
+				'COMMAND':'ProteinHomology(rootdir=\'s1-homology\')',
+				}),python_from_bash),
+			],
+		},
 	}
 
 def script_maker(target,module_commands=None,sim_only=False):
@@ -253,7 +266,8 @@ def reset():
 			#---find files with patterns in patlist, excluding source files and 
 			if any([re.search(i,filename) for i in patlist]) and \
 				not re.search('source',root) and not re.search('input',root) \
-				and not re.search('amx',root) and not any([re.search(w,root) for w in whitelist]):
+				and not re.search('repo',root) and not re.search('amx',root) \
+				and not any([re.search(w,root) for w in whitelist]):
 				print root+'/'+filename
 	print '\ndata folders marked for deletion:\n'
 	for root,dirnames,filenames in os.walk(rootdir,followlinks=True):
@@ -273,7 +287,8 @@ def reset():
 				#---find files with patterns in patlist, excluding source files and 
 				if any([re.search(i,filename) for i in patlist]) and \
 					not re.search('source',root) and not re.search('input',root) \
-					and not re.search('amx',root) and not any([re.search(w,root) for w in whitelist]):
+					and not re.search('repo',root) and not re.search('amx',root) \
+					and not any([re.search(w,root) for w in whitelist]):
 					print 'rm '+root+'/'+filename
 					os.system('rm -r '+root+'/'+filename)
 					
@@ -348,6 +363,24 @@ render Tachyon fig-snapshot-$picname {
 quit
 """
 
+rendercode_askance_protein = \
+"""
+package require pbctools
+source sources/codebase/cg_bonds.tcl
+color Display Background white
+display resize 800 800
+set ind [molinfo top]
+mouse stoprotation
+rotate z by 60
+rotate x by -80
+render Tachyon fig-snapshot-$picname {
+	tachyon -aasamples 12 %s -format TARGA -o %s.tga; 
+	convert %s.tga %s.jpeg; 
+	rm %s.tga; rm %s;
+	}
+quit
+"""
+
 rendercode_xyz = [
 """
 source sources/codebase/cg_bonds.tcl
@@ -401,30 +434,38 @@ render Tachyon fig-snapshot-$picname {
 quit
 """,]
 	
-def render(gropath,tpr=None,no_solvent=True,xyz=False,itpfile=None,structcolor=False,box=True):
+def render(gropath,tpr=None,no_solvent=True,xyz=False,itpfile=None,
+	structcolor=False,box=True,askance=False,protein=False):
 	'''
 	Wrapper for VMD-based scripts for rendering images of the bilayer.
 	'''
+	gropaths = []
 	#---the function is designed to use kwargs but the user can send a list through make instead
 	if type(gropath) == list:
 		for item in list(gropath):
-			if item[-4:] == '.gro': gropath = item
+			if item[-4:] == '.gro' or item[-4:] == '.pdb': gropaths.append(item)
 			if item[-4:] == '.tpr': tpr = item
 			if item == 'xyz': xyz = True
 			if item == 'nosol' or item == 'nowater' or item == 'no_solvent': no_solvent = True
 			if item[-4:] == '.itp': itpfile = item
 			if item == 'structcolor': structcolor = True
 			if item == 'askance': askance = True
+			if item == 'protein': protein = True
+	print gropaths
 	#---select the render script according to some of the flags
 	#---note that this is a relatively freewheeling way to handle flags and may produce weird logic
 	if xyz: codes = rendercode_xyz
 	elif no_solvent == False: codes = [rendercode_with_solvent]
 	elif askance: codes = [rendercode_askance]
+	elif protein: codes = [rendercode_askance_protein]
 	else: codes = [rendercode]
+	
 	#---loop over figures
 	letter = ['x','y','z']
 	for ci in range(len(codes)):
 		code = codes[ci]
+		#---? multiple pdb files
+		gropath = gropaths[0]
 		grofile = gropath.split('/')[-1][:-4]
 		fp = open('script-temporary-prep.tcl','w')
 		fp.write('#!/bin/bash\n\n')
@@ -443,7 +484,13 @@ def render(gropath,tpr=None,no_solvent=True,xyz=False,itpfile=None,structcolor=F
 		elif structcolor:
 			raise Exception('except: please supply the ITP with the secondary structure in the header '+\
 				'if you would like to color the protein by structure')
-		else: fp.write('mol new '+gropath+'\n')
+		else: 
+			#---? modified gropaths for multiple structures in case the user is looking at many models
+			#---? note that the render code is too sprawling and needs a rework
+			if protein == True:
+				fp.write('mol default style {NewCartoon 0.300000 6.000000 4.100000 0} \n')
+				fp.write('mol default selection {not water}\n')
+			for gp in gropaths: fp.write('mol new '+gp+'\n')
 		if box: fp.write('package require pbctools\npbc box -color black'+'\n')
 		#---use cg_bonds.tcl to draw bonds if a tpr is available
 		if os.path.isfile(gropath[:-4]+'.tpr'):
@@ -566,10 +613,13 @@ def make(target):
 	prep_scripts(target)
 	
 	#---write a simulation continuation script to the final step
-	fp = open(script_dict[target]['steps']['step_simulation']+'/script-md-continue','w')
-	fp.write('#!/bin/bash\n')
-	fp.write(script_maker(target,sim_only=True))
-	fp.close()	
+	#---note that we disable this for protein-homology 
+	#---...however it would be better to make this option explicit
+	if target != 'protein-homology':
+		fp = open(script_dict[target]['steps']['step_simulation']+'/script-md-continue','w')
+		fp.write('#!/bin/bash\n')
+		fp.write(script_maker(target,sim_only=True))
+		fp.close()	
 	
 	#---write cluster-header if possible
 	if proc_settings != None:

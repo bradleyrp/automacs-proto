@@ -1,5 +1,2 @@
-#!/usr/bin/bash
+#!/usr/bin/python
 
-"""
-THIS IS THE DOCSTRING DUDDDDE
-"""

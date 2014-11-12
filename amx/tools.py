@@ -121,7 +121,7 @@ def copy(source,destination):
 	'''
 	#---check if wildcard in the source in which case use glob
 	if '*' in source:
-		print glob.glob(source)
+		if 0: print glob.glob(source)
 		for filename in glob.glob(source):
 			shutil.copy(filename,destination)
 	#---otherwise try a copytree and if that fails just use copy

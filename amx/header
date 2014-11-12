@@ -7,14 +7,15 @@ try:
 	from amx.lipidgrid import MonolayerGrids
 	from amx.bilayer import Bilayer
 	from amx.protein import ProteinWater
+	from amx.proteinhomology import ProteinHomology
 	from amx.tools import *
 	import sys,traceback
 except:
 	#---in case of legitimate error make sure the error message is printed
 	traceback.print_exc()
-	from amxsim import *
 	from lipidgrid import MonolayerGrids
 	from bilayer import Bilayer
 	from protein import ProteinWater
+	from proteinhomology import ProteinHomology
 	from tools import *
 
