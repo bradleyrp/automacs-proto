@@ -131,6 +131,59 @@ def copy(source,destination):
 			if exc.errno == errno.ENOTDIR: shutil.copy(source,destination)
 			else: raise
 
+def multiresub(switches,text):
+	'''
+	Function which performs a multiple regex substitution on some text.\n
+	Primarily used in controller to prepare ad hoc bash scripts.
+	'''
+	regex = re.compile("(%s)" % "|".join(map(re.escape,switches.keys())))
+	return regex.sub(lambda mo: switches[mo.string[mo.start():mo.end()]],text) 
+	
+def confirm():
+	'''Generic function to check with the user.'''
+	go = True if raw_input("%s (y/N) " % 'continue?').lower() == 'y' else False
+	if not go:
+		print 'aborting' 
+		return False
+	sure = True if raw_input("%s (y/N) " % 'confirmed?').lower() == 'y' else False
+	if go and sure: return True
+	
+def script_maker(target,script_dict,module_commands=None,sim_only=False):
+	'''
+	Prepare the master script for a particular procedure.
+	'''
+	if target not in script_dict.keys(): raise Exception('except: unclear make target')
+	steps = script_dict[target]['steps']
+	script = '\n#---definitions\n'
+	for step in steps.keys(): script += step+'='+steps[step]+'\n'
+	#---the sim_only flag uses only the last, presumably "continuation" segment of the sequence
+	if sim_only: seq_segments = script_dict[target]['sequence'][-1:]
+	else: seq_segments = script_dict[target]['sequence']
+	for segment in seq_segments: 
+		#---we add module_commands before each segment to ensure GROMACS paths are set
+		if module_commands != None: script += '\n'+module_commands+'\n'
+		script += segment
+	return script
+	
+def prep_scripts(target,script_dict):
+	'''
+	Execute temporary bash scripts to setup the directories.
+	'''
+	if target not in script_dict.keys(): raise Exception('except: unclear make target')
+	steps = script_dict[target]['steps']
+	for segment in script_dict[target]['prep']:
+		fp = open('script-temporary-prep.sh','w')
+		fp.write('#!/bin/bash\n\n')
+		for step in steps.keys(): fp.write(step+'='+steps[step]+'\n')
+		fp.write(segment)
+		fp.close()
+		os.system('bash script-temporary-prep.sh')
+		os.system('rm script-temporary-prep.sh')
+
+def niceblock(text,newlines=False):
+	'''Remove tabs so that large multiline text doesn't awkwardly wrap in the code.'''
+	return re.sub('\n([\t])+',(' ' if not newlines else '\n'),re.sub('^\n([\t])+','',text))
+
 def LastFrame(prefix,rootdir,gmxpaths):
 	'''
 	This function is used to retreive the last frame of a particular simulation.\n

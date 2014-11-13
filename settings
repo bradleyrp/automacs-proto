@@ -1,5 +1,8 @@
 #!/usr/bin/python
 
+#---CLUSTER HEADERS
+#-------------------------------------------------------------------------------------------------------------
+
 #---hostname-to-architecture dictionary
 '''
 The keys in valid_hostnames are single word strings excluding punctuation which can be mathced to the true
@@ -10,6 +13,7 @@ dictionary also keeps track of the available architectures for each hostname.
 #---note that the first element in the corresponding list is the default architecture
 valid_hostnames = {
 	'compbio':['opterons_gpu','opterons','xeons'],
+	'walnut':None,
 	}
 
 #---header file definitions
@@ -77,6 +81,26 @@ rmdir $rundir                              # remove the directory if it is empty
 exit
 """]
 
+cluster_header_walnut = \
+"""#!/bin/bash
+#PBS -l nodes=1:ppn=32,walltime=24:00:00,pmem=1500mb                                                                                                                                    
+#PBS -j eo                                                                                                                                                                              
+#PBS -q long                                                                                                                                                                            
+#PBS -N gmxjob                                                                                                                                                                          
+echo "Job started on `hostname` at `date`"                                                                                                                                              
+cd $PBS_O_WORKDIR
+"""
+
+#---formalize the collection of scripts to avoid using globals
+script_repo = {
+	'cluster_header_compbio_opterons_gpu':cluster_header_compbio_opterons,
+	'cluster_header_compbio_opterons':cluster_header_compbio_opterons,
+	'cluster_header_compbio_opterons_scratch':cluster_header_compbio_opterons_scratch,
+	'cluster_header_compbio_xeons':cluster_header_compbio_xeons,
+	'cluster_header_compbio_xeons_scratch':cluster_header_compbio_xeons_scratch,
+	'cluster_header_walnut':cluster_header_walnut,
+	}
+
 '''
 HOW TO ADD CLUSTER SPECS
 	1. Add the header string/list to script_repo
@@ -86,14 +110,33 @@ HOW TO ADD CLUSTER SPECS
 	4. Add the key and a suffix to gmx_overrides if necesary
 '''
 
-#---formalize the collection of scripts to avoid using globals
-script_repo = {
-	'cluster_header_compbio_opterons_gpu':cluster_header_compbio_opterons,
-	'cluster_header_compbio_opterons':cluster_header_compbio_opterons,
-	'cluster_header_compbio_opterons_scratch':cluster_header_compbio_opterons_scratch,
-	'cluster_header_compbio_xeons':cluster_header_compbio_xeons,
-	'cluster_header_compbio_xeons_scratch':cluster_header_compbio_xeons_scratch,
-	}
+#---FILE REGEXES
+#-------------------------------------------------------------------------------------------------------------
+
+#---regex list for files to remove
+patlist = ['log-','em-all-','step-','.top$','.mdp$','.tpr$','.xtc$','.trr$','.gro$','.edr$','.log$','.cpt$',
+	'\.itp$','cluster-','gmxpaths','gmxcalls','gmxjob','#','.dat','.pdb','script-','.jpeg$','.jpg$',
+	'script']
+	
+patlist = ['\.?\/?.+\.'+i+'$' for i in 
+	['itp','top','mdp','tpr','xtc','trr','gro','edr','log','cpt','ndx',
+		'dat','pdb','jpeg','jpg','pl','sh','png','ali','py']]+\
+	['^gmxpaths','^gmxcalls','^gmxjob','^cluster-','^\#.+\#$','^script-','^log-','^em-all-','^step-']
+	
+#---ignore reset delete candidates 
+whitelist = ['^\.?\/?(docs|amx|sources/|inputs|controller)','^\.*\/*\.[^\/]','controller']
+
+#---all folders are deleted only when empty except if they match the folder delete regex
+folder_delete = ['^\.?\/?.+(homology)']
+
+#---DOCUMENTATION
+#-------------------------------------------------------------------------------------------------------------
+
+#---documentation page
+document_location = 'file://'+os.path.abspath(os.path.curdir)+'/docs/_build/html/index.html'
+
+#---RUN SPECIFICATIONS
+#-------------------------------------------------------------------------------------------------------------
 
 #---default number of nodes, processors per node, and walltime
 #---note the module item holds bash commands to set paths for gromacs utilities 
@@ -110,6 +153,10 @@ default_proc_specs = {
 		{'nodes':1,'ppn':16,'walltime':96,
 		'module':'module load gromacs-gcc-cuda',
 		'scratch':False},
+	'walnut':
+		{'nodes':1,'ppn':32,'walltime':24,'pmem':'1500mb',
+		'module':'module load gromacs-gcc',
+		'scratch':False},
 	}
 	
 #---gromacs paths
@@ -123,6 +170,7 @@ gmx_suffixes = {
 	'compbio_xeons':'_mpi',
 	'compbio_opterons':'_mpi',
 	'compbio_opterons_gpu':'_mpi',
+	'walnut':'_mpi_d',
 	}
 
 #---system-specific commands to substitute for standard_gromacs_commands
@@ -131,6 +179,7 @@ gmx_overrides = {
 	'local':{'mdrun':'mdrun -nt 2',},
 	'compbio_xeons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	'compbio_opterons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
+	'walnut':{'mdrun':'mpirun -np NPROCS mdrun_mpi_d',},
 	}
 
 #---paths to extra tools

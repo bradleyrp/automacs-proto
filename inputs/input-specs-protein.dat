@@ -2,7 +2,7 @@
 
 #---STARTING CONFIGURATION
 #---specify the PDB file for the starting protein configuration located in sources
-input_filename = '1LP1.pdb'
+input_filename = '3ala.pdb'
 
 #---SIMULATION RESOLUTION
 #---note specify either 'cgmd' or 'aamd' to set the correct parameters

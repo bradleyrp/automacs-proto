@@ -1,40 +1,30 @@
 #---INTERFACE TO CONTROLLER
 #-------------------------------------------------------------------------------------------------------------
 
-#---extract arguments for "render" function
-ifeq (render,$(firstword $(MAKECMDGOALS)))
-  RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
-  $(eval $(RUN_ARGS):;@:)
-endif
+#---valid function names from the python script
+TARGETS := $(shell perl -n -e '@parts = /^def\s+[a-z,_]+/g; $$\ = "\n"; print for @parts;' \
+	controller.py | awk '{print $$2}')
 
-help:
-	./controller
-aamd-bilayer: 
-	./controller make aamd-bilayer	
-cgmd-bilayer: 
-	./controller make cgmd-bilayer	
-aamd-protein: 
-	./controller make aamd-protein	
-cgmd-protein: 
-	./controller make cgmd-protein
-protein-homology: 
-	./controller make protein-homology
-clean: 
-	./controller reset
-reset: 
-	./controller reset
-render:
-	./controller render $(RUN_ARGS)
-lastframe:
-	./amx/script-lastframe.py
+#---collect arguments
+RUN_ARGS := $(wordlist 1,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+$(eval $(RUN_ARGS):;@:)
 
-#---since docs is a folder we depend on the code from whence docs is generated
-docs: amx
-	./controller make_docs
-	
-#---quickly testing development code
-dev:
-	echo -e "y\ny\n" | ./controller reset
-	./controller make aamd-protein
-	./script-master-aamd-protein
-	
+#---hack to always run makefile interfaced with python
+scripts=controller.py
+$(shell touch $(scripts))
+checkfile=.pipeline_up_to_date
+
+#---targets
+$(checkfile): $(scripts)
+	touch $(checkfile)
+	python controller.py ${RUN_ARGS}
+
+#---default and arbitrary make targets
+default: $(checkfile)
+$(TARGETS): $(checkfile)
+
+#---git push
+gitpush:
+	bash scripts/script-gitpush.sh ${RUN_ARGS}
+
+
