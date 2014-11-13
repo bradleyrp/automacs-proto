@@ -13,6 +13,7 @@ import os,sys,time,datetime,re
 import urllib2
 from tools import call,checkout,tee,copy
 import amxsim
+import glob
 
 #---locate gmxpaths
 if os.path.isfile('gmxpaths.conf'): gmxpaths_path = './'
@@ -37,6 +38,7 @@ class ProteinHomology:
 	
 		#---set paths for the previous and current steps
 		self.rootdir = os.path.abspath(os.path.expanduser(rootdir))+'/'
+		self.rootdirrel = rootdir+'/'
 		
 		#---set sources
 		self.sources_dir = os.path.abspath(os.path.expanduser('./sources/'))+'/'
@@ -165,11 +167,17 @@ class ProteinHomology:
 		
 		#---make a view script
 		with open(self.rootdir+'script-vmd-view.tcl','w') as fp:
-			fp.write('#---execute via "vmd -e script-vmd-view.tcl"\n')			
+			fp.write('#!/usr/bin/env tclsh\n\n#---execute via "vmd -e script-vmd-view.tcl"\n\n')			
 			fp.write('mol default style {NewCartoon 0.300000 6.000000 4.100000 0}\n')
-			for i in range(int(self.settings['n_models'])):
-				fp.write('mol new '+self.rootdir+self.target[targi][0]+'.B9999'+\
-				'{:04d}'.format(i+1)+'.pdb\n')
+			fp.write('mol default color {Structure}\n')
+			for fn in glob.glob(self.rootdirrel+self.target[targi][0]+'.*.pdb'):
+				fp.write('mol new '+os.path.basename(fn)+'\n')
+			fp.write('for {set i 0} { $i <= '+str(self.settings['n_models'])+'} { incr i 1} {\n')
+			fp.write('\tset reference_sel  [atomselect 1 "backbone"]\n')
+			fp.write('\tset comparison_sel [atomselect $i "backbone"]\n')
+			fp.write('\tset transformation_mat [measure fit $comparison_sel $reference_sel]\n')
+			fp.write('\tset move_sel [atomselect $i "all"]\n')
+			fp.write('\t$move_sel move $transformation_mat\n}\n')
 		
 	def build_model_multi(self):
 	

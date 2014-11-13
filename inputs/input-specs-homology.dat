@@ -3,6 +3,9 @@
 '''
 Example sequence inputs:
 	'target':{'raw':('mdia2NB','MERHQPRLHHPAQGSAAGTPYPSSASLRGCRESKMPRRKGPQHPPPPSGPEEPGEKRPKFHLNIRT')},
+	'target':{'textfile':'repo/sequences.txt'},
+	'target':{'textfile_rna':'repo/sequences_rna.txt'},
+	'template':[('1LP1','A')],
 '''
 
 #---choose the modeller procedure
@@ -13,11 +16,11 @@ procedure = [
 
 homology_construction_settings = {
 	'single':{
-		'target':{'textfile_rna':'repo/sequences_rna.txt'},
+		'target':{'raw':('mdia2NB','MERHQPRLHHPAQGSAAGTPYPSSASLRGCRESKMPRRKGPQHPPPPSGPEEPGEKRPKFHLNIRT')},
 		'target_name':'testseq5',
 		'regex_subs':[('tttatttagagcctg','tttattagcctg')],
-		'template':[('1LP1','A')],
-		'n_models':2,
+		'template':[('3O4X','A')],
+		'n_models':10,
 		},
 	'multi':{
 		'target':{'textfile':'repo/sequences.txt'},
