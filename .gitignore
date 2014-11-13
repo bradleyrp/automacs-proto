@@ -1,1 +1,2 @@
 *.pyc 
+.pipeline_up_to_date
