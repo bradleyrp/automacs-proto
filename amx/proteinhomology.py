@@ -22,6 +22,15 @@ else: gmxpaths_path = '../'
 gmxpaths = dict([[i.split()[0],' '.join(i.split()[1:])] 
 	for i in open(gmxpaths_path+'gmxpaths.conf','r') 
 	if i.strip()[0] != '#'])
+	
+dna_mapping = {
+	'UUU':'F','UUC':'F','UUA':'L','UUG':'L','UCU':'S','UCC':'s','UCA':'S','UCG':'S','UAU':'Y','UAC':'Y',
+	'UAA':'STOP','UAG':'STOP','UGU':'C','UGC':'C','UGA':'STOP','UGG':'W','CUU':'L','CUC':'L','CUA':'L',
+	'CUG':'L','CCU':'P','CCC':'P','CCA':'P','CCG':'P','CAU':'H','CAC':'H','CAA':'Q','CAG':'Q','CGU':'R',
+	'CGC':'R','CGA':'R','CGG':'R','AUU':'I','AUC':'I','AUA':'I','AUG':'M','ACU':'T','ACC':'T','ACA':'T',
+	'ACG':'T','AAU':'N','AAC':'N','AAA':'K','AAG':'K','AGU':'S','AGC':'S','AGA':'R','AGG':'R','GUU':'V',
+	'GUC':'V','GUA':'V','GUG':'V','GCU':'A','GCC':'A','GCA':'A','GCG':'A','GAU':'D','GAC':'D','GAA':'E',
+	'GAG':'E','GGU':'G','GGC':'G','GGA':'G','GGG':'G',}   
 
 class ProteinHomology:
 	def __init__(self,rootdir=None,**kwargs):
@@ -77,8 +86,24 @@ class ProteinHomology:
 				for t in targs:
 					if re.match('^[a-z,A-Z,_].+\s*:\s*[A-Z].+$',t):
 						self.target.append(tuple([i.strip() for i in t.split(':')]))
+			elif key == 'textfile_rna':
+				with open(target_ins[key],'r') as fp: targs = fp.readlines()
+				for t in targs:
+					if re.match('^[a-z,A-Z,0-9,_].+\s*:\s*[A-Z,a-z].+$',t):
+						self.target.append(list([i.strip() for i in t.split(':')]))
+						rnaseq = self.target[-1][1]
+						#---extra substitutions for later
+						if 'regex_subs' in self.settings.keys():
+							for regex in self.settings['regex_subs']:
+								rnaseq = re.sub(regex[0],regex[1],rnaseq)
+						rnaseq = rnaseq.upper()
+						rnaseq = re.sub('T','U',rnaseq)
+						aminoseq = ''.join([dna_mapping[i] for i in [rnaseq[i:i+3] 
+							for i in range(0,len(rnaseq),3)]])
+						self.target[-1][1] = re.sub('T','U',aminoseq)
+						self.target[-1] = tuple(self.target[-1])
 			else: raise Exception('except: unclear target type')
-		
+
 	def get_templates(self):
 
 		if not os.path.isdir('./repo'): os.mkdir('./repo')
@@ -99,15 +124,20 @@ class ProteinHomology:
 			
 	def build_model_single(self):
 	
+		targi = 0
+		tempi = 0
 		if len(self.template) != 1: raise Exception('except: needs only one template '+str(self.template))
-		if len(self.target) != 1: raise Exception('except: needs only one target '+str(self.target))
-	
+		if len(self.target) != 1:
+			if 'target_name' in self.settings.keys():
+				targi = [i[0] for i in self.target].index(self.settings['target_name'])
+			else: raise Exception('except: needs only one target '+str(self.target))
+			
 		print 'preparing modeller scripts'
 		#---variables passed to modeller via settings-homology.py
 		vars_to_modeller = {
 			'template_struct':self.template[0][0],
 			'template_struct_chain':self.template[0][1],
-			'target_seq':self.target[0][0],
+			'target_seq':self.target[targi][0],
 			'n_models':self.settings['n_models'],
 			}
 	
@@ -121,10 +151,10 @@ class ProteinHomology:
 			
 		#---write an ali file with the target
 		fasta_linelen = 50
-		with open(self.rootdir+self.target[0][0]+'.ali','w') as fp:
-			fp.write('>P1;'+self.target[0][0]+'\n')
-			fp.write('sequence:'+self.target[0][0]+':::::::0.00:0.00\n')
-			seq = self.target[0][1]
+		with open(self.rootdir+self.target[targi][0]+'.ali','w') as fp:
+			fp.write('>P1;'+self.target[targi][0]+'\n')
+			fp.write('sequence:'+self.target[targi][0]+':::::::0.00:0.00\n')
+			seq = self.target[targi][1]
 			chopped = [seq[j*fasta_linelen:(j+1)*fasta_linelen] for j in range(len(seq)/fasta_linelen+1)]
 			chopped = [i for i in chopped if len(i) > 0]
 			for i,seg in enumerate(chopped): fp.write(seg+('\n' if i < len(chopped)-1 else '*\n'))
@@ -132,6 +162,14 @@ class ProteinHomology:
 		print 'running modeller'
 		cmd = [gmxpaths['modeller'],'script-single.py']
 		call(cmd,logfile='log-modeller-script-single',cwd=self.rootdir)
+		
+		#---make a view script
+		with open(self.rootdir+'script-vmd-view.tcl','w') as fp:
+			fp.write('#---execute via "vmd -e script-vmd-view.tcl"\n')			
+			fp.write('mol default style {NewCartoon 0.300000 6.000000 4.100000 0}\n')
+			for i in range(int(self.settings['n_models'])):
+				fp.write('mol new '+self.rootdir+self.target[targi][0]+'.B9999'+\
+				'{:04d}'.format(i+1)+'.pdb\n')
 		
 	def build_model_multi(self):
 	

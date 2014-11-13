@@ -1,24 +1,23 @@
 #!/usr/bin/python
 
 '''
-Notes:
-	Currently the protein templates are expected to be in sources/aamd-protein-structs however it may be
-		useful to change this to a more general protein structure directory.
-		However, I do not wish to distribute protein structures with the code, so perhaps we could have a 
-			separate path that the users could use?
+Example sequence inputs:
+	'target':{'raw':('mdia2NB','MERHQPRLHHPAQGSAAGTPYPSSASLRGCRESKMPRRKGPQHPPPPSGPEEPGEKRPKFHLNIRT')},
 '''
 
 #---choose the modeller procedure
 procedure = [
 	'single',
 	'multi',
-	][1]
+	][0]
 
 homology_construction_settings = {
 	'single':{
-		'target':{'raw':('mdia2NB','MERHQPRLHHPAQGSAAGTPYPSSASLRGCRESKMPRRKGPQHPPPPSGPEEPGEKRPKFHLNIRT')},
-		'template':[('3O4X','A')],
-		'n_models':10,
+		'target':{'textfile_rna':'repo/sequences_rna.txt'},
+		'target_name':'testseq5',
+		'regex_subs':[('tttatttagagcctg','tttattagcctg')],
+		'template':[('1LP1','A')],
+		'n_models':2,
 		},
 	'multi':{
 		'target':{'textfile':'repo/sequences.txt'},
@@ -26,7 +25,7 @@ homology_construction_settings = {
 			('3O4X','A'),
 			('2RCA','B'),
 			],
-		'n_models':10,
+		'n_models':2,
 		},
 	}
 	
