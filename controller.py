@@ -10,7 +10,8 @@ import glob
 #-------------------------------------------------------------------------------------------------------------
 
 execfile('settings')
-from amx.tools import checkout,multiresub,confirm,script_maker,prep_scripts,niceblock,argsort
+from amx.tools import checkout,multiresub,confirm
+from amx.tools import script_maker,prep_scripts,niceblock,argsort,chain_steps
 
 helpstring = """\n
 	Automacs (AMX) CONTROLLER.\n
@@ -139,6 +140,7 @@ script_dict = {
 			'simtype':'cgmd-bilayer',
 			'input_files':'cgmd-bilayer-equil',
 			},
+		'continue':True,
 		'sequence':['\n',
 			multiresub(dict({
 				'ROOTDIR':'s01-build-lipidgrid',
@@ -162,6 +164,7 @@ script_dict = {
 			'simtype':'aamd-bilayer',
 			'input_files':'aamd-bilayer-equil',
 			},
+		'continue':True,
 		'sequence':['\n',
 			multiresub(dict({
 				'ROOTDIR':'s01-build-lipidgrid',
@@ -186,6 +189,7 @@ script_dict = {
 			'simtype':'aamd-protein',
 			'input_files':'aamd-protein-equil',
 			},
+		'continue':True,
 		'sequence':['\n',
 			multiresub(dict({
 				'ROOTDIR':'s01-build-protein-water',
@@ -206,6 +210,7 @@ script_dict = {
 			'simtype':'cgmd-protein',
 			'input_files':'cgmd-protein-equil',
 			},
+		'continue':True,
 		'sequence':['\n',
 			multiresub(dict({
 				'ROOTDIR':'s01-build-protein-water',
@@ -234,6 +239,7 @@ script_dict = {
 			'step_simulation':'s01-restart',
 			'detect_previous_step':None,
 			},
+		'continue':True,
 		'sequence':['\n',
 			call_sim_restart,
 			],
@@ -370,17 +376,17 @@ def script(single=None):
 		
 		#---prepare the files and directories
 		prep_scripts(target,script_dict)
-	
-		#---write a simulation continuation script to the final step
-		#---note that we disable this for protein-homology 
-		#---...however it would be better to make this option explicit
-		'''
-		if target != 'protein-homology':
-			fp = open(script_dict[target]['steps']['step_simulation']+'/script-md-continue','w')
+		
+		#---for simulations that can be continued we write a script for only the final step in the sequence
+		if 'continue' in script_dict[target].keys() and script_dict[target]['continue']:
+			#---use chain_steps to find the final folder to deposit a continuation script if necessary
+			startstep,oldsteps = chain_steps()
+			fp = open(oldsteps[-1]+'/script-md-continue','w')
 			fp.write('#!/bin/bash\n')
 			fp.write(script_maker(target,script_dict,sim_only=True))
-			fp.close()	
-		'''
+			fp.close()
+			os.system('chmod u+x '+oldsteps[-1]+'/script-md-continue')
+	
 		#---write cluster-header if possible
 		scratch_suffix = ''
 		if proc_settings != None:

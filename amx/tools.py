@@ -170,6 +170,7 @@ def chain_steps():
 		print '\tchaining new steps after old ones'
 		print '\tprevious sequence ended with '+oldsteps[-1]
 		startstep = int(re.findall('^[a-z]([0-9]){1,2}-(.+)',oldsteps[-1])[0][0])
+	else: startstep = 0
 	return startstep,oldsteps
 	
 def write_steps_to_bash(steps,startstep,oldsteps):
