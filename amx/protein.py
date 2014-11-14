@@ -44,6 +44,9 @@ class ProteinWater(amxsim.AMXSimulation):
 			print 'skipping this step because system.gro exists'
 		else:
 			#---make root directory
+			#---the presence of the root directory signals that the files have already been copied
+			#---...note that we prefer to allow the user to modify input files and restart so it is
+			#---...important to retain this feature which is why we don't pre-make these directories
 			if not os.path.isdir(self.rootdir): 
 				os.mkdir(rootdir)
 				needs_file_transfers = True

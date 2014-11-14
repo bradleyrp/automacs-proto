@@ -23,6 +23,9 @@ import shutil
 #---FUNCTIONS
 #-------------------------------------------------------------------------------------------------------------
 
+#---classic python argsort
+def argsort(seq): return [x for x,y in sorted(enumerate(seq), key = lambda x: x[1])]
+
 class tee(object):
 	'''
 	Routes print statements to the screen and a log file.
@@ -148,6 +151,51 @@ def confirm():
 	sure = True if raw_input("%s (y/N) " % 'confirmed?').lower() == 'y' else False
 	if go and sure: return True
 	
+def chain_steps():
+	
+	'''
+	Check for previous steps to enable chaining.
+	'''
+
+	#---intervene here to check if this is an add-on singleton script
+	#---...for example, if you want a restart of a previous procedure
+	#---...this section allos you to chain procedures together
+	#---...note that no backup of previous scripts is made here so the script-master is overwritten
+	for root,dirnames,filenames in os.walk('./'): break
+	stepdirs = [i for i in dirnames if re.match('^[a-z][0-9]{1,2}-',i)]
+	stepnums = [int(re.findall('^[a-z]([0-9]{1,2})-(.+)',i)[0][0]) for i in stepdirs]
+	oldsteps = [stepdirs[i] for i in argsort(
+		[int(re.findall('^[a-z]([0-9]){1,2}-(.+)',i)[0][0]) for i in stepdirs])]
+	if oldsteps != []:
+		print '\tchaining new steps after old ones'
+		print '\tprevious sequence ended with '+oldsteps[-1]
+		startstep = int(re.findall('^[a-z]([0-9]){1,2}-(.+)',oldsteps[-1])[0][0])
+	return startstep,oldsteps
+	
+def write_steps_to_bash(steps,startstep,oldsteps):
+	'''
+	Given a file pointer and a list of steps from the script_dict, this function will write the relevant 
+	variables to bash variables. Note that we use this function in script_maker and prep_scripts (which
+	is why we place it in a central location here). The steps dictionary does two things: it defines the 
+	folders for steps which the execute and preparation scripts require, and also handles special functions
+	e.g. looking for previous step names.
+	'''
+	bashheader = ''
+	#---write variables in the steps entry in the simulation dictionary so bash can see them
+	for step in steps.keys(): 
+		#---intervene to see if this is a step or not
+		if steps[step] != None and re.match('^[a-z]([0-9]{1,2})-(.+)',steps[step]):
+			si,stepname = re.findall('^[a-z]([0-9]){1,2}-(.+)',steps[step])[0]
+			#---maintain first letter and advance the step number to append the new step
+			newname = steps[step][0]+'{:02d}'.format(int(si)+startstep)+'-'+stepname
+			bashheader += step+'='+newname+'\n'
+		#---intervene to point to the previous step if the detect_previous_step key is present
+		#---...and oldsteps is not empty
+		elif step == 'detect_previous_step' and oldsteps != []:
+			bashheader += 'detect_previous_step='+oldsteps[-1]+'\n'
+		else: bashheader += step+'='+steps[step]+'\n'
+	return bashheader
+	
 def script_maker(target,script_dict,module_commands=None,sim_only=False):
 	'''
 	Prepare the master script for a particular procedure.
@@ -155,7 +203,8 @@ def script_maker(target,script_dict,module_commands=None,sim_only=False):
 	if target not in script_dict.keys(): raise Exception('except: unclear make target')
 	steps = script_dict[target]['steps']
 	script = '\n#---definitions\n'
-	for step in steps.keys(): script += step+'='+steps[step]+'\n'
+	startstep,oldsteps = chain_steps()
+	script += write_steps_to_bash(steps,startstep,oldsteps)
 	#---the sim_only flag uses only the last, presumably "continuation" segment of the sequence
 	if sim_only: seq_segments = script_dict[target]['sequence'][-1:]
 	else: seq_segments = script_dict[target]['sequence']
@@ -169,12 +218,15 @@ def prep_scripts(target,script_dict):
 	'''
 	Execute temporary bash scripts to setup the directories.
 	'''
+	
+	startstep,oldsteps = chain_steps()
 	if target not in script_dict.keys(): raise Exception('except: unclear make target')
 	steps = script_dict[target]['steps']
 	for segment in script_dict[target]['prep']:
 		fp = open('script-temporary-prep.sh','w')
 		fp.write('#!/bin/bash\n\n')
-		for step in steps.keys(): fp.write(step+'='+steps[step]+'\n')
+		bashheader = write_steps_to_bash(steps,startstep,oldsteps)		
+		fp.write(bashheader)
 		fp.write(segment)
 		fp.close()
 		os.system('bash script-temporary-prep.sh')

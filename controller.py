@@ -10,7 +10,7 @@ import glob
 #-------------------------------------------------------------------------------------------------------------
 
 execfile('settings')
-from amx.tools import checkout,multiresub,confirm,script_maker,prep_scripts,niceblock
+from amx.tools import checkout,multiresub,confirm,script_maker,prep_scripts,niceblock,argsort
 
 helpstring = """\n
 	Automacs (AMX) CONTROLLER.\n
@@ -71,6 +71,24 @@ prepare_restart = [
 mkdir ./$step_simulation
 cp -r ./sources/general-sim-restart/* ./$step_simulation;
 cp -r ./repo/* ./$step_simulation;
+#---if detect_previous_step is set in the header then copy checkpoint files
+#---...note that we use the prep scripts in a self-contained way, to avoid excessive python code
+if ! [ -z "${detect_previous_step+xxx}" ]; then 
+#---locate the latest checkpoint from the equilibrate folder
+THISDIR=$(pwd)
+cd $detect_previous_step
+PRUN=0
+for file in md.part*.cpt
+do
+	if [ $(echo ${file:7:4} | sed 's/^0*//') -gt $PRUN ]; then 
+		PRUN=$(echo ${file:7:4} | sed 's/^0*//')
+	fi
+done
+cd $THISDIR
+#---copy checkpoint and input files
+cp $detect_previous_step/$(printf md.part%04d.tpr $PRUN) ./$step_simulation/
+cp $detect_previous_step/$(printf md.part%04d.cpt $PRUN) ./$step_simulation/
+fi
 """
 ]
 
@@ -114,21 +132,21 @@ script_dict = {
 	'cgmd-bilayer':{
 		'prep':prepare_equil_sim,
 		'steps':{
-			'step_monolayer':'s1-build-lipidgrid',
-			'step_build':'s2-build-bilayer',
-			'step_equilibration':'s3-equil',
-			'step_simulation':'s4-sim',
+			'step_monolayer':'s01-build-lipidgrid',
+			'step_build':'s02-build-bilayer',
+			'step_equilibration':'s03-equil',
+			'step_simulation':'s04-sim',
 			'simtype':'cgmd-bilayer',
 			'input_files':'cgmd-bilayer-equil',
 			},
 		'sequence':['\n',
 			multiresub(dict({
-				'ROOTDIR':'s1-build-lipidgrid',
-				'COMMAND':'MonolayerGrids(rootdir=\'s1-build-lipidgrid\')',
+				'ROOTDIR':'s01-build-lipidgrid',
+				'COMMAND':'MonolayerGrids(rootdir=\'s01-build-lipidgrid\')',
 				}),python_from_bash),
 			multiresub(dict({
-				'ROOTDIR':'s2-build-bilayer',
-				'COMMAND':'Bilayer(rootdir=\'s2-build-bilayer\',previous_dir=\'s1-build-lipidgrid\')',
+				'ROOTDIR':'s02-build-bilayer',
+				'COMMAND':'Bilayer(rootdir=\'s02-build-bilayer\',previous_dir=\'s01-build-lipidgrid\')',
 				}),python_from_bash),
 			call_equil,
 			call_sim,
@@ -138,20 +156,20 @@ script_dict = {
 		'prep':prepare_equil_sim,
 		'steps':{
 			'step_monolayer':'s1-build-lipidgrid',
-			'step_build':'s2-build-bilayer',
-			'step_equilibration':'s3-equil',
-			'step_simulation':'s4-sim',
+			'step_build':'s02-build-bilayer',
+			'step_equilibration':'s03-equil',
+			'step_simulation':'s04-sim',
 			'simtype':'aamd-bilayer',
 			'input_files':'aamd-bilayer-equil',
 			},
 		'sequence':['\n',
 			multiresub(dict({
-				'ROOTDIR':'s1-build-lipidgrid',
-				'COMMAND':'MonolayerGrids(rootdir=\'s1-build-lipidgrid\')',
+				'ROOTDIR':'s01-build-lipidgrid',
+				'COMMAND':'MonolayerGrids(rootdir=\'s01-build-lipidgrid\')',
 				}),python_from_bash),
 			multiresub(dict({
-				'ROOTDIR':'s2-build-bilayer',
-				'COMMAND':'Bilayer(rootdir=\'s2-build-bilayer\',previous_dir=\'s1-build-lipidgrid\')',
+				'ROOTDIR':'s02-build-bilayer',
+				'COMMAND':'Bilayer(rootdir=\'s02-build-bilayer\',previous_dir=\'s01-build-lipidgrid\')',
 				}),python_from_bash),
 			call_equil,
 			call_sim,
@@ -162,16 +180,16 @@ script_dict = {
 			"sed -i 's/STEPSTRING.*/STEPSTRING=\"nvt npt\"/g' $step_equilibration/settings.sh"]+\
 			prepare_equil_sim[1:],
 		'steps':{
-			'step_build':'s1-build-protein-water',
-			'step_equilibration':'s2-equil',
-			'step_simulation':'s3-sim',
+			'step_build':'s01-build-protein-water',
+			'step_equilibration':'s02-equil',
+			'step_simulation':'s03-sim',
 			'simtype':'aamd-protein',
 			'input_files':'aamd-protein-equil',
 			},
 		'sequence':['\n',
 			multiresub(dict({
-				'ROOTDIR':'s1-build-protein-water',
-				'COMMAND':'ProteinWater(rootdir=\'s1-build-protein-water\')',
+				'ROOTDIR':'s01-build-protein-water',
+				'COMMAND':'ProteinWater(rootdir=\'s01-build-protein-water\')',
 				}),python_from_bash),
 			call_equil,
 			call_sim,		
@@ -182,16 +200,16 @@ script_dict = {
 			"sed -i 's/STEPSTRING.*/STEPSTRING=\"nvt-short nvt npt\"/g' $step_equilibration/settings.sh"]+\
 			prepare_equil_sim[1:],
 		'steps':{
-			'step_build':'s1-build-protein-water',
-			'step_equilibration':'s2-equil',
-			'step_simulation':'s3-sim',
+			'step_build':'s01-build-protein-water',
+			'step_equilibration':'s02-equil',
+			'step_simulation':'s03-sim',
 			'simtype':'cgmd-protein',
 			'input_files':'cgmd-protein-equil',
 			},
 		'sequence':['\n',
 			multiresub(dict({
-				'ROOTDIR':'s1-build-protein-water',
-				'COMMAND':'ProteinWater(rootdir=\'s1-build-protein-water\')',
+				'ROOTDIR':'s01-build-protein-water',
+				'COMMAND':'ProteinWater(rootdir=\'s01-build-protein-water\')',
 				}),python_from_bash),
 			call_equil,
 			call_sim,		
@@ -200,20 +218,21 @@ script_dict = {
 	'protein-homology':{
 		'prep':[],
 		'steps':{
-			'step_homology':'s1-homology',
+			'step_homology':'s01-homology',
 			'input_files':'aamd-protein-homology',
 			},
 		'sequence':['\n',
 			multiresub(dict({
-				'ROOTDIR':'s1-homology',
-				'COMMAND':'ProteinHomology(rootdir=\'s1-homology\')',
+				'ROOTDIR':'s01-homology',
+				'COMMAND':'ProteinHomology(rootdir=\'s01-homology\')',
 				}),python_from_bash),
 			],
 		},
 	'restart':{
 		'prep':prepare_restart,
 		'steps':{
-			'step_simulation':'s1-restart',
+			'step_simulation':'s01-restart',
+			'detect_previous_step':None,
 			},
 		'sequence':['\n',
 			call_sim_restart,
@@ -235,7 +254,7 @@ def clean(sure=True,protected=False):
 		if protected:
 			if re.match('^\.?\/?(sources[^\/]|repo)',root):
 				deldirs_protect.append([root,''])
-		if re.match('^\.?\/?[a-z][0-9]-',root):
+		if re.match('^\.?\/?[a-z][0-9]{1,2}-',root):
 			deldirs.append([root,''])
 		for filename in filenames:
 			if any([re.match(i,filename) for i in patlist]) and \
@@ -348,19 +367,20 @@ def script(single=None):
 		fp.write(script_maker(target,script_dict))
 		fp.close()
 		os.system('chmod u+x '+'script-master-'+str(target))
-
+		
 		#---prepare the files and directories
 		prep_scripts(target,script_dict)
 	
 		#---write a simulation continuation script to the final step
 		#---note that we disable this for protein-homology 
 		#---...however it would be better to make this option explicit
+		'''
 		if target != 'protein-homology':
 			fp = open(script_dict[target]['steps']['step_simulation']+'/script-md-continue','w')
 			fp.write('#!/bin/bash\n')
 			fp.write(script_maker(target,script_dict,sim_only=True))
 			fp.close()	
-	
+		'''
 		#---write cluster-header if possible
 		scratch_suffix = ''
 		if proc_settings != None:
