@@ -188,13 +188,13 @@ def write_steps_to_bash(steps,startstep,oldsteps):
 		if steps[step] != None and re.match('^[a-z]([0-9]{1,2})-(.+)',steps[step]):
 			si,stepname = re.findall('^[a-z]([0-9]){1,2}-(.+)',steps[step])[0]
 			#---maintain first letter and advance the step number to append the new step
-			newname = steps[step][0]+'{:02d}'.format(int(si)+startstep)+'-'+stepname
+			newname = steps[step][0]+('%02d'%(int(si)+startstep))+'-'+stepname
 			bashheader += step+'='+newname+'\n'
 		#---intervene to point to the previous step if the detect_previous_step key is present
 		#---...and oldsteps is not empty
 		elif step == 'detect_previous_step' and oldsteps != []:
 			bashheader += 'detect_previous_step='+oldsteps[-1]+'\n'
-		else: bashheader += step+'='+steps[step]+'\n'
+		elif step not in ['detect_previous_step']: bashheader += step+'='+steps[step]+'\n'
 	return bashheader
 	
 def script_maker(target,script_dict,module_commands=None,sim_only=False):
