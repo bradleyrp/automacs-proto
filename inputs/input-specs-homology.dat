@@ -12,7 +12,8 @@ Example sequence inputs:
 procedure = [
 	'single',
 	'multi',
-	][0]
+	'mutator',
+	][2]
 
 homology_construction_settings = {
 	'single':{
@@ -29,6 +30,16 @@ homology_construction_settings = {
 			('2RCA','B'),
 			],
 		'n_models':2,
+		},
+	'mutator':{
+		'n_models':2,
+		'template':[
+			('2GS7','A'),
+			],
+		'mutations':[
+			('K',690,'R'),
+			('E',710,'R'),
+			],			
 		},
 	}
 	

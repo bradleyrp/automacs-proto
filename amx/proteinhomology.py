@@ -31,7 +31,12 @@ dna_mapping = {
 	'CGC':'R','CGA':'R','CGG':'R','AUU':'I','AUC':'I','AUA':'I','AUG':'M','ACU':'T','ACC':'T','ACA':'T',
 	'ACG':'T','AAU':'N','AAC':'N','AAA':'K','AAG':'K','AGU':'S','AGC':'S','AGA':'R','AGG':'R','GUU':'V',
 	'GUC':'V','GUA':'V','GUG':'V','GCU':'A','GCC':'A','GCA':'A','GCG':'A','GAU':'D','GAC':'D','GAA':'E',
-	'GAG':'E','GGU':'G','GGC':'G','GGA':'G','GGG':'G',}   
+	'GAG':'E','GGU':'G','GGC':'G','GGA':'G','GGG':'G',} 
+	
+aacodemap = {'CYS': 'C', 'ASP': 'D', 'SER': 'S', 'GLN': 'Q', 'LYS': 'K',
+	'ILE': 'I', 'PRO': 'P', 'THR': 'T', 'PHE': 'F', 'ASN': 'N', 
+	'GLY': 'G', 'HIS': 'H', 'LEU': 'L', 'ARG': 'R', 'TRP': 'W', 'TER':'*',
+	'ALA': 'A', 'VAL':'V', 'GLU': 'E', 'TYR': 'Y', 'MET': 'M','XAA':'X'}
 
 class ProteinHomology:
 	def __init__(self,rootdir=None,**kwargs):
@@ -71,10 +76,11 @@ class ProteinHomology:
 	def build(self):
 	
 		print 'BUILDING HOMOLOGY MODELS'
-		self.get_targets()
+		if self.procedure != 'mutator': self.get_targets()
 		self.get_templates()
 		if self.procedure == 'single': self.build_model_single()
 		elif self.procedure == 'multi': self.build_model_multi()
+		elif self.procedure == 'mutator': self.build_model_mutator()
 		
 	def get_targets(self):
 	
@@ -115,19 +121,26 @@ class ProteinHomology:
 			print 'retrieving '+str(t[0])
 			#---check if in repo and move
 			if not os.path.isfile(self.rootdir+t[0]+'.pdb') and os.path.isfile('./repo/'+t[0]+'.pdb'):
-				copy('./repo/'+t[0]+'.pdb',self.rootdir+t[0]+'.pdb')			
+				copy('./repo/'+t[0]+'.pdb',self.rootdir+t[0]+'.pdb')
+				#---fasta retrieval is deprecated
+				if 0: copy('./repo/'+t[0]+'.fasta',self.rootdir+t[0]+'.fasta')
 			elif not os.path.isfile(self.rootdir+t[0]+'.pdb'):
 				response = urllib2.urlopen('http://www.rcsb.org/pdb/files/'+t[0]+'.pdb')
 				pdbfile = response.read()
-				with open(self.rootdir+t[0]+'.pdb','w') as fp: 
-					fp.write(pdbfile)
+				with open(self.rootdir+t[0]+'.pdb','w') as fp: fp.write(pdbfile)
 				copy(self.rootdir+t[0]+'.pdb','./repo/'+t[0]+'.pdb')
+				#---always get the FASTA sequence whenever you get a structure
+				#---note currently deprecated
+				if 0:
+					response = urllib2.urlopen(
+						'http://www.rcsb.org/pdb/files/fasta.txt?structureIdList='+t[0])
+					fastafile = response.read()
+					with open(self.rootdir+t[0]+'.fasta','w') as fp: fp.write(fastafile)
+					copy(self.rootdir+t[0]+'.fasta','./repo/'+t[0]+'.fasta')
 			self.template.append(t)
 			
-	def build_model_single(self):
+	def build_model_single(self,targi=0,tempi=0):
 	
-		targi = 0
-		tempi = 0
 		if len(self.template) != 1: raise Exception('except: needs only one template '+str(self.template))
 		if len(self.target) != 1:
 			if 'target_name' in self.settings.keys():
@@ -214,3 +227,45 @@ class ProteinHomology:
 		cmd = [gmxpaths['modeller'],'script-multi.py']
 		call(cmd,logfile='log-modeller-script-multi',cwd=self.rootdir)
 
+
+	def build_model_mutator(self):
+
+		print "beginning mutation procedure"
+		#---deprecated use of fasta file for getting the sequence
+		if 0:
+			with open(self.rootdir+self.template[0][0]+'.fasta','r') as fp: lines = fp.readlines()
+			seqstarts = [li for li,l in enumerate(lines) if re.match('^>',l)]+[len(lines)]
+			pdbcodes = [re.findall('^>([A-Z,0-9]{4})\:([A-Z]{1})\|',lines[i])[0] for i in seqstarts[:-1]]
+			seqs = [''.join([lines[l].strip('\n') for l in range(seqstarts[i-1]+1,seqstarts[i])]) 
+				for i in range(1,len(seqstarts))]
+			template = self.template[0]
+			sequence = seqs[pdbcodes.index(template)]
+			#---note that this is a hack but we get the first residue index from the PDB file directly
+			with open(self.rootdir+template[0]+'.pdb','r') as fp: lines = fp.readlines()
+			startres = int([l for l in lines if re.match('^ATOM',l)][0].split()[5])
+		with open(self.rootdir+self.template[0][0]+'.pdb','r') as fp: lines = fp.readlines()
+		seqresli = [li for li,l in enumerate(lines) if re.match('^SEQRES\s+',l)]
+		seqraw = [re.findall('^SEQRES\s+[0-9]+\s+([A-Z])\s+[0-9]+\s+(.+)',lines[li])[0] for li in seqresli]
+		sequence = ''.join([''.join([aacodemap[j] for j in i[1].split()]) 
+			for i in seqraw if i[0] == self.template[0][1]])
+		#---handle missing residues
+		missingli = [re.findall('^REMARK\s+([0-9]+)\sMISSING RESIDUES',l)[0] for li,l in enumerate(lines) 
+			if re.match('^REMARK\s+([0-9]+)\sMISSING RESIDUES',l)][0]
+		startres = int([re.findall('^REMARK\s+'+missingli+'\s+[A-Z]{3}\s+[A-Z]\s+([0-9]+)',l)[0]
+			for li,l in enumerate(lines) 
+			if re.match('^REMARK\s+'+missingli+'\s+[A-Z]{3}\s+[A-Z]\s+[0-9]+',l)][0])
+		self.target = []
+		for mi,mut in enumerate(self.settings['mutations']):
+			sequence_mut = list(sequence)
+			if sequence[mut[1]-startres] != mut[0]: raise Exception('wrong starting residue')
+			else: sequence_mut[mut[1]-startres] = mut[2]
+			sequence_mut = ''.join(sequence_mut)
+			print 'template sequence = '+sequence
+			print 'mutated sequence = '+sequence_mut
+			self.target.append(['mutation'+str(mi),sequence_mut])
+		for mi,mut in enumerate(self.settings['mutations']):
+			print 'building homology model for mutation '+str(mi)
+			self.settings['target_name'] = self.target[mi][0]
+			self.build_model_single(targi=mi,tempi=0)
+
+		
