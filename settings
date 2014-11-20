@@ -114,13 +114,9 @@ HOW TO ADD CLUSTER SPECS
 #-------------------------------------------------------------------------------------------------------------
 
 #---regex list for files to remove
-patlist = ['log-','em-all-','step-','.top$','.mdp$','.tpr$','.xtc$','.trr$','.gro$','.edr$','.log$','.cpt$',
-	'\.itp$','cluster-','gmxpaths','gmxcalls','gmxjob','#','.dat','.pdb','script-','.jpeg$','.jpg$',
-	'script']
-	
 patlist = ['\.?\/?.+\.'+i+'$' for i in 
 	['itp','top','mdp','tpr','xtc','trr','gro','edr','log','cpt','ndx',
-		'dat','pdb','jpeg','jpg','pl','sh','png','ali','py']]+\
+		'dat','pdb','jpeg','jpg','pl','sh','png','ali','py','txt']]+\
 	['^gmxpaths','^gmxcalls','^gmxjob','^cluster-','^\#.+\#$','^script-','^log-','^em-all-','^step-']
 	
 #---ignore reset delete candidates 
@@ -155,7 +151,7 @@ default_proc_specs = {
 		'scratch':False},
 	'walnut':
 		{'nodes':1,'ppn':32,'walltime':24,'pmem':'1500mb',
-		'module':'module load gromacs-gcc',
+		'module':'module load gromacs/4.6.7-icc-single',
 		'scratch':False},
 	}
 	
@@ -170,16 +166,16 @@ gmx_suffixes = {
 	'compbio_xeons':'_mpi',
 	'compbio_opterons':'_mpi',
 	'compbio_opterons_gpu':'_mpi',
-	'walnut':'_mpi_d',
+	'walnut':'_mpi',
 	}
 
 #---system-specific commands to substitute for standard_gromacs_commands
 #---note some commands require a number of processors NPROCS which is substituted by ./controller make
 gmx_overrides = {
-	'local':{'mdrun':'mdrun -nt 2',},
+	'local':{'mdrun':'mdrun -nt 4',},
 	'compbio_xeons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	'compbio_opterons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
-	'walnut':{'mdrun':'mpirun -np NPROCS mdrun_mpi_d',},
+	'walnut':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	}
 
 #---paths to extra tools

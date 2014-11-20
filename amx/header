@@ -13,6 +13,8 @@ try:
 except:
 	#---in case of legitimate error make sure the error message is printed
 	traceback.print_exc()
+	print 'importing locally'
+	from amxsim import *
 	from lipidgrid import MonolayerGrids
 	from bilayer import Bilayer
 	from protein import ProteinWater

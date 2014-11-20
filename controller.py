@@ -11,7 +11,8 @@ import glob
 
 execfile('settings')
 from amx.tools import checkout,multiresub,confirm
-from amx.tools import script_maker,prep_scripts,niceblock,argsort,chain_steps
+from amx.tools import script_maker,prep_scripts,niceblock,argsort,chain_steps,latestcheck
+from amx.tools import get_proc_settings
 
 helpstring = """\n
 	Automacs (AMX) CONTROLLER.\n
@@ -93,6 +94,14 @@ fi
 """
 ]
 
+prepare_multiply = [
+"""
+#---copy simulation continuation files
+mkdir ./$step_simulation
+cp -r ./sources/general-sim-restart/* ./$step_simulation;
+"""
+]
+
 call_equil = """#---execute equilibration step
 cd $step_equilibration
 ./script-equilibrate.pl
@@ -108,6 +117,13 @@ cd ..
 \n"""
 
 call_sim_restart = """#---execute simulation restart step
+cd $step_simulation
+./script-sim-restart.pl
+if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
+cd ..
+\n"""
+
+call_sim_multiply = """#---execute simulation restart step
 cd $step_simulation
 ./script-sim-restart.pl
 if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
@@ -131,7 +147,9 @@ if [[ "$go" =~ fail$ ]];then exit;fi
 #---amx procedure details
 script_dict = {
 	'cgmd-bilayer':{
-		'prep':prepare_equil_sim,
+		'prep':[prepare_equil_sim[0]+\
+			"sed -i 's/STEPSTRING.*/STEPSTRING=\"nvt npt\"/g' $step_equilibration/settings.sh"]+\
+			prepare_equil_sim[1:],
 		'steps':{
 			'step_monolayer':'s01-build-lipidgrid',
 			'step_build':'s02-build-bilayer',
@@ -242,6 +260,23 @@ script_dict = {
 		'continue':True,
 		'sequence':['\n',
 			call_sim_restart,
+			call_sim,
+			],
+		},
+	'multiply':{
+		'prep':prepare_multiply,
+		'steps':{
+			'step_simulation':'s01-multiply',
+			'detect_previous_step':None,
+			},
+		'continue':True,
+		'sequence':['\n',
+			multiresub(dict({
+				'ROOTDIR':'$step_simulation',
+				'COMMAND':'Multiply(rootdir=\'$step_simulation\',previous_dir=\'$previus_step\','+\
+					'nx=\'$nx\',ny=\'$ny\',nz=\'$nz\')',
+				}),python_from_bash),
+			call_sim_restart,
 			],
 		},
 	}
@@ -249,7 +284,7 @@ script_dict = {
 #---FUNCTIONS
 #-------------------------------------------------------------------------------------------------------------
 
-def clean(sure=True,protected=False):
+def clean(sure=True,protected=False,extras=None):
 	'''
 	Clears all run files from the current directory structure.
 	'''
@@ -296,86 +331,85 @@ def clean(sure=True,protected=False):
 		for f in deldirs_protect: os.system('rm -rf '+f[0]+'/'+f[1])
 		
 					
-def docs():
+def docs(extras=None):
 	'''Regenerate the documentation using sphinx-apidoc and code in amx/gendoc.sh'''
 	os.system('./amx/script-make-docs.sh '+os.path.abspath('.'))
+	
+def upload(step=None,extras=None):
+	'''Provides a file list and rsync syntax to upload this to a cluster without extra baggage.'''
+	gofiles = ['controller.py','makefile','settings']
+	startstep,oldsteps = chain_steps()
+	if step != None:
+		if step not in oldsteps: raise Exception('except: cannot find that step folder')
+		last = step
+	elif not re.match('^[a-z][0-9]{1,2}\-sim',last):
+		raise Exception('last step must be a sim step if you want to upload it')
+	else: last = oldsteps[-1]
+	for root,dirnames,filenames in os.walk('./amx'): break
+	for fn in filenames: gofiles.append('amx/'+fn)
+	if step == None:
+		for t in latestcheck(last): gofiles.append(last+'/'+t)
+		for j in [i for i in filenames if re.match('^.+\.(pl|sh)$',i)]: gofiles.append(last+'/'+j)
+	else:
+		for root,dirnames,filenames in os.walk(last): break
+		for fn in filenames: gofiles.append(last+'/'+fn)
+	cwd = os.path.basename(os.path.abspath(os.getcwd()))
+	with open('upload-rsync-list.txt','w') as fp: 
+		for i in gofiles: fp.write(i+'\n')
+	print 'upload list written to upload-rsync-list.txt\nrun the following rsync to your destination'
+	print 'rsync -avi --files-from=upload-rsync-list.txt ../'+cwd+' DEST/'+cwd
 
-
-#---MAKE
 #-------------------------------------------------------------------------------------------------------------
+
+def rescript(single=None,**extras): script(single=single,rescript=True,**extras)
 					
-def script(single=None):
+def script(single=None,rescript=False,**extras):
+
 	'''
 	Deposit PBS scripts in each step folder for the corresponding step and make master scripts.
 	'''
 	
-	if single == None: raise Exception('except: unclear target')
+	#---check for sensible script target
+	if single == None and rescript == False: raise Exception('except: unclear target')
+	#---a rescript on the cluster will find the most recent step and add a continue script to it
+	elif single == None and rescript == True:
+		startstep,oldsteps = chain_steps()
+		print '\twriting a cluster-md-continue to '+oldsteps[-1]
+		proc_settings,header_source_mod = get_proc_settings()
+		if header_source_mod == None: raise Exception('except: lone rescript only works on clusters')
+		#---write a simulation continuation script to the final step
+		fp = open(oldsteps[-1]+'/cluster-md-continue','w')
+		fp.write(header_source_mod)
+		fp.write(script_maker('restart',script_dict,module_commands=proc_settings['module'],
+			sim_only=True,extras=extras))
+		fp.close()		
+
 	#---single procedure script maker
 	else:
 		target = single
 		print helpstring
 		print "\tGenerating singleton script.\n"
-	
-		#---update the input specs file simscale parameter according to the target simulation
-		simscale = 'cgmd' if any([j=='cgmd' for j in target.split('-')]) else 'aamd'
-		for fn in glob.glob('./inputs/input-specs*'):
-			sub = subprocess.call(['sed','-i',"s/^.*simscale.*$/simscale = \'"+simscale+"\'/",fn])
-	
-		#---determine location
-		hostname = None
-		for key in valid_hostnames.keys():
-			subproc_failed = False
-			try: check_host = re.match(key,subprocess.check_output(['echo $HOSTNAME'],
-				shell=True).strip('\n'))
-			except: check_host = False
-			if check_host or re.match(key,socket.gethostname()):
-				hostname = key
-				break
-		print '\thostname = '+str(hostname)
-		#---if no hostname matches use the local steps
-		if hostname == None: system_id = 'local'
-		#---check for multiple architectures and choose the first one by default
-		if hostname in valid_hostnames.keys() and valid_hostnames[hostname] != None: 
-			arch = valid_hostnames[hostname][0]
-		else: arch = None
-		if hostname != None: system_id = hostname+('' if arch == None else '_'+arch)
-		if hostname != None and system_id in default_proc_specs.keys():
-			print '\thost/architecture settings: '
-			for key in default_proc_specs[system_id]: 
-				print '\t\t'+key+' = '+str(default_proc_specs[system_id][key])
-			proc_settings = default_proc_specs[system_id]
-			print '\tto use different settings, edit amx-bearings and rerun make'	
-		else: proc_settings = None
 
-		#---write gmxpaths.conf
-		#---note that you can only change the NPROCS commands passed downstream here
-		#---...this means that ./controller make must be rerun to switch processor counts
-		fp = open('gmxpaths.conf','w')
-		for key in standard_gromacs_commands:
-			if system_id in gmx_overrides.keys() and key in gmx_overrides[system_id].keys():
-				command_syntax = gmx_overrides[system_id][key]
-				if proc_settings != None:
-					command_syntax = re.sub('NPROCS',
-						str(proc_settings['nodes']*proc_settings['ppn']),command_syntax)
-				fp.write(key+' '+command_syntax+'\n')
-			elif system_id in gmx_suffixes.keys(): 
-				fp.write(key+' '+key+gmx_suffixes[system_id]+'\n')
-			else: fp.write(key+' '+key+'\n')
-		#---extra tool paths
-		for key in tool_paths.keys():
-			fp.write(key+' '+tool_paths[key]+'\n')
-		fp.close()
+		#---update the input specs file simscale parameter according to the target simulation
+		if any([j=='cgmd' for j in target.split('-')]): simscale = 'cgmd'                                                                                                       
+		elif any([j=='aamd' for j in target.split('-')]): simscale = 'aamd'                                                                                                     
+		else: simscale = None                                                                                                                                               
+		if simscale != None:                                                                                                                                                    
+			for fn in glob.glob('./inputs/input-specs*'):                                                                                                                   
+				sub = subprocess.call(['sed','-i',"s/^.*simscale.*$/simscale = \'"+simscale+"\'/",fn])
+	
+		proc_settings,header_source_mod = get_proc_settings()
 
 		#---write the local script
 		print '\twriting script: script-master-'+str(target)
 		fp = open('script-master-'+str(target),'w')
 		fp.write('#!/bin/bash\n')
-		fp.write(script_maker(target,script_dict))
+		fp.write(script_maker(target,script_dict,extras=extras))
 		fp.close()
 		os.system('chmod u+x '+'script-master-'+str(target))
 		
 		#---prepare the files and directories
-		prep_scripts(target,script_dict)
+		if not rescript: prep_scripts(target,script_dict)
 		
 		#---for simulations that can be continued we write a script for only the final step in the sequence
 		if 'continue' in script_dict[target].keys() and script_dict[target]['continue']:
@@ -383,46 +417,27 @@ def script(single=None):
 			startstep,oldsteps = chain_steps()
 			fp = open(oldsteps[-1]+'/script-md-continue','w')
 			fp.write('#!/bin/bash\n')
-			fp.write(script_maker(target,script_dict,sim_only=True))
+			fp.write(script_maker(target,script_dict,sim_only=True,extras=extras))
 			fp.close()
 			os.system('chmod u+x '+oldsteps[-1]+'/script-md-continue')
-	
+		
 		#---write cluster-header if possible
-		scratch_suffix = ''
-		if proc_settings != None:
-			if proc_settings['scratch']: scratch_suffix = '_scratch'
-		if hostname != None and 'cluster_header_'+system_id+scratch_suffix in script_repo:
-			scripttext = script_repo['cluster_header_'+system_id+scratch_suffix]
-			#---if the header is a list, then it must contain a header and a footer
-			if type(scripttext) == list:
-				header_source = scripttext[0]
-				header_source_footer = scripttext[1]
-			else:
-				header_source = scripttext
-				header_source_footer = None
-			header_source_mod = []
-			for line in header_source.split('\n'):
-				if line[:7] == '#PBS -l' and proc_settings != None:
-					line = \
-						'#PBS -l nodes='+str(proc_settings['nodes'])+\
-						':ppn='+str(proc_settings['ppn'])+\
-						(',pmem='+proc_settings['pmem'] if 'pmem' in proc_settings.keys() else '')+\
-						',walltime='+str(proc_settings['walltime'])+':00:00'
-				header_source_mod.append(line)
-			header_source_mod = '\n'.join(header_source_mod)
+		if header_source_mod != None:
 			print '\twriting PBS script: cluster-master-'+str(target)
 			fp = open('cluster-master-'+str(target),'w')
 			fp.write(header_source_mod)
-			fp.write(script_maker(target,script_dict,module_commands=proc_settings['module']))
+			fp.write(script_maker(target,script_dict,module_commands=proc_settings['module'],extras=extras))
 			if header_source_footer != None: fp.write(header_source_footer)
 			fp.close()
 			#---write a simulation continuation script to the final step
 			fp = open(script_dict[target]['steps']['step_simulation']+'/cluster-md-continue','w')
 			fp.write(header_source_mod)
-			fp.write(script_maker(target,script_dict,module_commands=proc_settings['module'],sim_only=True))
+			fp.write(script_maker(target,script_dict,module_commands=proc_settings['module'],
+				sim_only=True,extras=extras))
 			fp.close()		
 
 		print '\texecute locally with ./'+'script-master-'+str(target)
+		if rescript: print '\tsince this is a rescript you probably want to use the continue script'
 		print '\tsee the documentation for details\n'
 
 #---INTERFACE
@@ -452,7 +467,6 @@ def makeface(arglist):
 	
 	#---always get the function name from the first argument
 	func = arglist.pop(0)
-	
 	#---define the arguments expected for each function
 	argdict = {
 		'clean':{'args':['protected','sure'],'module_name':None,'defaults':{'sure':False}},
@@ -464,8 +478,12 @@ def makeface(arglist):
 				'cgmd-protein',
 				'protein-homology',
 				'restart',
+				'multiply',
 				]},
+		'upload':{'args':[],'module_name':None},
 		}
+	#---rescript is an alias for script for only doing the continue scripts
+	argdict['rescript'] = copy.deepcopy(argdict['script'])
 	
 	#---make a copy of the dictionary for pruning
 	if func not in argdict.keys():
@@ -480,18 +498,20 @@ def makeface(arglist):
 		for a in list(arglist): 
 			kwargs[a] = True if a in argd['args'] else False
 			if a in argd['args']: arglist.remove(a)
-	elif func == 'script':
-		if any([i for i in arglist if i in argd['singles']]) and len(arglist) > 1:
-			raise Exception('except: too many arguments')
-		elif any([i for i in arglist if i in argd['singles']]):
-			kwargs['single'] = arglist[0]
-			arglist = []
-
+	elif func == 'script' or (func == 'rescript' and len(arglist)>0):
+		if arglist[0] in argd['singles']: kwargs['single'] = arglist.pop(0)
 	#---all remaining keywords are handled as flags
-	for a in list(arglist): 
-		kwargs[a] = True if a in argd['args'] else False
-		if a in argd['args']: arglist.remove(a)
-	if arglist != []: raise Exception('except: unprocessed arguments: '+str(arglist))
+	for a in list(arglist):
+		if not re.match('^[a-z,A-Z,0-9]+\=[a-z,A-Z,0-9,\-,_]+$',a):
+			kwargs[a] = True if a in argd['args'] else False
+			if a in argd['args']: arglist.remove(a)
+		else:
+			flag = re.findall('^([a-z,A-Z,0-9]+)\=([a-z,A-Z,0-9,\-,_]+)$',a)[0]
+			kwargs[flag[0]] = flag[1]
+			arglist.remove(a)
+	if arglist != []: 
+		print 'warning: unprocessed arguments: '+str(arglist)
+		kwargs['extras'] = arglist
 
 	#---call the function possibly in another module
 	if argd['module_name'] == None and func != 'gitpush': target = globals()[func]

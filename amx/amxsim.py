@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
-from tools import call,checkout,tee,copy
-import os
+from tools import call,checkout,tee,copy,chain_steps,latestcheck,lastframe
+import os,sys,re
 
 #---locate gmxpaths
 if os.path.isfile('gmxpaths.conf'): gmxpaths_path = './'
@@ -149,7 +149,7 @@ class AMXSimulation:
 		else: bestmin = 'em-'+name+'-cg.gro' if forces[0] > forces[1] else 'em-'+name+'-steep.gro'
 		call('cp '+bestmin+' '+name+'-minimized.gro',cwd=self.rootdir)
 		
-	def grouping(self,grouptype='standard'):
+	def grouping(self,grouptype='standard',startstruct='counterions-minimized.gro'):
 		'''
 		Write the ``system-groups.ndx`` file for further simulation, which requires that the water and 
 		lipids and possibly proteins are coupled to their own temperature baths.
@@ -175,8 +175,84 @@ class AMXSimulation:
 				'\nname 1 LIPIDS\nname 2 SOLV\ndel 0\nq\n'
 			#---write a groups file suitable for bilayers with separate lipid and solvent groups
 			cmd = [gmxpaths['make_ndx'],
-				'-f counterions-minimized.gro',
+				'-f '+startstruct,
 				'-o system-groups.ndx']
 			call(cmd,logfile='log-make-ndx-groups',cwd=self.rootdir,inpipe=inpipe)
 		else: raise Exception('except: incomprehensible group type')
+
+class Multiply(AMXSimulation):
+
+	'''A generic class which continues a larger, periodic replicate of a simulation.'''
+	
+	def __init__(self,rootdir=None,previous_dir=None,nx=1,ny=1,nz=1,**kwargs):
+
+		#---set paths for the previous and current steps
+		self.rootdir = os.path.abspath(os.path.expanduser(rootdir))+'/'
+		self.prevdir = os.path.abspath(os.path.expanduser(previous_dir))+'/'
+		sys.stdout = tee(open(self.rootdir+'log-script-master','a',1))
+		sys.stderr = tee(open(self.rootdir+'log-script-master','a',1),error=True)
+		print 'MULTIPLYING THE SIMULATION BOX'
+
+		#---search backwards to find the most recent topology
+		startstep,oldsteps = chain_steps()
+		for ostep in oldsteps[::-1]:
+			for root,dirnames,filenames in os.walk(ostep): break
+			if 'system.top' in filenames: break
+		for fn in ['system.top','martini.ff','charmm36.ff','lipids-tops','input-md-in.mdp']:
+			if os.path.isfile(self.rootdir+'../'+ostep+'/'+fn) or \
+				os.path.isdir(self.rootdir+'../'+ostep+'/'+fn):
+				copy(self.rootdir+'../'+ostep+'/'+fn,self.rootdir+fn)
+		copy(self.rootdir+'system.top',self.rootdir+'system-small.top')
+		with open(self.rootdir+'system-small.top','r') as fp: small = fp.readlines()
+		startmol = [ii for ii,i in enumerate(small) if re.match('^(\s+)?\[\s?molecules\s?\]',i)][0]
+		
+		#---multiply the topology
+		nx = int(nx) if nx != '' else 1
+		ny = int(ny) if ny != '' else 1
+		nz = int(nz) if nz != '' else 1
+		newtop = []
+		for s in small[startmol+1:]:
+			if re.match('^[A-Z,a-z,_,+,-]+\s+[0-9]+$',s.strip('\n')):
+				newtop.append([s.split()[0],str(int(s.split()[1])*(nx*ny))])
+		with open(self.rootdir+'system.top','w') as fp:
+			for i in small[:startmol+1]: fp.write(i)
+			for n in newtop: fp.write(n[0]+' '+n[1]+'\n')
+		newtop = [[str(i[0]),int(i[1])] for i in newtop]
+		self.ion_residue_names = ['W','SOL','MG','NA','CL','Cal']
+		self.lnames = [i[0] for i in newtop]
+				
+		#---get the last frame using the second-to-last directory now that we made a multiply directory
+		self.smallstruct = latestcheck(oldsteps[-2])[0][:-4]+'.gro'
+		lastframe(rootdir=oldsteps[-2],prefix=self.smallstruct[:-4],gmxpaths=gmxpaths)
+		copy(oldsteps[-2]+'/'+self.smallstruct,self.rootdir+self.smallstruct)
+			
+		#---multiply the structure
+		cmd = [gmxpaths['genconf'],
+			'-f '+self.smallstruct,
+			'-o system-input-unsorted.gro',
+			'-nbox '+' '.join([str(i) for i in [nx,ny,nz]])]
+		call(cmd,logfile='log-genconf',cwd=self.rootdir)
+		
+		#---reorder the gro file
+		with open(self.rootdir+'system-input-unsorted.gro','r') as fp: lines = fp.readlines()
+		reord = lines[:2]
+		for res in newtop:
+			for line in lines:
+				if line[5:10].strip() == res[0] or line[10:15].strip() == res[0]: reord.append(line)
+		reord.append(lines[-1])
+		
+		with open(self.rootdir+'system-input-unordered.gro','w') as fp:
+			for line in reord: fp.write(line)
+
+		#---multiply the structure
+		cmd = [gmxpaths['editconf'],
+			'-f system-input-unordered.gro',
+			'-o system-input.gro',
+			'-resnr 1']
+		call(cmd,logfile='log-editconf-resnr',cwd=self.rootdir)
+		self.grouping(grouptype='bilayer',startstruct='system-input.gro')
+		os.remove(self.rootdir+self.smallstruct)
+		
+		
+		
 

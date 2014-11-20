@@ -99,6 +99,7 @@ class Bilayer(amxsim.AMXSimulation):
 		if os.path.isfile(self.rootdir+'system.gro'): 
 			sys.stdout = tee(open(self.rootdir+'log-script-master','a',1))
 			sys.stderr = tee(open(self.rootdir+'log-script-master','a',1),error=True)
+			print 'START BILAYER'
 			print 'skipping this step because system.gro exists'
 		else:
 			#---make root directory
@@ -203,9 +204,28 @@ class Bilayer(amxsim.AMXSimulation):
 			self.comps.append([self.settings['negative_ion_name'],str(ncount)])
 			self.comps[self.lnames.index(self.settings['sol_name'])][1] = str(nwaters - pcount - ncount)
 		if not os.path.isfile(self.rootdir+'system.gro'):
-			call('cp counterions-minimized.gro system.gro',cwd=self.rootdir)
+			call('cp counterions-minimized.gro system-uncentered.gro',cwd=self.rootdir)
 		if not os.path.isfile(self.rootdir+'system.top'): self.write_topology_bilayer('system.top')
 		if not os.path.isfile(self.rootdir+'system-groups.ndx'): self.grouping(grouptype='bilayer')
+		
+		print "translating the final configuration so the bilayer is in the middle"
+		lipid_resnames = [i for i in self.lnames if i not in [self.settings[j] 
+			for j in ['negative_ion_name','positive_ion_name','sol_name']]]
+		selstring = ' | '.join(['r '+i for i in lipid_resnames])
+		cmd = [gmxpaths['make_ndx'],
+			'-f system-uncentered.gro',
+			'-o index-lipids.ndx']
+		call(cmd,logfile='log-make-ndx-lipids',cwd=self.rootdir,inpipe='keep 0\n'+selstring+'\nq\n')
+		#---the following does not center the bilayer if it broken over PBCs because it uses center
+		#---...hence we have a previous heuristic method to center the bilayer during the solvate step
+		cmd = [gmxpaths['trjconv'],
+			'-f system-uncentered.gro',
+			'-o system.gro',
+			'-n index-lipids.ndx',
+			'-s em-counterions-steep.tpr',
+			'-center',
+			'-pbc mol']
+		call(cmd,logfile='log-trjconv-system-shift-center',cwd=self.rootdir,inpipe='1\n0\n')
 	
 	def vacuum(self):	
 		'''Assemble monolayers into a bilayer and minimize.'''
@@ -334,13 +354,42 @@ class Bilayer(amxsim.AMXSimulation):
 			'-d 0']
 		call(cmd,logfile='log-editconf-vacuum-packed-check-dims',cwd=self.rootdir)
 		boxdims = self.get_box_vectors('log-editconf-vacuum-packed-check-dims',new=False)
+		boxdims2 = self.get_box_vectors('log-editconf-vacuum-packed-check-dims',new=True)
 
-		print "making a water box with the same footprint as the bilayer"
-		cmd = [gmxpaths['genbox'],
-			'-cs '+self.settings['water_conf'],
-			'-o solvate-empty-uncentered.gro',
-			'-box '+str(boxdims[0])+' '+str(boxdims[1])+' '+str(self.settings['solvent_thickness'])]
-		call(cmd,logfile='log-genbox-solvate-empty',cwd=self.rootdir)
+		if self.simscale == 'aamd':
+			print "making a water box with the same footprint as the bilayer"
+			cmd = [gmxpaths['genbox'],
+				'-cs '+self.settings['water_conf'],
+				'-o solvate-empty-uncentered.gro',
+				'-box '+str(boxdims[0]-self.settings['lipid_water_buffer'])+\
+				' '+str(boxdims[1]-self.settings['lipid_water_buffer'])+\
+				' '+str(self.settings['solvent_thickness'])]
+			call(cmd,logfile='log-genbox-solvate-empty',cwd=self.rootdir)
+		elif self.simscale == 'cgmd':
+			
+			#---function for making exact water box
+			basedim = 3.64428
+			newdims = boxdims[:2]+[self.settings['solvent_thickness']]
+			print 'running genconf hack due to problems with genbox/vdwradii and martini water'
+			print 'target dimensions = '+str(newdims)
+			print 'larger dimensions = '+str([str(int(i/basedim+1)) for i in newdims])
+			cmd = [gmxpaths['genconf'],
+				'-f '+self.settings['water_conf'],
+				'-o solvate-empty-uncentered-untrimmed.gro',
+				'-nbox '+' '.join([str(int(i/basedim+1)) for i in newdims])]
+			call(cmd,logfile='log-genconf-solvate-empty',cwd=self.rootdir)
+			#---trimming waters
+			with open(self.rootdir+'solvate-empty-uncentered-untrimmed.gro','r') as fp:
+				lines = fp.readlines()
+			modlines = []
+			for line in lines[2:-1]:
+				coords = [float(i) for i in line[20:].split()][:3]
+				if all([coords[i]<newdims[i] for i in range(3)]): modlines.append(line)
+			with open(self.rootdir+'solvate-empty-uncentered.gro','w') as fp:
+				fp.write(lines[0])
+				fp.write(str(len(modlines))+'\n')
+				for l in modlines: fp.write(l)
+				fp.write(lines[-1])
 
 		print "counting waters"
 		if self.simscale == 'aamd':
@@ -349,25 +398,33 @@ class Bilayer(amxsim.AMXSimulation):
 		elif self.simscale == 'cgmd':
 			nwaters = (int(checkout(['wc','-l','solvate-empty-uncentered.gro'],
 				cwd=self.rootdir).split()[0])-3)
+				
+		print "translating the bilayer"
+		cmd = [gmxpaths['editconf'],
+			'-f vacuum-packed.gro',
+			'-o solvate-bilayer-flush.gro',
+			'-box '+str(boxdims[0])+' '+str(boxdims[1])+' '+\
+				str(boxdims2[2]+2*self.settings['lipid_water_buffer'])]
+		call(cmd,logfile='log-editconf-solvate-bilayer-flush',cwd=self.rootdir)
 
 		print "translating water box"
 		#---removed lipid_water_buffer from below
-		lwtranslate = self.settings['solvent_thickness']
+		#---note that this was previously shifted by self.settings['solvent_thickness']
+		#---note that revisions to the procedure require checks for compatibility with atomistic bilayers
+		lwtranslate = boxdims2[2]+2*self.settings['lipid_water_buffer']
 		cmd = [gmxpaths['editconf'],
 			'-f solvate-empty-uncentered.gro',
 			'-o solvate-empty.gro',
-			'-translate 0 0 -'+str(lwtranslate)]
+			'-translate 0 0 '+str(lwtranslate)]
 		call(cmd,logfile='log-editconf-solvate-move-empty',cwd=self.rootdir)
 
 		print "concatenating water and bilayer"
-		#---note that the AAMD setup is more sensitive and likely to crash
-		#---...for that reason we use the "editdconf -d 0" output to make it more flush
-		#---...and assume that the 
-		#---swapped in the md-vacuum-p2-check-dims.gro for vacuum-packed.gro here
+		#---note that we previously swapped in md-vacuum-p2-check-dims.gro here for aamd to 
+		#---...provide a more flush bilayer however recent improvements motivated by CGMD simulations
+		#---...have made the construction more uniform so it may be useful to try the new, general method
+		#---...also ntoe that vacuum-packed.gro will have geometries that are too dependent on vacuum step
 		confs = [[line for line in open(self.rootdir+fn,'r')] 
-			for fn in [
-				('md-vacuum-p2-check-dims.gro'if self.simscale == 'aamd' else 'vacuum-packed.gro'),
-				'solvate-empty.gro']]
+			for fn in ['solvate-bilayer-flush.gro','solvate-empty.gro']]
 		natoms = str(sum([len(conf)-3 for conf in confs]))
 		fp = open(self.rootdir+'solvate-unsized.gro','w')
 		fp.write('bilayer\n'+natoms+'\n')
@@ -386,13 +443,14 @@ class Bilayer(amxsim.AMXSimulation):
 			'-d '+str(float(self.settings['lipid_water_buffer']))]
 		call(cmd,logfile='log-editconf-solvate-unsized',cwd=self.rootdir)
 		boxdimsxy = boxdims[:2]
-		boxdims = self.get_box_vectors('log-editconf-solvate-unsized',new=True)
+		boxdims = self.get_box_vectors('log-editconf-solvate-unsized',new=False)
 
 		print "resizing the box"
 		cmd = [gmxpaths['editconf'],
 			'-f solvate-unsized.gro',
 			'-o solvate.gro',
-			'-box '+str(boxdimsxy[0])+' '+str(boxdimsxy[0])+' '+str(boxdims[2])+' ']
+			'-box '+str(boxdimsxy[0])+' '+str(boxdimsxy[0])+' '+\
+				str(boxdims[2]+self.settings['solvent_thickness'])+' ']
 		call(cmd,logfile='log-editconf-solvate',cwd=self.rootdir)
 
 		print "counting waters and updating topology"
@@ -404,11 +462,13 @@ class Bilayer(amxsim.AMXSimulation):
 				cwd=self.rootdir).split()[0])-3)
 		self.lnames.append(self.settings['sol_name'])
 		self.comps.append([self.settings['sol_name'],str(nwaters)])
-	
+
 		self.write_topology_bilayer('solvate.top')
 		self.minimization_method('solvate')
 		
 		print "translating so the bilayer is in the middle"
+		#---note that this step uses a heuristic to partly center the bilayer in the normal direction
+		#---...as long as the bilayer doesn't span the PBC boundary then a follow-up will center it
 		call('mv solvate-minimized.gro solvate-minimized-unshifted.gro',cwd=self.rootdir)
 		cmd = [gmxpaths['trjconv'],
 			'-f solvate-minimized-unshifted.gro',
@@ -416,7 +476,7 @@ class Bilayer(amxsim.AMXSimulation):
 			'-trans 0 0 '+str(-1*self.settings['solvent_thickness']/2.-self.settings['lipid_water_buffer']),
 			'-s em-solvate-steep.tpr',
 			'-pbc mol']
-		call(cmd,logfile='log-trjconv-solvate-shift-center',cwd=self.rootdir,inpipe='0\n')		
+		call(cmd,logfile='log-trjconv-solvate-shift-center',cwd=self.rootdir,inpipe='0\n')
 
 	def counterionize(self):
 		'''Add counterions to the water slab.'''
@@ -550,4 +610,4 @@ class Bilayer(amxsim.AMXSimulation):
 
 		self.write_topology_bilayer('counterions.top')
 		self.minimization_method('counterions')
-				
+

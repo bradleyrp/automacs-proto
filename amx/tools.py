@@ -19,6 +19,9 @@ import sys,os
 import glob,re
 import errno
 import shutil
+import socket
+if os.path.isfile('settings'): execfile('settings')
+elif os.path.isfile('../settings'): execfile('../settings')
 
 #---FUNCTIONS
 #-------------------------------------------------------------------------------------------------------------
@@ -173,7 +176,7 @@ def chain_steps():
 	else: startstep = 0
 	return startstep,oldsteps
 	
-def write_steps_to_bash(steps,startstep,oldsteps):
+def write_steps_to_bash(steps,startstep,oldsteps,extras=None):
 	'''
 	Given a file pointer and a list of steps from the script_dict, this function will write the relevant 
 	variables to bash variables. Note that we use this function in script_maker and prep_scripts (which
@@ -195,9 +198,12 @@ def write_steps_to_bash(steps,startstep,oldsteps):
 		elif step == 'detect_previous_step' and oldsteps != []:
 			bashheader += 'detect_previous_step='+oldsteps[-1]+'\n'
 		elif step not in ['detect_previous_step']: bashheader += step+'='+steps[step]+'\n'
+	if extras != None:
+		for key in extras.keys():
+			for extra in extras: bashheader += key+'='+extras[key]+'\n'
 	return bashheader
 	
-def script_maker(target,script_dict,module_commands=None,sim_only=False):
+def script_maker(target,script_dict,module_commands=None,sim_only=False,extras=None):
 	'''
 	Prepare the master script for a particular procedure.
 	'''
@@ -205,14 +211,20 @@ def script_maker(target,script_dict,module_commands=None,sim_only=False):
 	steps = script_dict[target]['steps']
 	script = '\n#---definitions\n'
 	startstep,oldsteps = chain_steps()
-	script += write_steps_to_bash(steps,startstep,oldsteps)
 	#---the sim_only flag uses only the last, presumably "continuation" segment of the sequence
+	if not sim_only: script += write_steps_to_bash(steps,startstep,oldsteps,extras=extras)
 	if sim_only: seq_segments = script_dict[target]['sequence'][-1:]
 	else: seq_segments = script_dict[target]['sequence']
 	for segment in seq_segments: 
 		#---we add module_commands before each segment to ensure GROMACS paths are set
 		if module_commands != None: script += '\n'+module_commands+'\n'
-		script += segment
+		#---if sim_only, then the script is run from within the step folder in which case we remove cd
+		if not sim_only: script += segment
+		else:
+			segtrim,seglines = [],segment.split('\n')
+			for line in seglines:
+				if not re.match('^cd\s',line):
+					script += line+'\n'
 	return script
 	
 def prep_scripts(target,script_dict):
@@ -236,8 +248,18 @@ def prep_scripts(target,script_dict):
 def niceblock(text,newlines=False):
 	'''Remove tabs so that large multiline text doesn't awkwardly wrap in the code.'''
 	return re.sub('\n([\t])+',(' ' if not newlines else '\n'),re.sub('^\n([\t])+','',text))
-
-def LastFrame(prefix,rootdir,gmxpaths):
+	
+def latestcheck(last):
+	'''Return the most recept tpr/cpt files in a particular folder.'''
+	for root,dirnames,filenames in os.walk(last): break
+	tprs = [i for i in filenames if re.match('^md\.part[0-9]{4}\.tpr$',i)]
+	cpts = [i for i in filenames if re.match('^md\.part[0-9]{4}\.cpt$',i)]
+	tnum = argsort([int(re.findall('^md\.part([0-9]){4}\.tpr$',i)[0][0]) for i in tprs])[-1]
+	cnum = argsort([int(re.findall('^md\.part([0-9]){4}\.tpr$',i)[0][0]) for i in tprs])[-1]
+	if tprs[tnum][:-4] != tprs[cnum][:-4]: raise Exception('latest cpt/tpr files have different indices')
+	return [tprs[tnum],cpts[cnum]]
+	
+def lastframe(prefix,rootdir,gmxpaths):
 	'''
 	This function is used to retreive the last frame of a particular simulation.\n
 	The user supplies a filename prefix and root directory (via kwargs `prefix` and `rootdir`) and this
@@ -248,13 +270,15 @@ def LastFrame(prefix,rootdir,gmxpaths):
 		print 'configuration is missing so we will extract the last frame'
 		cmd = [gmxpaths['gmxcheck'],
 			'-f '+prefix+'.xtc']
-		call(cmd,logfile='log-gmxcheck-'+prefix,cwd=rootdir)
+		call(cmd,logfile='log-gmxcheck-'+prefix,cwd=rootdir+'/')
 		lastframe = int(checkout(["awk","'/Step / {print $2}'",
-			'log-gmxcheck-'+prefix],cwd=rootdir).strip())
+			'log-gmxcheck-'+prefix],cwd=rootdir+'/').strip())
 		ts = float(checkout(["awk","'/Step / {print $3}'",
-			'log-gmxcheck-'+prefix],cwd=rootdir).strip())
+			'log-gmxcheck-'+prefix],cwd=rootdir+'/').strip())
+		t0 = float(checkout(["awk","'/Reading\s+frame\s+0\s+time/ {print $5}'",
+			'log-gmxcheck-'+prefix],cwd=rootdir+'/').strip())
 		#---note that rpb added a rounding function after an error in an AAMD test 2014.08.24
-		lasttime = float(int(float(lastframe)*ts))
+		lasttime = float(int((float(lastframe)+1)*ts))
 		lasttime = round(lasttime/10)*10
 		print 'last viable frame was at '+str(lasttime)+' ps'
 		print 'retrieving that frame'
@@ -263,7 +287,84 @@ def LastFrame(prefix,rootdir,gmxpaths):
 			'-o '+prefix+'.gro',
 			'-s '+prefix+'.tpr',
 			'-b '+str(lasttime),
-			'-e '+str(lasttime),]
-		call(cmd,logfile='log-trjconv-'+prefix,cwd=rootdir,inpipe='0\n')
+			'-e '+str(lasttime),
+			'-pbc mol',]
+		call(cmd,logfile='log-trjconv-'+prefix,cwd=rootdir+'/',inpipe='0\n')
 	else: print 'configuration file is already available'
+	
+def get_proc_settings():
+
+	'''Determine processor settings from hostname.'''
+
+	#---determine location
+	hostname = None
+	for key in valid_hostnames.keys():
+		subproc_failed = False
+		try: check_host = re.match(key,subprocess.check_output(['echo $HOSTNAME'],
+			shell=True).strip('\n'))
+		except: check_host = False
+		if check_host or re.match(key,socket.gethostname()):
+			hostname = key
+			break
+	print '\thostname = '+str(hostname)
+	#---if no hostname matches use the local steps
+	if hostname == None: system_id = 'local'
+	#---check for multiple architectures and choose the first one by default
+	if hostname in valid_hostnames.keys() and valid_hostnames[hostname] != None: 
+		arch = valid_hostnames[hostname][0]
+	else: arch = None
+	if hostname != None: system_id = hostname+('' if arch == None else '_'+arch)
+	if hostname != None and system_id in default_proc_specs.keys():
+		print '\thost/architecture settings: '
+		for key in default_proc_specs[system_id]: 
+			print '\t\t'+key+' = '+str(default_proc_specs[system_id][key])
+		proc_settings = default_proc_specs[system_id]
+		print '\tto use different settings, edit amx-bearings and rerun make'	
+	else: proc_settings = None
+	
+	#---write gmxpaths.conf
+	#---note that you can only change the NPROCS commands passed downstream here
+	#---...this means that ./controller make must be rerun to switch processor counts
+	fp = open('gmxpaths.conf','w')
+	for key in standard_gromacs_commands:
+		if system_id in gmx_overrides.keys() and key in gmx_overrides[system_id].keys():
+			command_syntax = gmx_overrides[system_id][key]
+			if proc_settings != None:
+				command_syntax = re.sub('NPROCS',
+					str(proc_settings['nodes']*proc_settings['ppn']),command_syntax)
+			fp.write(key+' '+command_syntax+'\n')
+		elif system_id in gmx_suffixes.keys(): 
+			fp.write(key+' '+key+gmx_suffixes[system_id]+'\n')
+		else: fp.write(key+' '+key+'\n')
+	#---extra tool paths
+	for key in tool_paths.keys():
+		fp.write(key+' '+tool_paths[key]+'\n')
+	fp.close()
+	
+	#---write cluster-header if possible
+	scratch_suffix = ''
+	if proc_settings != None:
+		if proc_settings['scratch']: scratch_suffix = '_scratch'
+	if hostname != None and 'cluster_header_'+system_id+scratch_suffix in script_repo:
+		scripttext = script_repo['cluster_header_'+system_id+scratch_suffix]
+		#---if the header is a list, then it must contain a header and a footer
+		if type(scripttext) == list:
+			header_source = scripttext[0]
+			header_source_footer = scripttext[1]
+		else:
+			header_source = scripttext
+			header_source_footer = None
+		header_source_mod = []
+		for line in header_source.split('\n'):
+			if line[:7] == '#PBS -l' and proc_settings != None:
+				line = \
+					'#PBS -l nodes='+str(proc_settings['nodes'])+\
+					':ppn='+str(proc_settings['ppn'])+\
+					(',pmem='+proc_settings['pmem'] if 'pmem' in proc_settings.keys() else '')+\
+					',walltime='+str(proc_settings['walltime'])+':00:00'
+			header_source_mod.append(line)
+		header_source_mod = '\n'.join(header_source_mod)
+	else: header_source_mod = None
+	
+	return proc_settings,header_source_mod
 

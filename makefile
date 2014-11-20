@@ -17,7 +17,7 @@ checkfile=.pipeline_up_to_date
 #---targets
 $(checkfile): $(scripts)
 	touch $(checkfile)
-	python controller.py ${RUN_ARGS}
+	python controller.py ${RUN_ARGS} ${MAKEFLAGS}
 
 #---default and arbitrary make targets
 default: $(checkfile)
@@ -26,5 +26,4 @@ $(TARGETS): $(checkfile)
 #---git push
 gitpush:
 	bash scripts/script-gitpush.sh ${RUN_ARGS}
-
 

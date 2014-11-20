@@ -30,5 +30,5 @@ This program will retreive the last frame of a simulation that crashed. The user
 
 rootdir = raw_input('root directory = ? ')
 prefix = raw_input('file prefix = ? ')
-LastFrame(rootdir=rootdir,prefix=prefix,gmxpaths=gmxpaths)
+lastframe(rootdir=rootdir,prefix=prefix,gmxpaths=gmxpaths)
 
