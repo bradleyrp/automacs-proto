@@ -497,7 +497,7 @@ def makeface(arglist):
 	argdict['rescript'] = copy.deepcopy(argdict['script'])
 	
 	#---make a copy of the dictionary for pruning
-	if func not in argdict.keys():
+	if func not in argdict.keys() and func != 'gitpush':
 		globals()[func]()
 		return
 	else: argd = copy.deepcopy(argdict[func])
