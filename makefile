@@ -25,5 +25,5 @@ $(TARGETS): $(checkfile)
 
 #---git push
 gitpush:
-	bash scripts/script-gitpush.sh ${RUN_ARGS}
+	bash amx/script-gitpush.sh ${RUN_ARGS}
 

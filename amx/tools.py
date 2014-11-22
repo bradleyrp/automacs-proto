@@ -319,7 +319,6 @@ def get_proc_settings():
 		for key in default_proc_specs[system_id]: 
 			print '\t\t'+key+' = '+str(default_proc_specs[system_id][key])
 		proc_settings = default_proc_specs[system_id]
-		print '\tto use different settings, edit amx-bearings and rerun make'	
 	else: proc_settings = None
 	
 	#---write gmxpaths.conf

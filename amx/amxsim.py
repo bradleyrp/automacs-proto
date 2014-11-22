@@ -212,7 +212,7 @@ class Multiply(AMXSimulation):
 		nz = int(nz) if nz != '' else 1
 		newtop = []
 		for s in small[startmol+1:]:
-			if re.match('^[A-Z,a-z,_,+,-]+\s+[0-9]+$',s.strip('\n')):
+			if re.match('^[A-Z,a-z,_,+,\-,0-9]+\s+[0-9]+$',s.strip('\n')):
 				newtop.append([s.split()[0],str(int(s.split()[1])*(nx*ny))])
 		with open(self.rootdir+'system.top','w') as fp:
 			for i in small[:startmol+1]: fp.write(i)

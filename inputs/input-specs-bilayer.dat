@@ -6,8 +6,8 @@
 #---...by deleting nlipids1, complist1, and lipidnames1
 
 nlipids0 = 600
-complist0 = [4,1]
-lipidnames0 = ['DOPC','DOPS']
+complist0 = [72,18,10]
+lipidnames0 = ['DOPC','DOPS','PIP2']
 nlipids1 = 600
 complist1 = [4,1]
 lipidnames1 = ['DOPC','DOPS']
@@ -15,7 +15,7 @@ lipidnames1 = ['DOPC','DOPS']
 #---SIMULATION RESOLUTION
 
 #---note specify either 'cgmd' or 'aamd' to set the correct parameters
-simscale = 'aamd'
+simscale = 'cgmd'
 
 #---CONSTRUCTION SETTINGS
 

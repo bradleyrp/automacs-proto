@@ -1,4 +1,4 @@
-#!/usr/bin/python -i
+#!/usr/bin/python
 
 import os,re,sys
 import subprocess
@@ -15,28 +15,37 @@ from amx.tools import script_maker,prep_scripts,niceblock,argsort,chain_steps,la
 from amx.tools import get_proc_settings
 
 helpstring = """\n
-	Automacs (AMX) CONTROLLER.\n
-	make <operation>
-	tools for running automatic GROMACS simulations\n
-	operations:
-	----------
-	clean           : clears the subdirectories of all run files
-	script <method> : generates PBS and bash scripts to construct simulations
-	docs            : re-generates documentation (development only)\n
-	methods:
-	-------
-	cgmd-bilayer    : build a coarse-grained lipid bilayer
-	aamd-bilayer    : build an atomistic lipid bilayer
-	aamd-protein    : build a protein-in-water simulation
-	"""
+    Automacs (AMX) CONTROLLER.\n
+    make script <simulation> : prepare a simulation and associated scripts 
+                               see simulation types below for more details
+    make script restart      : generates a CPT or GRO restart from an 
+                               input-md-in.mdp in repo folder
+    make upload              : prepare an upload list and rsync command for 
+                               a continuation if the last step was "sim"
+    make upload step=<dir>   : prepare an upload list for any step 
+                               including the whole directory
+    make rescript            : generate continue scripts for a simulation 
+                               moved to a cluster  
+    make clean               : reset the folder by deleting simulation data
+                               note that the repo folder is exempt 
+
+    simulations:
+    -----------
+    cgmd-bilayer         : coarse-grained bilayer under MARTINI force field
+    cgmd-protein         : coarse-grained protein under MARTINI force field 
+                           with structure options
+    aamd-bilayer         : bilayer under CHARMM36 force field
+    aamd-protein         : protein in a water box using CHARMM27 force field
+    protein-homology     : single- or muliple-template homology models with 
+                           options for batches of mutations
+    multiply nx=N ny=M   : replicate a simulation box
+    restart              : generic restart which autodetects a CPT or GRO file
+    """
 
 document_string = \
 	"""
-	Documentation is provided via python-Sphinx/sphinx-apidoc which
-	automatically generates python-style documentation web pages 
-	according to the docstrings. This means that the code is also 
-	heavily commented and should be readable as well. Visit the 
-	following link to view the documentation.\n
+	Documentation is provided via python-Sphinx/sphinx-apidoc but is not 
+	generally updated with each git push so you may	want to regenerate it.\n
 	"""+str('file://'+os.path.abspath(os.path.curdir)+'/docs/_build/html/index.html')+"\n\n"
 
 #---BASH SCRIPT CONSTANTS
@@ -277,6 +286,7 @@ script_dict = {
 					'nx=\'$nx\',ny=\'$ny\',nz=\'$nz\')',
 				}),python_from_bash),
 			call_sim_restart,
+			call_sim,
 			],
 		},
 	}
@@ -374,7 +384,8 @@ def script(single=None,rescript=False,**extras):
 	#---a rescript on the cluster will find the most recent step and add a continue script to it
 	elif single == None and rescript == True:
 		startstep,oldsteps = chain_steps()
-		print '\twriting a cluster-md-continue to '+oldsteps[-1]
+		print '\tto continue, execute '+oldsteps[-1]+'/script-md-continue or '+\
+			'run qsub script-md-continue from the '+oldsteps[-1]+' folder'
 		proc_settings,header_source_mod = get_proc_settings()
 		if header_source_mod == None: raise Exception('except: lone rescript only works on clusters')
 		#---write a simulation continuation script to the final step
