@@ -215,12 +215,13 @@ script_dict = {
 			'step_simulation':'s03-sim',
 			'simtype':'aamd-protein',
 			'input_files':'aamd-protein-equil',
+			'detect_previous_step':None,
 			},
 		'continue':True,
 		'sequence':['\n',
 			multiresub(dict({
-				'ROOTDIR':'s01-build-protein-water',
-				'COMMAND':'ProteinWater(rootdir=\'s01-build-protein-water\')',
+				'ROOTDIR':'$step_build',
+				'COMMAND':'ProteinWater(rootdir=\'$step_build\')',
 				}),python_from_bash),
 			call_equil,
 			call_sim,		
@@ -450,6 +451,26 @@ def script(single=None,rescript=False,**extras):
 		print '\texecute locally with ./'+'script-master-'+str(target)
 		if rescript: print '\tsince this is a rescript you probably want to use the continue script'
 		print '\tsee the documentation for details\n'
+		
+def spawn(**extras):
+	'''
+	Function which spawns a particular simulation into many.\n
+	Recommended useage: 
+		make spawn proc=aamd-protein infiles=repo/simulation_targets.txt batchdir=../protein-v1020-batch
+	'''
+	print extras.keys()
+	#---check for infiles, batchdir, and proc
+	if any([i not in extras.keys() for i in ['batchdir','proc','infiles']]): 
+		raise Exception('except: unclear spawn target')
+	batchdir = os.path.abspath(extras['batchdir'])
+	print 'creating batch directory '+batchdir
+	if os.path.isdir(batchdir): raise Exception('except: batch directory already exists')
+	else: os.mkdir(batchdir)
+	print 'reading infile list = '
+	with open(extras['infiles'],'r') as fp: infiles = fp.readlines()
+	infiles = [i.strip('\n') for i in infiles if os.path.isfile(os.path.abspath(i.strip('\n')))]
+	print infiles
+	#---? note that this code is under development
 
 #---INTERFACE
 #-------------------------------------------------------------------------------------------------------------
@@ -471,7 +492,7 @@ def makeface(arglist):
 	if arglist == []:
 		print niceblock(helpstring,newlines=True)
 		return
-	
+		
 	#---we prepare a kwargs and an args variable to send to the next function
 	#---note that we generally just use kwargs exclusively for clarity
 	kwargs = dict()
@@ -479,6 +500,10 @@ def makeface(arglist):
 	#---always get the function name from the first argument
 	func = arglist.pop(0)
 	#---define the arguments expected for each function
+	#---note that 'functionname':{'args':[],'module_name':None} is the default empty interface to a python
+	#---...function however you must remember to add keywords to args if you expect them to be standalone
+	#---...if you add keywords to args they can be True (if passed on the command line) otherwise defaulted
+	#---...to false while any var=val commands will be passed along via extras
 	argdict = {
 		'clean':{'args':['protected','sure'],'module_name':None,'defaults':{'sure':False}},
 		'script':{'module_name':None,'defaults':[],'args':[],
@@ -492,6 +517,7 @@ def makeface(arglist):
 				'multiply',
 				]},
 		'upload':{'args':[],'module_name':None},
+		'spawn':{'args':[],'module_name':None},
 		}
 	#---rescript is an alias for script for only doing the continue scripts
 	argdict['rescript'] = copy.deepcopy(argdict['script'])
@@ -514,11 +540,11 @@ def makeface(arglist):
 		if arglist[0] in argd['singles']: kwargs['single'] = arglist.pop(0)
 	#---all remaining keywords are handled as flags
 	for a in list(arglist):
-		if not re.match('^[a-z,A-Z,0-9]+\=[a-z,A-Z,0-9,\-,_]+$',a):
+		if not re.match('^[a-z,A-Z,0-9]+\=([a-z,A-Z,0-9,\-,_,\.,\/]+)+$',a):
 			kwargs[a] = True if a in argd['args'] else False
 			if a in argd['args']: arglist.remove(a)
 		else:
-			flag = re.findall('^([a-z,A-Z,0-9]+)\=([a-z,A-Z,0-9,\-,_]+)$',a)[0]
+			flag = re.findall('^([a-z,A-Z,0-9]+)\=([a-z,A-Z,0-9,\-,_,\.,\/]+)$',a)[0]
 			kwargs[flag[0]] = flag[1]
 			arglist.remove(a)
 	if arglist != []: 

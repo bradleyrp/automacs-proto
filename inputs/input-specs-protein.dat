@@ -2,11 +2,12 @@
 
 #---STARTING CONFIGURATION
 #---specify the PDB file for the starting protein configuration located in sources
-input_filename = '3ala.pdb'
+#---note that there are many ways to specify the incoming file but the simplest is input_filename = '3ala.pdb'
+input_filename = 's01-homology/model-v0001-seq1_CGC/seq1_CGC.B99990010.pdb'
 
 #---SIMULATION RESOLUTION
 #---note specify either 'cgmd' or 'aamd' to set the correct parameters
-simscale = 'cgmd'
+simscale = 'aamd'
 
 #---CONSTRUCTION SETTINGS
 

@@ -116,6 +116,8 @@ class ProteinHomology:
 
 		if not os.path.isdir('./repo'): os.mkdir('./repo')
 		temps = self.settings['template']
+		#---ensure that the template object is always in a list
+		if len(temps) == 2 and type(temps[0])==str and type(temps[1])==str: temps = [temps]
 		self.template = []
 		for t in temps:
 			print 'retrieving '+str(t[0])
@@ -139,59 +141,86 @@ class ProteinHomology:
 					copy(self.rootdir+t[0]+'.fasta','./repo/'+t[0]+'.fasta')
 			self.template.append(t)
 			
-	def build_model_single(self,targi=0,tempi=0):
+	def build_model_single(self,targi=0,tempi=0,batchdir_override=None):
 	
 		if len(self.template) != 1: raise Exception('except: needs only one template '+str(self.template))
-		if len(self.target) != 1:
-			if 'target_name' in self.settings.keys():
-				targi = [i[0] for i in self.target].index(self.settings['target_name'])
-			else: raise Exception('except: needs only one target '+str(self.target))
-			
-		print 'preparing modeller scripts'
-		#---variables passed to modeller via settings-homology.py
-		vars_to_modeller = {
-			'template_struct':self.template[0][0],
-			'template_struct_chain':self.template[0][1],
-			'target_seq':self.target[targi][0],
-			'n_models':self.settings['n_models'],
-			}
+		if 'target_name' in self.settings.keys():
+			if type(self.settings['target_name']) == str: 
+				self.settings['target_name'] = [self.settings['target_name']]
+		
+		if len(self.target) == 1: targi_inds = [0]
+		elif len(self.target)>1 and 'target_name' in self.settings.keys() and \
+			len(self.settings['target_name']) == 1:
+			targi_inds = [[i[0] for i in self.target].index(self.settings['target_name'][0])]
+		elif len(self.target)>1 and 'target_name' in self.settings.keys() and \
+			len(self.settings['target_name']) > 1:
+			targi_inds = [[i[0] for i in self.target].index(j) for j in self.settings['target_name']]
+		elif len(self.target)>1 and 'target_name' not in self.settings.keys():
+			print 'multiple targets selected so this will be a batch operation'
+			targi_inds = range(len(self.target))
+		else: raise Exception('except: target/target_name mismatch')
+		
+		for targi in range(len(targi_inds)):
+			if len(targi_inds)>1:
+				print 'BATCH MODEL GENERATION, MODEL No. = '+str(targi)
+				batchdir = self.rootdir+'model-v'+('%04d'%(targi+1))+'-'+self.target[targi][0]+'/'
+				batchdirrel = self.rootdirrel+'model-v'+('%04d'%(targi+1))+'-'+self.target[targi][0]+'/'
+				os.mkdir(batchdir)
+				copy(self.sources_dir+'aamd-protein-homology/*',batchdir)
+				copy(self.rootdir+'*.pdb',batchdir)
+			elif batchdir_override != None:
+				batchdir = self.rootdir+batchdir_override+'/'
+				batchdir = self.rootdirrel+batchdir_override+'/'
+				os.mkdir(batchdir)
+				copy(self.sources_dir+'aamd-protein-homology/*',batchdir)
+				copy(self.rootdir+'*.pdb',batchdir)
+			else: batchdir = self.rootdir
+		
+			print 'preparing modeller scripts'
+			#---variables passed to modeller via settings-homology.py
+			vars_to_modeller = {
+				'template_struct':self.template[0][0],
+				'template_struct_chain':self.template[0][1],
+				'target_seq':self.target[targi][0],
+				'n_models':self.settings['n_models'],
+				}
 	
-		#---write a settings file for the modeller script
-		with open(self.rootdir+'settings-homology.py','w') as fp:
-			fp.write('#!/usr/bin/python\n\n')
-			for var in vars_to_modeller.keys():
-				val = '\''+str(vars_to_modeller[var])+'\'' \
-					if type(vars_to_modeller[var]) == str else vars_to_modeller[var]
-				fp.write(var+' = '+str(val)+'\n')
+			#---write a settings file for the modeller script
+			with open(batchdir+'settings-homology.py','w') as fp:
+				fp.write('#!/usr/bin/python\n\n')
+				for var in vars_to_modeller.keys():
+					val = '\''+str(vars_to_modeller[var])+'\'' \
+						if type(vars_to_modeller[var]) == str else vars_to_modeller[var]
+					fp.write(var+' = '+str(val)+'\n')
 			
-		#---write an ali file with the target
-		fasta_linelen = 50
-		with open(self.rootdir+self.target[targi][0]+'.ali','w') as fp:
-			fp.write('>P1;'+self.target[targi][0]+'\n')
-			fp.write('sequence:'+self.target[targi][0]+':::::::0.00:0.00\n')
-			seq = self.target[targi][1]
-			chopped = [seq[j*fasta_linelen:(j+1)*fasta_linelen] for j in range(len(seq)/fasta_linelen+1)]
-			chopped = [i for i in chopped if len(i) > 0]
-			for i,seg in enumerate(chopped): fp.write(seg+('\n' if i < len(chopped)-1 else '*\n'))
+			#---write an ali file with the target
+			fasta_linelen = 50
+			with open(batchdir+self.target[targi][0]+'.ali','w') as fp:
+				fp.write('>P1;'+self.target[targi][0]+'\n')
+				fp.write('sequence:'+self.target[targi][0]+':::::::0.00:0.00\n')
+				seq = self.target[targi][1]
+				chopped = [seq[j*fasta_linelen:(j+1)*fasta_linelen] for j in range(len(seq)/fasta_linelen+1)]
+				chopped = [i for i in chopped if len(i) > 0]
+				for i,seg in enumerate(chopped): fp.write(seg+('\n' if i < len(chopped)-1 else '*\n'))
 		
-		print 'running modeller'
-		cmd = [gmxpaths['modeller'],'script-single.py']
-		call(cmd,logfile='log-modeller-script-single',cwd=self.rootdir)
+			print 'running modeller'
+			cmd = [gmxpaths['modeller'],'script-single.py']
+			call(cmd,logfile='log-modeller-script-single',cwd=batchdir)
 		
-		#---make a view script
-		with open(self.rootdir+'script-vmd-view.tcl','w') as fp:
-			fp.write('#!/usr/bin/env tclsh\n\n#---execute via "vmd -e script-vmd-view.tcl"\n\n')			
-			fp.write('mol default style {NewCartoon 0.300000 6.000000 4.100000 0}\n')
-			fp.write('mol default color {Structure}\n')
-			for fn in glob.glob(self.rootdirrel+self.target[targi][0]+'.*.pdb'):
-				fp.write('mol new '+os.path.basename(fn)+'\n')
-			fp.write('for {set i 0} { $i <= '+str(self.settings['n_models'])+'} { incr i 1} {\n')
-			fp.write('\tset reference_sel  [atomselect 1 "backbone"]\n')
-			fp.write('\tset comparison_sel [atomselect $i "backbone"]\n')
-			fp.write('\tset transformation_mat [measure fit $comparison_sel $reference_sel]\n')
-			fp.write('\tset move_sel [atomselect $i "all"]\n')
-			fp.write('\t$move_sel move $transformation_mat\n}\n')
-		
+			#---make a view script
+			with open(batchdir+'script-vmd-view.tcl','w') as fp:
+				fp.write('#!/usr/bin/env tclsh\n\n#---execute via "vmd -e script-vmd-view.tcl"\n\n')			
+				fp.write('mol default style {NewCartoon 0.300000 6.000000 4.100000 0}\n')
+				fp.write('mol default color {Structure}\n')
+				for fn in glob.glob(batchdirrel+self.target[targi][0]+'.*.pdb'):
+					fp.write('mol new '+os.path.basename(fn)+'\n')
+				fp.write('for {set i 0} { $i <= '+str(self.settings['n_models'])+'} { incr i 1} {\n')
+				fp.write('\tset reference_sel  [atomselect 1 "backbone"]\n')
+				fp.write('\tset comparison_sel [atomselect $i "backbone"]\n')
+				fp.write('\tset transformation_mat [measure fit $comparison_sel $reference_sel]\n')
+				fp.write('\tset move_sel [atomselect $i "all"]\n')
+				fp.write('\t$move_sel move $transformation_mat\n}\n')
+				
 	def build_model_multi(self):
 	
 		if len(self.template) < 1: raise Exception('except: needs multiple templates '+str(self.template))
@@ -266,6 +295,8 @@ class ProteinHomology:
 		for mi,mut in enumerate(self.settings['mutations']):
 			print 'building homology model for mutation '+str(mi)
 			self.settings['target_name'] = self.target[mi][0]
-			self.build_model_single(targi=mi,tempi=0)
+			batchdir = 'model-v'+('%04d'%(mi+1))+'-'+''.join(self.template[0])+\
+				'_'+''.join([str(j) for j in mut])+'/'
+			self.build_model_single(targi=mi,tempi=0,batchdir_override=batchdir)
 
 		

@@ -6,6 +6,8 @@ Example sequence inputs:
 	'target':{'textfile':'repo/sequences.txt'},
 	'target':{'textfile_rna':'repo/sequences_rna.txt'},
 	'template':[('1LP1','A')],
+Note that target_name must always be a list in the 'single' procedure.
+If target_name is not defined, the 'single' procedure will make a batch of models.
 '''
 
 #---choose the modeller procedure
@@ -13,14 +15,13 @@ procedure = [
 	'single',
 	'multi',
 	'mutator',
-	][2]
+	][0]
 
 homology_construction_settings = {
 	'single':{
-		'target':{'raw':('mdia2NB','MERHQPRLHHPAQGSAAGTPYPSSASLRGCRESKMPRRKGPQHPPPPSGPEEPGEKRPKFHLNIRT')},
-		'target_name':'testseq5',
+		'target':{'textfile_rna':'repo/sequences_rna.txt'},
 		'regex_subs':[('tttatttagagcctg','tttattagcctg')],
-		'template':[('3O4X','A')],
+		'template':[('1LP1','A')],
 		'n_models':10,
 		},
 	'multi':{
@@ -42,5 +43,4 @@ homology_construction_settings = {
 			],			
 		},
 	}
-	
 

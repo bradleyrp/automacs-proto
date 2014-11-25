@@ -61,8 +61,12 @@ class ProteinWater(amxsim.AMXSimulation):
 			self.simscale = self.params['simscale']
 			self.settings = self.params['protein_construction_settings'][self.simscale]
 			#---copy input files if this is a fresh start
-			copy(self.sources_dir+'aamd-protein-structs/'+self.params['input_filename'],
-				self.rootdir+'system-input.pdb')
+			if os.path.isfile(self.sources_dir+'aamd-protein-structs/'+self.params['input_filename']):
+				copy(self.sources_dir+'aamd-protein-structs/'+self.params['input_filename'],
+					self.rootdir+'system-input.pdb')
+			elif os.path.isfile(os.path.abspath(self.params['input_filename'])):
+				copy(self.params['input_filename'],self.rootdir+'system-input.pdb')
+			else: raise Exception('except: cannot locate input_filename '+self.params['input_filename'])
 			#---copy input files from standard sources i.e. the forcefield only if absent
 			if needs_file_transfers:
 				#---scale-specific copy commands
@@ -190,7 +194,9 @@ class ProteinWater(amxsim.AMXSimulation):
 		with open(self.rootdir+'vacuum-standard.top','r') as f: topfile = f.read()
 		#---extract protein chain names here if necessary
 		chains = []
-		for line in topfile.split('\n'):
+		startline = [ii for ii,i in enumerate(topfile.split('\n')) 
+			if re.match('^(\s+)?\[(\s+)?system(\s+)?\]',i)][0]
+		for line in topfile.split('\n')[startline:]:
 			if re.match('^Protein',line):
 				chains.append(line.split(' ')[0])
 		if len(chains) > 1:
@@ -202,7 +208,6 @@ class ProteinWater(amxsim.AMXSimulation):
 			self.nprots = 1
 		fp = open(self.rootdir+'protein.itp','w') 
 		for line in topfile.split('\n'):
-			#if line.split(' ')[0][:7] == "Protein": self.protname = line.split(' ')[0]
 			#---skip any part of the top that follows the water topology and/or system composition
 			if re.match('; Include water topology',line): break
 			if re.match('; Include topology for ions',line): break
