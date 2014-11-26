@@ -170,11 +170,11 @@ class ProteinHomology:
 				copy(self.rootdir+'*.pdb',batchdir)
 			elif batchdir_override != None:
 				batchdir = self.rootdir+batchdir_override+'/'
-				batchdir = self.rootdirrel+batchdir_override+'/'
+				batchdirrel = self.rootdirrel+batchdir_override+'/'
 				os.mkdir(batchdir)
 				copy(self.sources_dir+'aamd-protein-homology/*',batchdir)
 				copy(self.rootdir+'*.pdb',batchdir)
-			else: batchdir = self.rootdir
+			else: batchdir,batchdirrel = self.rootdir,self.rootdirrel
 		
 			print 'preparing modeller scripts'
 			#---variables passed to modeller via settings-homology.py

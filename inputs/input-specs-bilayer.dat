@@ -15,7 +15,7 @@ lipidnames1 = ['DOPC','DOPS']
 #---SIMULATION RESOLUTION
 
 #---note specify either 'cgmd' or 'aamd' to set the correct parameters
-simscale = 'aamd'
+simscale = 'cgmd'
 
 #---CONSTRUCTION SETTINGS
 

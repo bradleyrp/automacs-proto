@@ -1,0 +1,50 @@
+#!/usr/bin/python
+
+'''
+Specifications for the "make batch" functionality in the controller which lets you generate large batches of 
+automacs starting files for sweeping any parameter in a particular automacs procedure, namely the choice
+of starting protein structure.
+
+Example workflow:
+
+1. Clone automacs into a directory e.g. protein-v1022
+2. Run make script protein-homology to generate many homology models using a sequence.txt file in repo
+   or use the mutator to do likewise.
+3. This method will create a list of different PDB files in s01-homology.
+4. Make a list of these files and put it in the repo.
+5. Set the sweep variable below to sweep over any values in the input-specs file.
+   The route item in each sweep dictionary tells you how to get to the parameter for sweeping, starting 
+   with the variables in the global space for the input-specs file. See the example below. These values 
+   can be defined explicitly in this file. To "sweep" through the list of files you created in e.g. 
+   repo/batch_file_list.txt you can set the 'values' item to a dictionary instead, using the following 
+   syntax: "{'file_list_file':'repo/batch_file_list.txt'}" which will tell the sweeper to get this file
+   list.
+6. Run make batch
+7. This creates a batch directory with subfolders of the form sim-vCALLSIGN-vSIMNUM and automatically runs
+   make script <procedure> in these folders. 
+8. You can then run the script in each subdirectory. Or, you can move them to the cluster, run "make rescript"
+   in each folder, and then qsub the resulting cluster script.
+
+'''
+
+#---root directory for the batch and universal callsign
+batchdir = '../protein-v1022b/'
+callsign = '1022'
+
+#---which procedure to execute (same names as "make script")
+procedure = 'aamd-protein'
+
+#---list of route/values dictionaries to specify how to change the input-specs dictionary
+#---...and which parameters to sweep over
+#---...e.g. {'route':['protein_construction_settings','aamd','wbuffer'],'values':range(1,1+5)}
+sweep = [
+	{'route':['protein_construction_settings','aamd','wbuffer'],'values':range(1,1+5)},
+	{'route':['input_filename'],'values':{'file_list_file':'repo/batch_file_list.txt'}},
+	][-1:]
+
+#---overrides for default parameters in auto-generate input-specs files
+overrides = {
+	'simscale':'cgmd',
+	'topheader_martini':'',
+	}
+

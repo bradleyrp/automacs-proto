@@ -20,6 +20,7 @@ import glob,re
 import errno
 import shutil
 import socket
+from copy import deepcopy
 if os.path.isfile('settings'): execfile('settings')
 elif os.path.isfile('../settings'): execfile('../settings')
 
@@ -65,7 +66,7 @@ class tee(object):
 			if obj != '\n': f.write(st+' ')
 			f.write(obj)
 
-def call(command,logfile=None,cwd=None,silent=False,inpipe=None):
+def call(command,logfile=None,cwd=None,silent=False,inpipe=None,suppress_stdout=False):
 	'''
 	Wrapper for system calls in a different directory with a dedicated log file.
 	'''
@@ -95,7 +96,11 @@ def call(command,logfile=None,cwd=None,silent=False,inpipe=None):
 			if not silent: print 'executing command: "'+str(command)+'"'
 			if str(sys.stdout.__class__) == "<class 'amx.tools.tee'>": stderr = sys.stdout.files[0]
 			else: stderr = sys.stdout
-			try: subprocess.check_call(command,shell=True,stderr=stderr,cwd=cwd)
+			try: 
+				if suppress_stdout: 
+					devnull = open('/dev/null','w')
+					subprocess.check_call(command,shell=True,stderr=stderr,cwd=cwd,stdout=devnull)
+				else: subprocess.check_call(command,shell=True,stderr=None,cwd=cwd)
 			except:
 				if logfile[-3:] == '-cg' and re.search('mdrun-em',logfile):
 					print 'warning: failed conjugate gradient descent but will procede'
@@ -127,9 +132,9 @@ def copy(source,destination):
 	'''
 	#---check if wildcard in the source in which case use glob
 	if '*' in source:
-		if 0: print glob.glob(source)
-		for filename in glob.glob(source):
-			shutil.copy(filename,destination)
+		for filename in glob.glob(source): 
+			if os.path.isdir(filename): shutil.copytree(filename,destination+os.path.basename(filename))
+			else: shutil.copy(filename,destination)
 	#---otherwise try a copytree and if that fails just use copy
 	else:
 		try: shutil.copytree(source,destination)
@@ -153,6 +158,32 @@ def confirm():
 		return False
 	sure = True if raw_input("%s (y/N) " % 'confirmed?').lower() == 'y' else False
 	if go and sure: return True
+	
+def status(string,start=None,i=None,looplen=None,blocked=False):
+	'''Print status to the screen also allows for re-writing the line. Duplicated in the membrain library.'''
+	#---note: still looking for a way to use the carriage return for dynamic counter without
+	#---...having many newlines printed to the file. it seems impossible to use the '\r' + flush()
+	#---...method with both screen and file output, since I can't stop the buffer from being written
+	#---the blocked flag will remove tabs so that large multiline text doesn't awkwardly wrap in the code
+	if blocked: string = niceds(text)
+	#---display a refreshable string
+	if start == None and looplen == None and i != None:		
+		print '\r'+string+'  ...  '+str(i+1).rjust(7)+'/'+str(looplen).ljust(8)+'\n',
+	elif start == None and looplen != None and i != None:		
+		if i+1 == looplen:
+			print '\r'+string+'  ...  '+str(i+1).rjust(7)+'/'+str(looplen).ljust(8)+'\n',
+		#---if a logfile has been defined, this output is destined for a file in which case suppress counts
+		elif i+1 != looplen and ('logfile' not in globals() or logfile == None):
+			print '\r'+string+'  ...  '+str(i+1).rjust(7)+'/'+str(looplen).ljust(8),
+			sys.stdout.flush()
+	#---estimate the remaining time given a start time, loop length, and iterator
+	elif start != None and i != None and looplen != None and ('logfile' not in globals() or logfile == None):
+		esttime = (time.time()-start)/(float(i+1)/looplen)
+		print '\r'+string.ljust(20)+str(abs(round((esttime-(time.time()-start))/60.,1))).ljust(10)+\
+			'minutes remain',
+		sys.stdout.flush()
+	#---standard output
+	else: print string
 	
 def chain_steps():
 	
@@ -200,6 +231,8 @@ def write_steps_to_bash(steps,startstep,oldsteps,extras=None):
 		elif step not in ['detect_previous_step']: bashheader += step+'='+steps[step]+'\n'
 	if extras != None:
 		for key in extras.keys():
+			print 'key = '+str(key)
+			print 'val = '+str(extras[key])
 			for extra in extras: bashheader += key+'='+extras[key]+'\n'
 	return bashheader
 	
@@ -366,4 +399,50 @@ def get_proc_settings():
 	else: header_source_mod = None
 	
 	return proc_settings,header_source_mod
+	
+def ultrasweep(hypothesis_default,sweep):
+	'''
+	Code for sweeping an arbitrarily deep dictionary over many dimensions in combinations.
+	'''
+	#---extract a list of lists of parameters to sweep over
+	t = [i['values'] for i in sweep]
+	for si,sweepset in enumerate(t):
+		if type(sweepset) == dict:
+			if len(sweepset.keys())==1 and 'file_list_file' in sweepset.keys():
+				with open(sweepset['file_list_file'],'r') as fp:
+					files = [i.strip('\n') for i in fp.readlines() if
+						os.path.isfile(os.path.abspath(i.strip('\n')))]
+				t[si] = files
+			else: raise Exception('except: unclear sweep substitution '+str(sweepset))
+	#---note that this non-numpythonic way of doing this has not been rigorously tested
+	#---note that the previous meshgrid method did not work on all types
+	allcombos = list([[i] for i in t[0]])
+	for s in t[1:]:
+		for bi in range(len(allcombos)):
+			b = allcombos.pop(0)
+			for r in list(s): allcombos.append(b + [r])
+
+	#---assemble a list of hypotheses from all possible combinations of the sweep values
+	#---note that this code is general, and works for an arbitrarily deep dictionary
+	hypotheses = []
+	#---for each combo generate a new hypothesis
+	for combo in allcombos:
+		#---start with the default hypothesis
+		newhypo = deepcopy(hypothesis_default)
+		#---each combo has a value and a route which is a sequence of dictionary keys
+		#---...we loop over each route to set each final value for the sweep
+		for routenum in range(len(sweep)):
+			#---to get to the deepest part of that route we use tmp as a pointer
+			#---...and iteratively traverse one level until the second to last level
+			tmp = newhypo[sweep[routenum]['route'][0]]
+			#---the following checks if we are already at the end of the dictionary 
+			if type(newhypo[sweep[routenum]['route'][0]]) != dict:
+				newhypo[sweep[routenum]['route'][0]] = combo[routenum]
+			else:
+				for i in sweep[routenum]['route'][1:-1]: tmp = tmp[i]
+				#---at the final level, we now have a pointer to the lowest dictionary to set the value
+				tmp[sweep[routenum]['route'][-1]] = combo[routenum]
+		#---once we set all the values, the hypothesis is ready
+		hypotheses.append(newhypo)	
+	return hypotheses
 

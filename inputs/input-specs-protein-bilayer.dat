@@ -1,0 +1,70 @@
+#!/usr/bin/python
+
+#---SIMULATION RESOLUTION
+#---note specify either 'cgmd' or 'aamd' to set the correct parameters
+simscale = 'cgmd'
+
+#---CONSTRUCTION SETTINGS
+construction_settings = {
+	'cgmd_original':{
+		'director_cgmd':['name PO4','name C4A','name C4B'],
+		'selector_cgmd':'name PO4',
+		'struct_protein':'orient-ENTH.gro',
+		'struct_lipid':'orient-PIP2.gro',
+		'struct_membrane':'membrane-start.gro',
+		'top_membrane':'system-membrane-start.top',
+		'top_protein':'Protein_A.itp',
+		'method':'inter-oligo-spacing',
+		'method_lattice':'square',
+		'method_lattice':'hex',
+		'spacer':9,
+		'noligos_square':[2,2],
+		'noligos_hex':[3,2,3],
+		'spacer_within':4.,
+		'natoms_replace':14,
+		'nmonos':1,
+		'rotation_list':None,
+		'protein_key_residues':range(50+1)+range(263,265+1),
+		'replace_resname':'DOPS',
+		'residues':['DOPC','DOPS'],
+		'jitter':[0.,0.],
+		'zoffset':0.5,
+		},
+	'cgmd':{
+		'director_cgmd':['name PO4','name C4A','name C4B'],
+		'selector_cgmd':'name PO4',
+		'struct_protein':'enth_h0-quickstart/orient-ENTH_H0.gro',
+		'struct_lipid':'membrane-v616/orient-PIP2.gro',
+		'struct_membrane':'membrane-v1003/md.part0002.gro',
+		'top_membrane':'membrane-v1003/system-membrane-start.top',
+		'top_protein':'enth_h0-quickstart/Protein_A.itp',
+		'method':'inter-oligo-spacing',
+		'method_lattice':'square',
+		'spacer':4,
+		'noligos_square':[2,2],
+		'noligos_hex':[3,2,3],
+		'spacer_within':4.,
+		'natoms_replace':14,
+		'nmonos':1,
+		'rotation_list':None,
+		'protein_key_residues':range(50+1),
+		'replace_resname':'DOPS',
+		'residues':['DOPC','DOPS'],
+		'jitter':[0.,0.],
+		'zoffset':0.5,
+		},
+	}
+	
+#---TOPOLOGY SPECIFICATIONS
+topheader_martini = \
+"""#include "martini.ff/martini-v2.2.itp"
+#include "martini.ff/martini-v2.0-lipids.itp"
+#include "lipids-tops/PIP2.itp"
+#include "martini.ff/martini-v2.2-aminoacids.itp"
+#include "martini.ff/martini-v2.0-ions.itp"\n
+[ system ]
+MARTINI BILAYER
+[ molecules ]
+"""
+
+
