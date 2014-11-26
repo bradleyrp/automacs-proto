@@ -395,6 +395,17 @@ def upload(step=None,extras=None):
 
 #-------------------------------------------------------------------------------------------------------------
 
+def batchscript(batchdir,proc):
+	'''
+	Recurseively run make commands for a large batch.
+	'''
+	batchdir = os.path.abspath(batchdir)+'/'
+	for root,dirnames,filenames in os.walk(batchdir,followlinks=False): break
+	for dn in dirnames: 
+		print batchdir+dn
+		print 'calling = '+'python controller.py script '+proc
+		call('python controller.py script '+proc,cwd=batchdir+dn,suppress_stdout=True)
+
 def rescript(single=None,**extras): script(single=single,rescript=True,**extras)
 					
 def script(single=None,rescript=False,**extras):
@@ -456,7 +467,7 @@ def script(single=None,rescript=False,**extras):
 			fp.write(script_maker(target,script_dict,sim_only=True,extras=extras))
 			fp.close()
 			os.system('chmod u+x '+oldsteps[-1]+'/script-md-continue')
-		
+		'''
 		#---write cluster-header if possible
 		if header_source_mod != None:
 			print '\twriting PBS script: cluster-master-'+str(target)
@@ -471,7 +482,7 @@ def script(single=None,rescript=False,**extras):
 			fp.write(script_maker(target,script_dict,module_commands=proc_settings['module'],
 				sim_only=True,extras=extras))
 			fp.close()		
-
+		'''
 		print '\texecute locally with ./'+'script-master-'+str(target)
 		if rescript: print '\tsince this is a rescript you probably want to use the continue script'
 		print '\tsee the documentation for details\n'
@@ -510,6 +521,7 @@ def batch(**extras):
 	hypotheses = ultrasweep(defaults,batchspecs['sweep'])
 	
 	#---for each simulation copy automacs, input_filename, and input-specs
+	loclist = []
 	for hi,hypo in enumerate(hypotheses):
 		newdir = batchdir+'sim-v'+batchspecs['callsign']+'-v'+('%03d'%(hi+1))+'/'
 		os.mkdir(newdir)
@@ -530,6 +542,17 @@ def batch(**extras):
 				copy('./'+fn,newdir+fn)
 		call('python controller.py script aamd-protein',cwd=os.path.abspath(newdir),
 			silent=True,suppress_stdout=True)
+		loclist.append(newdir)
+	
+	#---write a summary dictionary
+	hypodict = {}
+	for hi,hypo in enumerate(hypotheses): hypodict[loclist[hi]] = deepcopy(hypotheses[hi])
+	with open(batchspecs['batchdir']+'/batchdict.py','w') as fp:
+		fp.write('#!/usr/bin/python\n#---batch simulation table of contents\n')
+		keystring = json.dumps(hypodict,indent=4).replace('false','False').replace('true','True')
+		fp.write('batch_toc = '+keystring+'\n')
+	print 'Completed batch generation in '+batchspecs['batchdir']
+	print 'Wrote a dictionary of all simulations to '+batchspecs['batchdir']+'/batchdict.py'
 	
 
 #---INTERFACE
@@ -579,6 +602,7 @@ def makeface(arglist):
 				]},
 		'upload':{'args':[],'module_name':None},
 		'batch':{'args':[],'module_name':None},
+		'batchscript':{'args':[],'module_name':None},
 		}
 	#---rescript is an alias for script for only doing the continue scripts
 	argdict['rescript'] = deepcopy(argdict['script'])
