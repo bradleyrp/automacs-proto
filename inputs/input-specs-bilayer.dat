@@ -1,20 +1,14 @@
 #!/usr/bin/python
 
 #---COMPOSITIONS
-
-#---note you can set equal compositions on both monolayers 
-#---...by deleting nlipids1, complist1, and lipidnames1
-
 nlipids0 = 600
-complist0 = [72,18,10]
+complist0 = [72,18,0]
 lipidnames0 = ['DOPC','DOPS','PIP2']
 nlipids1 = 600
 complist1 = [4,1]
 lipidnames1 = ['DOPC','DOPS']
 
 #---SIMULATION RESOLUTION
-
-#---note specify either 'cgmd' or 'aamd' to set the correct parameters
 simscale = 'cgmd'
 
 #---CONSTRUCTION SETTINGS
@@ -48,6 +42,7 @@ bilayer_construction_settings = {
 		'water_conf':'spc216.gro',
 		'ion_residue_names':['MG','NA','CL','Cal'],
 		'concentration_calc':['simple','lipid_exempt'][0],
+		'top_includes':[],
 		},
 	'cgmd': {
 		'lbuffer':0.1,
@@ -69,67 +64,13 @@ bilayer_construction_settings = {
 		'water_conf':'solvate-water.gro',
 		'ion_residue_names':['NA+','CL-','ION'],
 		'concentration_calc':['simple','lipid_exempt'][0],
+		'top_includes':[
+			'martini.ff/martini-v2.2.itp',
+			'martini.ff/martini-v2.0-lipids.itp',
+			'lipids-tops/PIP2.itp',
+			'martini.ff/martini-v2.2-aminoacids.itp',
+			'martini.ff/martini-v2.0-ions.itp',
+			],
 		}
 	}
 	
-#---TOPOLOGY SPECIFICATIONS
-	
-topheader_martini = \
-"""#include "martini.ff/martini-v2.2.itp"
-#include "martini.ff/martini-v2.0-lipids.itp"
-#include "lipids-tops/PIP2.itp"
-#include "martini.ff/martini-v2.2-aminoacids.itp"
-#include "martini.ff/martini-v2.0-ions.itp"\n
-[ system ]
-MARTINI BILAYER
-[ molecules ]
-"""
-
-#---EXTRA EXAMPLE COMPOSITIONS
-
-"""
-
-nlipids0 = 400
-complist0 = [50,15,25,10]
-lipidnames0 = ['DOPE','DOPS','CHL1','SAPI']
-nlipids1 = 400
-complist1 = [3,1]
-lipidnames1 = ['POPC','CHL1']
-
-nlipids0 = 196
-complist0 = [6,3,1]
-lipidnames0 = ['DOPC','DOPS','PIP2']
-nlipids1 = 150
-complist1 = [4,1]
-lipidnames1 = ['DOPC','DOPS']
-
-nlipids0 = 196
-complist0 = [6,3,1]
-lipidnames0 = ['DOPC','DOPS','PIP2']
-nlipids1 = 169
-complist1 = [4,1]
-lipidnames1 = ['DOPC','DOPS']
-
-nlipids0 = 100
-complist0 = [6,2,1]
-lipidnames0 = ['DOPC','DOPS','PIP2']
-nlipids1 = 100
-complist1 = [4,1]
-lipidnames1 = ['DOPC','DOPS']
-	
-nlipids0 = 400
-complist0 = [80,19,1]
-lipidnames0 = ['DOPC','DOPS','PIP2']
-nlipids1 = 400
-complist1 = [4,1]
-lipidnames1 = ['DOPC','DOPS']
-
-nlipids0 = 400
-complist0 = [80,19,1]
-lipidnames0 = ['DOPC','DOPS','PIP2']
-nlipids1 = 400
-complist1 = [4,1]
-lipidnames1 = ['DOPC','DOPS']
-
-"""
-

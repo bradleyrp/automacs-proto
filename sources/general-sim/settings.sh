@@ -2,9 +2,6 @@
 
 #---AUTOMACS (automatic GROMACS) run settings
 
-#---type
-SIMTYPE="aamd-protein"
-
 #---input files
 SOURCEDIR=../s2-equil
 EXTENDTIME="50000"

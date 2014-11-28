@@ -2,9 +2,6 @@
 
 #---AUTOMACS (automatic GROMACS) run settings
 
-#---type
-SIMTYPE="aamd-protein"
-
 #---equilibration steps (nvt-short, nvt, npt)
 STEPSTRING="nvt-short nvt npt"
 

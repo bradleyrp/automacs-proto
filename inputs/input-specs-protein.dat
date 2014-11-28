@@ -6,8 +6,7 @@
 input_filename = 's01-homology/ENTHh0.B99990001.pdb'
 
 #---SIMULATION RESOLUTION
-#---note specify either 'cgmd' or 'aamd' to set the correct parameters
-simscale = 'aamd'
+simscale = 'cgmd'
 
 #---CONSTRUCTION SETTINGS
 
@@ -30,6 +29,12 @@ protein_construction_settings = {
 		'positive_counterion_name':'NA',
 		'negative_counterion_name':'CL',
 		'ion_strength':0.150,
+		'top_includes':[
+			'charmm27.ff/forcefield.itp',
+			'protein.itp',
+			'charmm27.ff/tip3p.itp',
+			'charmm27.ff/ions.itp',
+			],
 		},
 	'cgmd': {
 		'wbuffer':4,
@@ -40,18 +45,13 @@ protein_construction_settings = {
 		'negative_counterion_name':'CL-',
 		'ion_strength':0.150,
 		'protein_water_gap':3,
+		'top_includes':[
+			'martini.ff/martini-v2.2.itp',
+			'martini.ff/martini-v2.0-lipids.itp',
+			'lipids-tops/PIP2.itp',
+			'martini.ff/martini-v2.2-aminoacids.itp',
+			'martini.ff/martini-v2.0-ions.itp',
+			],
 		},
 	}
 	
-#---TOPOLOGY SPECIFICATIONS
-	
-topheader_martini = \
-"""#include "martini.ff/martini-v2.2.itp"
-#include "martini.ff/martini-v2.0-lipids.itp"
-#include "lipids-tops/PIP2.itp"
-#include "martini.ff/martini-v2.2-aminoacids.itp"
-#include "martini.ff/martini-v2.0-ions.itp"\n
-[ system ]
-MARTINI BILAYER
-[ molecules ]
-"""

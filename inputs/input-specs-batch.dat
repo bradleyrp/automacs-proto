@@ -43,8 +43,6 @@ sweep = [
 	][-1:]
 
 #---overrides for default parameters in auto-generate input-specs files
-overrides = {
-	'simscale':'cgmd',
-	'topheader_martini':'',
-	}
+overrides = {}
+
 

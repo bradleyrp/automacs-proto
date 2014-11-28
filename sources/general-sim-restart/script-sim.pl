@@ -23,7 +23,6 @@ use gmxwrap (
 
 #---inputs
 system("bash settings.sh");
-my $simtype = getbashstr("settings.sh","SIMTYPE");
 my $stepstring = getbashstr("settings.sh","STEPSTRING");
 my @steps = split(/\s+/, $stepstring);
 my %steplist = map { $_ => 1 } @steps;
@@ -40,7 +39,6 @@ my $extend_time = getbashstr("settings.sh","EXTENDTIME");;
 
 reporter("SIMULATION CONTINUATION");
 reporter timestring;
-reporter "simtype = " . $simtype;
 
 #---get index of most recent cpt file
 opendir(MYDIR,"./") or die "$!";

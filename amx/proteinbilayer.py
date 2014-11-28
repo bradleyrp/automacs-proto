@@ -69,8 +69,12 @@ class ProteinBilayer(amxsim.AMXSimulation):
 			self.simscale = self.params['simscale']
 			self.settings = self.params['construction_settings'][self.simscale]
 			#---copy files from the repo
-			copy('./repo/*',self.rootdir)
 			copy('./sources/cgmd-bilayer-construct/input-em-*-in.mdp',self.rootdir)
+			copy('./sources/martini.ff',self.rootdir+'martini.ff')
+			copy('./sources/cgmd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
+			for fn in [self.settings[i] for i in 
+				['struct_protein','struct_lipid','struct_membrane','top_membrane','top_protein']]:
+				copy('./repo/'+fn,self.rootdir+os.path.basename(fn))
 			
 			if 0:
 				#---copy input files if this is a fresh start
@@ -96,17 +100,91 @@ class ProteinBilayer(amxsim.AMXSimulation):
 			print 'starting protein + bilayer adhesion'
 			self.mset = SimSet()
 			self.construction()
+			self.detect_composition()
+			self.remove_close_waters()
+			self.convert_ions_to_water()
+			copy(self.rootdir+'system-allwater.gro',self.rootdir+'solvate-minimized.gro')
+			self.counterionize_general()
 			self.minimization_method('counterions')
+			call('cp counterions-minimized.gro system.gro',cwd=self.rootdir)
+			if not os.path.isfile(self.rootdir+'system.top'): 
+				self.write_topology_bilayer('system.top')
+			if not os.path.isfile(self.rootdir+'system-groups.ndx'): 
+				self.grouping(grouptype='protein-bilayer')
+			
+	def detect_composition(self):
+		
+		with open(self.rootdir+os.path.basename(self.settings['top_membrane']),'r') as fp: 
+			top = fp.readlines()
+		break1 = [ii for ii,i in enumerate(top) if re.match('^(\s+)?\[(\s+)?molecules(\s+)?\]',i)][0]
+		reslist = [[l.split()[0],int(l.split()[1])] for l in top[break1+1:]]
+		resnames = [i[0] for i in reslist]
+		reslist[resnames.index(self.settings['replace_resname'])][1] -= self.nprots
+		reslist = [['Protein_A',self.nprots],[self.settings['replace_resname_new'],self.nprots]]+reslist
+		self.lnames,self.comps = [i[0] for i in reslist],reslist
+		with open(self.rootdir+'solvate.top','w') as fp:
+			break0 = [ii for ii,i in enumerate(top) if re.match('^(\s+)?\[(\s+)?system(\s+)?\]',i)][0]
+			break1 = [ii for ii,i in enumerate(top) if re.match('^(\s+)?\[(\s+)?molecules(\s+)?\]',i)][0]
+			for li in range(break0-1): fp.write(top[li])
+			fp.write('#include "'+self.settings['top_protein'].split('/')[-1]+'"\n')
+			fp.write('[ system ]\nPROTEIN AND BILAYER\n[ molecules ]\n')
+			reslist = [[l.split()[0],int(l.split()[1])] for l in top[break1+1:]]
+			resnames = [i[0] for i in reslist]
+			reslist[resnames.index(self.settings['replace_resname'])][1] -= self.nprots
+			reslist = [['Protein_A',self.nprots],[self.settings['replace_resname_new'],self.nprots]]+reslist
+			for r in reslist: fp.write(r[0]+' '+str(r[1])+'\n')
+	
+	def remove_close_waters(self):
+		
+		with open(self.rootdir+'script-vmd-remove-waters.tcl','w') as fp:
+			fp.write('mol new system-fused.gro'+'\n')
+			fp.write('set sel [atomselect top \"all not ((resname W or resname ION) and within ')
+			fp.write(str(self.settings['water_gap_angstroms'])+' of (name BB or resname PIP2))\"]\n')
+			fp.write('$sel writepdb solvate-vmd.pdb\nexit\n')
+		call('vmd -dispdev text -e script-vmd-remove-waters.tcl',
+			cwd=self.rootdir,logfile='log-vmd-remove-waters')
+		cmd = [gmxpaths['editconf'],
+			'-f solvate-vmd.pdb',
+			'-o solvate-vmd.gro',
+			'-resnr 1']
+		call(cmd,logfile='log-editconf-convert-vmd-gro',cwd=self.rootdir)
+		
+	def convert_ions_to_water(self):
+		
+		with open(self.rootdir+'solvate-vmd.gro','r') as fp: gro = fp.readlines()
+		with open(self.rootdir+'system-allwater.gro','w') as fp:
+			fp.write(gro[0])
+			fp.write(gro[1])
+			for line in gro[2:-1]:
+				for iname in ['negative_ion_name','positive_ion_name']:
+					line = re.sub('ION'+(re.sub('\+','\\+',
+						self.settings[iname]).rjust(7+(1 if '+' in self.settings[iname] else 0))),
+						'W'.ljust(5)+'W'.rjust(5),line)
+				fp.write(line)
+			fp.write(gro[-1])
+
+		print "counting waters and updating topology"
+		with open(self.rootdir+'system-allwater.gro','r') as fp: gro = fp.readlines()
+		nwaters = len([i for i in gro if re.search('W'.ljust(5)+'W'.rjust(5),i)])
+		print self.lnames,self.comps
+		delinds = [self.lnames.index(self.settings[i]) 
+			for i in ['sol_name','negative_ion_name','positive_ion_name']]
+		print np.sort(delinds)
+		for i in np.sort(delinds)[::-1]: 
+			del self.lnames[i]
+			del self.comps[i]
+		self.lnames.append('W')
+		self.comps.append(['W',nwaters])
+		print self.lnames,self.comps
+		self.protein_itp = os.path.basename(self.settings['top_protein'])
+		self.write_topology_bilayer('solvate.top')
+
 			
 	def construction(self):
 	
 		'''
-		preparation steps
-
-		0. prepare only a lipid and protein gro file, it doesn't matter where they are absolutely located
-
-		steps to create protein lattice
-
+		original method steps:
+		0. prepare only a lipid and protein gro file (position doesn't matter but orientation does)
 		1. load protein, lipid, and membrane
 		2. define the lattice relative to the box vectors
 		3. assign lateral positions and rotations
@@ -118,7 +196,7 @@ class ProteinBilayer(amxsim.AMXSimulation):
 		9. once the complex is assembled, start the membed procedure
 		10. consider outputting the index numbers for membed
 
-		remaining tasks
+		remaining tasks?
 		find the nearest DOPS molecule for each PIP2 and delete it before writing the file
 		interface directly with g_membed
 		'''
@@ -126,9 +204,9 @@ class ProteinBilayer(amxsim.AMXSimulation):
 		#---used re module to write this code to unpack the dictionary because locals intransigent
 		director_cgmd = self.settings['director_cgmd']
 		selector_cgmd = self.settings['selector_cgmd']
-		struct_protein = self.settings['struct_protein']
-		struct_lipid = self.settings['struct_lipid']
-		struct_membrane = self.settings['struct_membrane']
+		struct_protein = os.path.basename(self.settings['struct_protein'])
+		struct_lipid = os.path.basename(self.settings['struct_lipid'])
+		struct_membrane = os.path.basename(self.settings['struct_membrane'])
 		top_membrane = self.settings['top_membrane']
 		top_protein = self.settings['top_protein']
 		method = self.settings['method']
@@ -184,6 +262,9 @@ class ProteinBilayer(amxsim.AMXSimulation):
 		for line in fpin:
 			struct_lipid_file.append(line)
 		fpin.close()
+		
+		#---formatting trick to ensure aligned decimal places
+		dotplace = lambda n: re.compile(r'(\d)0+$').sub(r'\1',"%8.2f"%float(n))
 
 		#---method in which we specify spacing between the oligomer and put the lattice 
 		#---...in the center of the box
@@ -240,11 +321,17 @@ class ProteinBilayer(amxsim.AMXSimulation):
 					else: out_coords = protpos + shifter
 					#---output protein points
 					for l in range(2,len(struct_protein_file)-1):
+						if 0:
+							fpout.write(struct_protein_file[l][0:22]+''+\
+								str('%.3f'%(out_coords[l-2][0]/10.))+'  '+\
+								str('%.3f'%(out_coords[l-2][1]/10.))+'  '+\
+								str('%.3f'%(out_coords[l-2][2]/10.+\
+								zoffset))+'\n')
 						fpout.write(struct_protein_file[l][0:22]+''+\
-							str('%.3f'%(out_coords[l-2][0]/10.))+'  '+\
-							str('%.3f'%(out_coords[l-2][1]/10.))+'  '+\
-							str('%.3f'%(out_coords[l-2][2]/10.+\
-							zoffset))+'\n')
+							dotplace(out_coords[l-2][0]/10.)+'  '+\
+							dotplace(out_coords[l-2][1]/10.)+'  '+\
+							dotplace(out_coords[l-2][2]/10.+zoffset)+'\n')
+				self.nprots = len(pos_lateral)
 				for ind in range(len(pos_lateral)):
 					#---output shifted accompanying lipids
 					shifter_lipid = np.concatenate((pos_lateral[ind],[pos_norms[ind]])) +\

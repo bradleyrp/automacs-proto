@@ -23,7 +23,6 @@ use gmxwrap (
 
 #---inputs
 system("bash settings.sh");
-my $simtype = getbashstr("settings.sh","SIMTYPE");
 my $stepstring = getbashstr("settings.sh","STEPSTRING");
 my @steps = split(/\s+/, $stepstring);
 my %steplist = map { $_ => 1 } @steps;
@@ -37,7 +36,6 @@ my $logname;
 
 reporter("EQUILIBRATION ROUTINE");
 reporter timestring;
-reporter "simtype = " . $simtype;
 
 #---NVT EQUILIBRATION, SHORT TIMESTEP
 if ($steplist{"nvt-short"} == 1) {

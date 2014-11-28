@@ -1,0 +1,51 @@
+integrator = md
+dt = 0.040
+nsteps = 50000
+nstcomm = 100
+comm-grps = LIPIDS SOLV PROTEIN
+
+nstxout = 10000
+nstvout = 10000
+nstfout = 0
+nstlog = 2000
+nstenergy = 2000
+nstxtcout = 2000
+xtc_precision = 100
+
+energygrps = LIPIDS SOLV PROTEIN
+
+nstlist = 10
+ns_type = grid
+pbc = xyz
+rlist = 1.4
+
+coulombtype = Shift 
+rcoulomb_switch = 0.0
+rcoulomb = 1.2
+epsilon_r = 15
+epsilon_rf = 1
+vdw_type = Shift 
+rvdw_switch = 0.9
+rvdw = 1.2
+DispCorr = No
+
+tcoupl = V-rescale
+tc-grps = LIPIDS SOLV PROTEIN
+tau_t = 1.0 1.0 1.0
+ref_t = 310 310 310
+
+Pcoupl = Berendsen
+Pcoupltype = semiisotropic
+tau_p = 4.0 4.0
+compressibility = 3e-4 3e-4
+ref_p = 1.0 1.0
+
+gen_vel = no
+gen_temp = 300
+gen_seed = 632123
+
+constraints = none
+constraint_algorithm = Lincs
+continuation = yes
+lincs_order = 4
+lincs_warnangle = 90

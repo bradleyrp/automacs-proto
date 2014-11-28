@@ -66,7 +66,6 @@ if ! [ -d "$step_equilibration" ]; then cp -r ./sources/general-equil ./$step_eq
 else cp -r ./sources/general-equil/* ./$step_equilibration;fi\n
 #---connect equilibration settings to the previous step
 sed -i 's/^SOURCEDIR.*/SOURCEDIR=\.\.\/'$step_build'/g' $step_equilibration/settings.sh
-sed -i 's/SIMTYPE.*/SIMTYPE="'$simtype'"/g' $step_equilibration/settings.sh
 sed -i 's/cp $AMXPATH\/.*/cp $AMXPATH\/'$input_files'\/\* \.\//g' $step_equilibration/settings.sh
 """,
 """
@@ -75,7 +74,6 @@ if ! [ -d "$step_simulation" ]; then cp -r ./sources/general-sim ./$step_simulat
 else cp -r ./sources/general-sim/* ./$step_simulation;fi\n
 #---connect simulation settings to the previous step
 sed -i 's/^SOURCEDIR.*/SOURCEDIR=\.\.\/'$step_equilibration'/g' $step_simulation/settings.sh
-sed -i 's/SIMTYPE.*/SIMTYPE="'$simtype'"/g' $step_simulation/settings.sh
 sed -i 's/cp $AMXPATH\/.*/cp $AMXPATH\/'$input_files'\/\* \.\//g' $step_simulation/settings.sh
 """,
 ]
@@ -168,7 +166,6 @@ script_dict = {
 			'step_build':'s02-build-bilayer',
 			'step_equilibration':'s03-equil',
 			'step_simulation':'s04-sim',
-			'simtype':'cgmd-bilayer',
 			'input_files':'cgmd-bilayer-equil',
 			},
 		'continue':True,
@@ -192,7 +189,6 @@ script_dict = {
 			'step_build':'s02-build-bilayer',
 			'step_equilibration':'s03-equil',
 			'step_simulation':'s04-sim',
-			'simtype':'aamd-bilayer',
 			'input_files':'aamd-bilayer-equil',
 			},
 		'continue':True,
@@ -217,7 +213,6 @@ script_dict = {
 			'step_build':'s01-build-protein-water',
 			'step_equilibration':'s02-equil',
 			'step_simulation':'s03-sim',
-			'simtype':'aamd-protein',
 			'input_files':'aamd-protein-equil',
 			'detect_previous_step':None,
 			},
@@ -239,7 +234,6 @@ script_dict = {
 			'step_build':'s01-build-protein-water',
 			'step_equilibration':'s02-equil',
 			'step_simulation':'s03-sim',
-			'simtype':'cgmd-protein',
 			'input_files':'cgmd-protein-equil',
 			},
 		'continue':True,
@@ -296,7 +290,7 @@ script_dict = {
 		},
 	'cgmd-protein-bilayer':{
 		'prep':[prepare_equil_sim[0]+\
-			"sed -i 's/STEPSTRING.*/STEPSTRING=\"nvt npt\"/g' $step_equilibration/settings.sh"]+\
+			"sed -i 's/STEPSTRING.*/STEPSTRING=\"npt\"/g' $step_equilibration/settings.sh"]+\
 			prepare_equil_sim[1:],
 		'steps':{
 			'step_build':'s01-protein-bilayer',
@@ -467,22 +461,7 @@ def script(single=None,rescript=False,**extras):
 			fp.write(script_maker(target,script_dict,sim_only=True,extras=extras))
 			fp.close()
 			os.system('chmod u+x '+oldsteps[-1]+'/script-md-continue')
-		'''
-		#---write cluster-header if possible
-		if header_source_mod != None:
-			print '\twriting PBS script: cluster-master-'+str(target)
-			fp = open('cluster-master-'+str(target),'w')
-			fp.write(header_source_mod)
-			fp.write(script_maker(target,script_dict,module_commands=proc_settings['module'],extras=extras))
-			if header_source_footer != None: fp.write(header_source_footer)
-			fp.close()
-			#---write a simulation continuation script to the final step
-			fp = open(script_dict[target]['steps']['step_simulation']+'/cluster-md-continue','w')
-			fp.write(header_source_mod)
-			fp.write(script_maker(target,script_dict,module_commands=proc_settings['module'],
-				sim_only=True,extras=extras))
-			fp.close()		
-		'''
+
 		print '\texecute locally with ./'+'script-master-'+str(target)
 		if rescript: print '\tsince this is a rescript you probably want to use the continue script'
 		print '\tsee the documentation for details\n'
