@@ -269,7 +269,7 @@ script_dict = {
 		'sequence':['\n',
 			call_sim_restart,
 			call_sim,
-			],
+			][:-1],
 		},
 	'multiply':{
 		'prep':prepare_multiply,

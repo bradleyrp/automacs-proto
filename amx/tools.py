@@ -203,7 +203,7 @@ def chain_steps():
 	if oldsteps != []:
 		if 0: print '\tchaining new steps after old ones'
 		if 0: print '\tprevious sequence ended with '+oldsteps[-1]
-		startstep = int(re.findall('^[a-z]([0-9]){1,2}-(.+)',oldsteps[-1])[0][0])
+		startstep = int(re.findall('^[a-z]([0-9]{1,2})-(.+)',oldsteps[-1])[0][0])
 	else: startstep = 0
 	return startstep,oldsteps
 	
@@ -220,7 +220,7 @@ def write_steps_to_bash(steps,startstep,oldsteps,extras=None):
 	for step in steps.keys(): 
 		#---intervene to see if this is a step or not
 		if steps[step] != None and re.match('^[a-z]([0-9]{1,2})-(.+)',steps[step]):
-			si,stepname = re.findall('^[a-z]([0-9]){1,2}-(.+)',steps[step])[0]
+			si,stepname = re.findall('^[a-z]([0-9]{1,2})-(.+)',steps[step])[0]
 			#---maintain first letter and advance the step number to append the new step
 			newname = steps[step][0]+('%02d'%(int(si)+startstep))+'-'+stepname
 			bashheader += step+'='+newname+'\n'
@@ -231,8 +231,8 @@ def write_steps_to_bash(steps,startstep,oldsteps,extras=None):
 		elif step not in ['detect_previous_step']: bashheader += step+'='+steps[step]+'\n'
 	if extras != None:
 		for key in extras.keys():
-			print 'key = '+str(key)
-			print 'val = '+str(extras[key])
+			if 0: print 'key = '+str(key)
+			if 0: print 'val = '+str(extras[key])
 			for extra in extras: bashheader += key+'='+extras[key]+'\n'
 	return bashheader
 	
