@@ -370,17 +370,17 @@ def upload(step=None,extras=None):
 	if step != None:
 		if step not in oldsteps: raise Exception('except: cannot find that step folder')
 		last = step
-	elif not re.match('^[a-z][0-9]{1,2}\-sim',last):
-		raise Exception('last step must be a sim step if you want to upload it')
 	else: last = oldsteps[-1]
 	for root,dirnames,filenames in os.walk('./amx'): break
 	for fn in filenames: gofiles.append('amx/'+fn)
 	if step == None:
 		for t in latestcheck(last): gofiles.append(last+'/'+t)
-		for j in [i for i in filenames if re.match('^.+\.(pl|sh)$',i)]: gofiles.append(last+'/'+j)
+		for j in [i for i in filenames if re.match('.*/.+(pl|sh)$',i)]: gofiles.append(last+'/'+j)
 	else:
 		for root,dirnames,filenames in os.walk(last): break
 		for fn in filenames: gofiles.append(last+'/'+fn)
+	for root,dirnames,filenames in os.walk(last): break
+	for j in [i for i in filenames if re.match('.+\.(pl|sh)$',i)]: gofiles.append(last+'/'+j)
 	cwd = os.path.basename(os.path.abspath(os.getcwd()))
 	with open('upload-rsync-list.txt','w') as fp: 
 		for i in gofiles: fp.write(i+'\n')
