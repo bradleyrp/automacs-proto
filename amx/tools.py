@@ -199,11 +199,11 @@ def chain_steps():
 	stepdirs = [i for i in dirnames if re.match('^[a-z][0-9]{1,2}-',i)]
 	stepnums = [int(re.findall('^[a-z]([0-9]{1,2})-(.+)',i)[0][0]) for i in stepdirs]
 	oldsteps = [stepdirs[i] for i in argsort(
-		[int(re.findall('^[a-z]([0-9]){1,2}-(.+)',i)[0][0]) for i in stepdirs])]
+		[int(re.findall('^[a-z]([0-9]{1,2})-(.+)',i)[0][0]) for i in stepdirs])]
 	if oldsteps != []:
 		if 0: print '\tchaining new steps after old ones'
 		if 0: print '\tprevious sequence ended with '+oldsteps[-1]
-		startstep = int(re.findall('^[a-z]([0-9]){1,2}-(.+)',oldsteps[-1])[0][0])
+		startstep = int(re.findall('^[a-z]([0-9]{1,2})-(.+)',oldsteps[-1])[0][0])
 	else: startstep = 0
 	return startstep,oldsteps
 	
