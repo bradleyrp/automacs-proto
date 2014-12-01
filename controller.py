@@ -371,11 +371,12 @@ def upload(step=None,extras=None):
 		if step not in oldsteps: raise Exception('except: cannot find that step folder')
 		last = step
 	else: last = oldsteps[-1]
+	print last
 	for root,dirnames,filenames in os.walk('./amx'): break
 	for fn in filenames: gofiles.append('amx/'+fn)
 	if step == None:
 		for t in latestcheck(last): gofiles.append(last+'/'+t)
-		for j in [i for i in filenames if re.match('.*/.+(pl|sh)$',i)]: gofiles.append(last+'/'+j)
+		for j in [i for i in filenames if re.match('.+\.(pl|sh)$',i)]: gofiles.append(last+'/'+j)
 	else:
 		for root,dirnames,filenames in os.walk(last): break
 		for fn in filenames: gofiles.append(last+'/'+fn)

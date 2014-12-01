@@ -203,7 +203,7 @@ def chain_steps():
 	if oldsteps != []:
 		if 0: print '\tchaining new steps after old ones'
 		if 0: print '\tprevious sequence ended with '+oldsteps[-1]
-		startstep = int(re.findall('^[a-z]([0-9]{1,2})-(.+)',oldsteps[-1])[0][0])
+		startstep = int(re.findall('^[a-z]([0-9]){1,2}-(.+)',oldsteps[-1])[0][0])
 	else: startstep = 0
 	return startstep,oldsteps
 	
@@ -287,9 +287,9 @@ def latestcheck(last):
 	for root,dirnames,filenames in os.walk(last): break
 	tprs = [i for i in filenames if re.match('^md\.part[0-9]{4}\.tpr$',i)]
 	cpts = [i for i in filenames if re.match('^md\.part[0-9]{4}\.cpt$',i)]
-	tnum = argsort([int(re.findall('^md\.part([0-9]){4}\.tpr$',i)[0][0]) for i in tprs])[-1]
-	cnum = argsort([int(re.findall('^md\.part([0-9]){4}\.tpr$',i)[0][0]) for i in tprs])[-1]
-	if tprs[tnum][:-4] != tprs[cnum][:-4]: raise Exception('latest cpt/tpr files have different indices')
+	tnum = argsort([int(re.findall('^md\.part([0-9]{4})\.tpr$',i)[0]) for i in tprs])[-1]
+	cnum = argsort([int(re.findall('^md\.part([0-9]{4})\.cpt$',i)[0]) for i in cpts])[-1]
+	if tprs[tnum][:-4] != cpts[cnum][:-4]: raise Exception('latest cpt/tpr files have different indices')
 	return [tprs[tnum],cpts[cnum]]
 	
 def lastframe(prefix,rootdir,gmxpaths):
