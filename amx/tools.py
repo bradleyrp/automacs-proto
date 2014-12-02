@@ -244,20 +244,22 @@ def script_maker(target,script_dict,module_commands=None,sim_only=False,extras=N
 	steps = script_dict[target]['steps']
 	script = '\n#---definitions\n'
 	startstep,oldsteps = chain_steps()
-	#---the sim_only flag uses only the last, presumably "continuation" segment of the sequence
-	if not sim_only: script += write_steps_to_bash(steps,startstep,oldsteps,extras=extras)
-	if sim_only: seq_segments = script_dict[target]['sequence'][-1:]
+	#---if boolean the sim_only flag uses only the last, presumably "continuation" segment of the sequence
+	#---if list then the sim_only flag supplies the restart script
+	script += write_steps_to_bash(steps,startstep,oldsteps,extras=extras)+'\n'
+	if type(sim_only) == str: seq_segments = [str(sim_only)]
+	elif type(sim_only) == bool and sim_only: seq_segments = script_dict[target]['sequence'][-1:]
 	else: seq_segments = script_dict[target]['sequence']
 	for segment in seq_segments: 
 		#---we add module_commands before each segment to ensure GROMACS paths are set
-		if module_commands != None: script += '\n'+module_commands+'\n'
+		if module_commands != None: script += '\n'+module_commands+'\n\n'
 		#---if sim_only, then the script is run from within the step folder in which case we remove cd
-		if not sim_only: script += segment
-		else:
+		if type(sim_only) == str or (type(sim_only)==bool and sim_only):
 			segtrim,seglines = [],segment.split('\n')
 			for line in seglines:
 				if not re.match('^cd\s',line):
 					script += line+'\n'
+		else: script += segment
 	return script
 	
 def prep_scripts(target,script_dict):

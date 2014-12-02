@@ -422,7 +422,7 @@ def script(single=None,rescript=False,**extras):
 		fp = open(oldsteps[-1]+'/cluster-md-continue','w')
 		fp.write(header_source_mod)
 		fp.write(script_maker('restart',script_dict,module_commands=proc_settings['module'],
-			sim_only=True,extras=extras))
+			sim_only=call_sim,extras=extras))
 		fp.close()		
 
 	#---single procedure script maker
@@ -459,7 +459,7 @@ def script(single=None,rescript=False,**extras):
 			startstep,oldsteps = chain_steps()
 			fp = open(oldsteps[-1]+'/script-md-continue','w')
 			fp.write('#!/bin/bash\n')
-			fp.write(script_maker(target,script_dict,sim_only=True,extras=extras))
+			fp.write(script_maker(target,script_dict,sim_only=call_sim,extras=extras))
 			fp.close()
 			os.system('chmod u+x '+oldsteps[-1]+'/script-md-continue')
 
