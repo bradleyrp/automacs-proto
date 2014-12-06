@@ -105,6 +105,12 @@ fi
 """
 ]
 
+prepare_rescript = [
+"""
+sed -i 's/^STOPHOURS.*/STOPHOURS=\"'$walltime'\"/g' $detect_previous_step/settings.sh
+"""
+]
+
 prepare_multiply = [
 """
 #---copy simulation continuation files
@@ -130,6 +136,13 @@ cd ..
 call_sim_restart = """#---execute simulation restart step
 cd $step_simulation
 ./script-sim-restart.pl
+if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
+cd ..
+\n"""
+
+call_sim_rescript = """#---execute simulation restart step
+cd $detect_previous_step
+./script-sim.pl
 if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
 cd ..
 \n"""
@@ -169,7 +182,7 @@ script_dict = {
 			'input_files':'cgmd-bilayer-equil',
 			},
 		'continue':True,
-		'sequence':['\n',
+		'sequence':[
 			multiresub(dict({
 				'ROOTDIR':'s01-build-lipidgrid',
 				'COMMAND':'MonolayerGrids(rootdir=\'s01-build-lipidgrid\')',
@@ -192,7 +205,7 @@ script_dict = {
 			'input_files':'aamd-bilayer-equil',
 			},
 		'continue':True,
-		'sequence':['\n',
+		'sequence':[
 			multiresub(dict({
 				'ROOTDIR':'s01-build-lipidgrid',
 				'COMMAND':'MonolayerGrids(rootdir=\'s01-build-lipidgrid\')',
@@ -217,7 +230,7 @@ script_dict = {
 			'detect_previous_step':None,
 			},
 		'continue':True,
-		'sequence':['\n',
+		'sequence':[
 			multiresub(dict({
 				'ROOTDIR':'$step_build',
 				'COMMAND':'ProteinWater(rootdir=\'$step_build\')',
@@ -237,7 +250,7 @@ script_dict = {
 			'input_files':'cgmd-protein-equil',
 			},
 		'continue':True,
-		'sequence':['\n',
+		'sequence':[
 			multiresub(dict({
 				'ROOTDIR':'s01-build-protein-water',
 				'COMMAND':'ProteinWater(rootdir=\'s01-build-protein-water\')',
@@ -252,7 +265,7 @@ script_dict = {
 			'step_homology':'s01-homology',
 			'input_files':'aamd-protein-homology',
 			},
-		'sequence':['\n',
+		'sequence':[
 			multiresub(dict({
 				'ROOTDIR':'s01-homology',
 				'COMMAND':'ProteinHomology(rootdir=\'s01-homology\')',
@@ -266,10 +279,18 @@ script_dict = {
 			'detect_previous_step':None,
 			},
 		'continue':True,
-		'sequence':['\n',
+		'sequence':[
 			call_sim_restart,
-			call_sim,
-			][:-1],
+			],
+		},
+	'rescript':{
+		'prep':prepare_rescript,
+		'steps':{
+			'detect_previous_step':None,
+			},
+		'sequence':[
+			call_sim_rescript,
+			],
 		},
 	'multiply':{
 		'prep':prepare_multiply,
@@ -278,7 +299,7 @@ script_dict = {
 			'detect_previous_step':None,
 			},
 		'continue':True,
-		'sequence':['\n',
+		'sequence':[
 			multiresub(dict({
 				'ROOTDIR':'$step_simulation',
 				'COMMAND':'Multiply(rootdir=\'$step_simulation\',previous_dir=\'$previus_step\','+\
@@ -298,7 +319,7 @@ script_dict = {
 			'step_equilibration':'s02-equil',
 			'step_simulation':'s03-sim',
 			},
-		'sequence':['\n',
+		'sequence':[
 			multiresub(dict({
 				'ROOTDIR':'$step_build',
 				'COMMAND':'ProteinBilayer(rootdir=\'$step_build\')',
@@ -357,13 +378,12 @@ def clean(sure=True,protected=False,extras=None):
 			if [re.match(i,f[0]) for i in folder_delete]: os.system('rm -rf '+f[0]+'/'+f[1])
 			else: os.system('rmdir '+f[0]+'/'+f[1])
 		for f in deldirs_protect: os.system('rm -rf '+f[0]+'/'+f[1])
-		
 					
 def docs(extras=None):
 	'''Regenerate the documentation using sphinx-apidoc and code in amx/gendoc.sh'''
 	os.system('./amx/script-make-docs.sh '+os.path.abspath('.'))
 	
-def upload(step=None,extras=None):
+def upload(step=None,extras=None,silent=False):
 	'''Provides a file list and rsync syntax to upload this to a cluster without extra baggage.'''
 	gofiles = ['controller.py','makefile','settings']
 	startstep,oldsteps = chain_steps()
@@ -371,12 +391,11 @@ def upload(step=None,extras=None):
 		if step not in oldsteps: raise Exception('except: cannot find that step folder')
 		last = step
 	else: last = oldsteps[-1]
-	print last
+	if not silent: print last
 	for root,dirnames,filenames in os.walk('./amx'): break
 	for fn in filenames: gofiles.append('amx/'+fn)
 	if step == None:
 		for t in latestcheck(last): gofiles.append(last+'/'+t)
-		for j in [i for i in filenames if re.match('.+\.(pl|sh)$',i)]: gofiles.append(last+'/'+j)
 	else:
 		for root,dirnames,filenames in os.walk(last): break
 		for fn in filenames: gofiles.append(last+'/'+fn)
@@ -385,8 +404,16 @@ def upload(step=None,extras=None):
 	cwd = os.path.basename(os.path.abspath(os.getcwd()))
 	with open('upload-rsync-list.txt','w') as fp: 
 		for i in gofiles: fp.write(i+'\n')
-	print 'upload list written to upload-rsync-list.txt\nrun the following rsync to your destination'
-	print 'rsync -avi --files-from=upload-rsync-list.txt ../'+cwd+' DEST/'+cwd
+	if not silent: print 'upload list written to upload-rsync-list.txt\nrun '+\
+		'the following rsync to your destination'
+	if not silent: print 'rsync -avi --files-from=upload-rsync-list.txt ../'+cwd+' DEST/'+cwd
+	
+def copycode():
+	startstep,oldsteps = chain_steps()
+	cwd = os.path.basename(os.path.abspath(os.getcwd()))
+	with open('upload-rsync-code-excludes.txt','w') as fp: 
+		for step in oldsteps: fp.write(step+'\n')
+	print 'rsync -avi --exclude-from=upload-rsync-code-excludes.txt ./ ../automacs-code'
 
 #-------------------------------------------------------------------------------------------------------------
 
@@ -414,17 +441,23 @@ def script(single=None,rescript=False,**extras):
 	#---a rescript on the cluster will find the most recent step and add a continue script to it
 	elif single == None and rescript == True:
 		startstep,oldsteps = chain_steps()
-		print '\tto continue, execute '+oldsteps[-1]+'/script-md-continue or '+\
-			'run qsub script-md-continue from the '+oldsteps[-1]+' folder'
-		proc_settings,header_source_mod = get_proc_settings()
+		proc_settings,header_source_mod,hs_footer = get_proc_settings()
 		if header_source_mod == None: raise Exception('except: lone rescript only works on clusters')
-		#---write a simulation continuation script to the final step
-		fp = open(oldsteps[-1]+'/cluster-md-continue','w')
+		#---run prep scripts
+		extras['walltime'] = proc_settings['walltime']
+		prep_scripts('rescript',script_dict,extras=extras)
+		#---write a list of files to move to scratch
+		upload(silent=True)
+		with open('upload-rsync-list.txt','a') as fp: fp.write('gmxpaths.conf\n')
+		#---write a simulation continuation script in the root directory on clusters
+		fp = open('cluster-md-continue','w')
 		fp.write(header_source_mod)
-		fp.write(script_maker('restart',script_dict,module_commands=proc_settings['module'],
-			sim_only=True,extras=extras))
+		fp.write(script_maker('rescript',script_dict,
+			module_commands=proc_settings['module'],
+			sim_only=None,extras=extras,))
+		if hs_footer != None: fp.write(hs_footer)
 		fp.close()		
-
+		
 	#---single procedure script maker
 	else:
 		target = single
@@ -440,7 +473,7 @@ def script(single=None,rescript=False,**extras):
 			for fn in glob.glob('./inputs/input-specs*'):                                                                                                                   
 				sub = subprocess.call(['sed','-i',"s/^.*simscale.*$/simscale = \'"+simscale+"\'/",fn])
 	
-		proc_settings,header_source_mod = get_proc_settings()
+		proc_settings,header_source_mod,hs_footer = get_proc_settings()
 
 		#---write the local script
 		print '\twriting script: script-master-'+str(target)
@@ -451,7 +484,7 @@ def script(single=None,rescript=False,**extras):
 		os.system('chmod u+x '+'script-master-'+str(target))
 		
 		#---prepare the files and directories
-		if not rescript: prep_scripts(target,script_dict)
+		if not rescript: prep_scripts(target,script_dict,extras=extras)
 		
 		#---for simulations that can be continued we write a script for only the final step in the sequence
 		if 'continue' in script_dict[target].keys() and script_dict[target]['continue']:
@@ -459,7 +492,7 @@ def script(single=None,rescript=False,**extras):
 			startstep,oldsteps = chain_steps()
 			fp = open(oldsteps[-1]+'/script-md-continue','w')
 			fp.write('#!/bin/bash\n')
-			fp.write(script_maker(target,script_dict,sim_only=True,extras=extras))
+			fp.write(script_maker(target,script_dict,sim_only=call_sim,extras=extras))
 			fp.close()
 			os.system('chmod u+x '+oldsteps[-1]+'/script-md-continue')
 

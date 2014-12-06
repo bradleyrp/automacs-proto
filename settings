@@ -46,17 +46,17 @@ cluster_header_compbio_opterons_scratch = [
 #PBS -N gmxjob
 echo "Job started on `hostname` at `date`"
 cd $PBS_O_WORKDIR
-jobid=`echo $PBS_JOBID|cut -f1 -d '.'`     # get the id of the job
-rundir="/scratch/job-$jobid"               # complete path to temp dir  
-echo "Running on scratch in "$rundir       # report the directory
-mkdir $rundir                              # make the tempdir  
-cp -rv * $rundir                           # copy all files to tempdir
-cd $rundir                                 # change to tempdir
+jobid=`echo $PBS_JOBID|cut -f1 -d '.'`
+rundir="/scratch/job-$jobid"
+echo "Running on scratch in "$rundir
+mkdir $rundir
+cp -rv * $rundir
+cd $rundir
 """,
 """
-mv -f * $PBS_O_WORKDIR                     # move all files to the home directory
-cd /scratch                                # leave the directory
-rmdir $rundir                              # remove the directory if it is empty
+mv -f * $PBS_O_WORKDIR
+cd /scratch
+rmdir $rundir
 exit
 """]
 
@@ -67,29 +67,52 @@ cluster_header_compbio_xeons_scratch = [
 #PBS -N gmxjob
 echo "Job started on `hostname` at `date`"
 cd $PBS_O_WORKDIR
-jobid=`echo $PBS_JOBID|cut -f1 -d '.'`     # get the id of the job
-rundir="/scratch/job-$jobid"               # complete path to temp dir  
-echo "Running on scratch in "$rundir       # report the directory
-mkdir $rundir                              # make the tempdir  
-cp -rv * $rundir                           # copy all files to tempdir
-cd $rundir                                 # change to tempdir
+jobid=`echo $PBS_JOBID|cut -f1 -d '.'`
+rundir="/scratch/job-$jobid"
+echo "Running on scratch in "$rundir
+mkdir $rundir
+cp -rv * $rundir
+cd $rundir
 """,
 """
-mv -f * $PBS_O_WORKDIR                     # move all files to the home directory
-cd /scratch                                # leave the directory
-rmdir $rundir                              # remove the directory if it is empty
+mv -f * $PBS_O_WORKDIR
+cd /scratch
+rmdir $rundir
 exit
 """]
 
 cluster_header_walnut = \
 """#!/bin/bash
-#PBS -l nodes=1:ppn=32,walltime=24:00:00,pmem=1500mb                                                                                                                                    
-#PBS -j eo                                                                                                                                                                              
-#PBS -q long                                                                                                                                                                            
-#PBS -N gmxjob                                                                                                                                                                          
-echo "Job started on `hostname` at `date`"                                                                                                                                              
+#PBS -l nodes=1:ppn=32,walltime=24:00:00,pmem=1500mb
+#PBS -j eo
+#PBS -q long
+#PBS -N gmxjob
+echo "Job started on `hostname` at `date`"
 cd $PBS_O_WORKDIR
 """
+
+cluster_header_walnut_scratch = [
+"""#!/bin/bash
+#PBS -l nodes=1:ppn=2,walltime=24:00:00,pmem=1500mb
+#PBS -j eo 
+#PBS -N gmxjob
+#PBS -q long 
+echo "Job started on `hostname` at `date`"
+cd $PBS_O_WORKDIR
+jobid=`echo $PBS_JOBID|cut -f1 -d '.'`
+rundir="/scratch-local/job-$jobid"
+echo "Running on scratch in "$rundir
+mkdir $rundir
+rsync -avi --files-from=$PBS_O_WORKDIR/upload-rsync-list.txt ./ $rundir
+cd $rundir
+""",
+"""
+cp -arv * $PBS_O_WORKDIR
+cd /scratch-local
+rm -r $rundir/*
+rmdir $rundir
+exit
+"""]
 
 #---formalize the collection of scripts to avoid using globals
 script_repo = {
@@ -99,6 +122,7 @@ script_repo = {
 	'cluster_header_compbio_xeons':cluster_header_compbio_xeons,
 	'cluster_header_compbio_xeons_scratch':cluster_header_compbio_xeons_scratch,
 	'cluster_header_walnut':cluster_header_walnut,
+	'cluster_header_walnut_scratch':cluster_header_walnut_scratch,
 	}
 
 '''
@@ -150,9 +174,9 @@ default_proc_specs = {
 		'module':'module load gromacs-gcc-cuda',
 		'scratch':False},
 	'walnut':
-		{'nodes':1,'ppn':32,'walltime':24,'pmem':'1500mb',
+		{'nodes':1,'ppn':32,'walltime':1,'pmem':'1500mb',
 		'module':'module load gromacs/4.6.7-icc-single',
-		'scratch':False},
+		'scratch':True},
 	}
 	
 #---gromacs paths
