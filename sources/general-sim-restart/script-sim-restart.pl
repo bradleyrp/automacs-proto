@@ -70,7 +70,7 @@ syscatch($cmd);
 errorscan($logname)==0 or finish "$!";
 reporter "logfile = " . $logname;
 reporter timestring;
-reporter "running: mdrun, production MD run continuation";
+reporter "running: mdrun, production MD run restart";
 $logname = "log-mdrun-md-" . $nrun;
 $cmd = $config{"mdrun"};
 $cmd .= " -s md.part" . $nrun . ".tpr";
