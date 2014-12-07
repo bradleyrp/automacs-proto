@@ -381,6 +381,7 @@ def get_proc_settings():
 	
 	#---write cluster-header if possible
 	scratch_suffix = ''
+	header_source_footer = None
 	if proc_settings != None:
 		if proc_settings['scratch']: scratch_suffix = '_scratch'
 	if hostname != None and 'cluster_header_'+system_id+scratch_suffix in script_repo:
@@ -389,9 +390,7 @@ def get_proc_settings():
 		if type(scripttext) == list:
 			header_source = scripttext[0]
 			header_source_footer = scripttext[1]
-		else:
-			header_source = scripttext
-			header_source_footer = None
+		else: header_source = scripttext
 		header_source_mod = []
 		for line in header_source.split('\n'):
 			if line[:7] == '#PBS -l' and proc_settings != None:
