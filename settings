@@ -12,7 +12,7 @@ dictionary also keeps track of the available architectures for each hostname.
 #---here the hostname is a single word excluding punctuation which can be matched to the true hostname
 #---note that the first element in the corresponding list is the default architecture
 valid_hostnames = {
-	'compbio':['opterons_gpu','opterons','xeons'],
+	'compbio':['opterons','xeons','opterons_gpu'],
 	'walnut':None,
 	}
 
@@ -46,17 +46,18 @@ cluster_header_compbio_opterons_scratch = [
 #PBS -N gmxjob
 echo "Job started on `hostname` at `date`"
 cd $PBS_O_WORKDIR
-jobid=`echo $PBS_JOBID|cut -f1 -d '.'`
-rundir="/scratch/job-$jobid"
-echo "Running on scratch in "$rundir
-mkdir $rundir
-cp -rv * $rundir
-cd $rundir
+jobid=`echo $PBS_JOBID|cut -f1 -d '.'`     # get the id of the job
+rundir="/scratch/job-$jobid"               # complete path to temp dir  
+echo "Running on scratch in "$rundir       # report the directory
+mkdir $rundir                              # make the tempdir  
+cp -rv * $rundir                           # copy all files to tempdir
+cd $rundir                                 # change to tempdir
 """,
 """
-mv -f * $PBS_O_WORKDIR
-cd /scratch
-rmdir $rundir
+mv -f * $PBS_O_WORKDIR                     # move all files to the home directory
+cd /scratch                                # leave the directory
+rmdir $rundir                              # remove the directory if it is empty
+exit
 """]
 
 cluster_header_compbio_xeons_scratch = [
@@ -66,50 +67,29 @@ cluster_header_compbio_xeons_scratch = [
 #PBS -N gmxjob
 echo "Job started on `hostname` at `date`"
 cd $PBS_O_WORKDIR
-jobid=`echo $PBS_JOBID|cut -f1 -d '.'`
-rundir="/scratch/job-$jobid"
-echo "Running on scratch in "$rundir
-mkdir $rundir
-cp -rv * $rundir
-cd $rundir
+jobid=`echo $PBS_JOBID|cut -f1 -d '.'`     # get the id of the job
+rundir="/scratch/job-$jobid"               # complete path to temp dir  
+echo "Running on scratch in "$rundir       # report the directory
+mkdir $rundir                              # make the tempdir  
+cp -rv * $rundir                           # copy all files to tempdir
+cd $rundir                                 # change to tempdir
 """,
 """
-mv -f * $PBS_O_WORKDIR
-cd /scratch
-rmdir $rundir
+mv -f * $PBS_O_WORKDIR                     # move all files to the home directory
+cd /scratch                                # leave the directory
+rmdir $rundir                              # remove the directory if it is empty
+exit
 """]
 
 cluster_header_walnut = \
 """#!/bin/bash
-#PBS -l nodes=1:ppn=32,walltime=24:00:00,pmem=1500mb
-#PBS -j eo
-#PBS -q long
-#PBS -N gmxjob
-echo "Job started on `hostname` at `date`"
+#PBS -l nodes=1:ppn=32,walltime=24:00:00,pmem=1500mb                                                                                                                                    
+#PBS -j eo                                                                                                                                                                              
+#PBS -q long                                                                                                                                                                            
+#PBS -N gmxjob                                                                                                                                                                          
+echo "Job started on `hostname` at `date`"                                                                                                                                              
 cd $PBS_O_WORKDIR
 """
-
-cluster_header_walnut_scratch = [
-"""#!/bin/bash
-#PBS -l nodes=1:ppn=2,walltime=24:00:00,pmem=1500mb
-#PBS -j eo 
-#PBS -N gmxjob
-#PBS -q long 
-echo "Job started on `hostname` at `date`"
-cd $PBS_O_WORKDIR
-jobid=`echo $PBS_JOBID|cut -f1 -d '.'`
-rundir="/scratch-local/job-$jobid"
-echo "Running on scratch in "$rundir
-mkdir $rundir
-rsync -avi --files-from=$PBS_O_WORKDIR/upload-rsync-list.txt ./ $rundir
-cd $rundir
-""",
-"""
-cp -arv * $PBS_O_WORKDIR
-cd /scratch-local
-rm -r $rundir/*
-rmdir $rundir
-"""]
 
 #---formalize the collection of scripts to avoid using globals
 script_repo = {
@@ -119,7 +99,6 @@ script_repo = {
 	'cluster_header_compbio_xeons':cluster_header_compbio_xeons,
 	'cluster_header_compbio_xeons_scratch':cluster_header_compbio_xeons_scratch,
 	'cluster_header_walnut':cluster_header_walnut,
-	'cluster_header_walnut_scratch':cluster_header_walnut_scratch,
 	}
 
 '''
@@ -159,7 +138,7 @@ document_location = 'file://'+os.path.abspath(os.path.curdir)+'/docs/_build/html
 #---note the module item holds bash commands to set paths for gromacs utilities 
 default_proc_specs = {
 	'compbio_xeons':
-		{'nnodes':4,'ppn':2,'walltime':48,
+		{'nodes':4,'ppn':2,'walltime':48,
 		'module':'module load gromacs-gcc',
 		'scratch':False},
 	'compbio_opterons':
@@ -173,7 +152,7 @@ default_proc_specs = {
 	'walnut':
 		{'nodes':1,'ppn':32,'walltime':24,'pmem':'1500mb',
 		'module':'module load gromacs/4.6.7-icc-single',
-		'scratch':True},
+		'scratch':False},
 	}
 	
 #---gromacs paths
@@ -184,7 +163,7 @@ standard_gromacs_commands = [
 
 #---system-specific suffixes to the gromacs utilities
 gmx_suffixes = {
-	'compbio_xeons':'_mpi',
+	'compbio_xeons':'_mpi_d',
 	'compbio_opterons':'_mpi',
 	'compbio_opterons_gpu':'_mpi',
 	'walnut':'_mpi',
@@ -194,7 +173,7 @@ gmx_suffixes = {
 #---note some commands require a number of processors NPROCS which is substituted by ./controller make
 gmx_overrides = {
 	'local':{'mdrun':'mdrun -nt 4',},
-	'compbio_xeons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
+	'compbio_xeons':{'mdrun':'mpirun -np NPROCS mdrun_mpi_d',},
 	'compbio_opterons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	'walnut':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	}
