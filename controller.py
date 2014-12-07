@@ -391,14 +391,12 @@ def upload(step=None,extras=None,silent=False):
 		if step not in oldsteps: raise Exception('except: cannot find that step folder')
 		last = step
 	else: last = oldsteps[-1]
-	if not silent: print last
 	for root,dirnames,filenames in os.walk('./amx'): break
 	for fn in filenames: gofiles.append('amx/'+fn)
 	if step == None:
 		lcheck = latestcheck(last)
 		if lcheck == []: return False
-		else:
-			for t in latestcheck(last): gofiles.append(last+'/'+t)
+		for t in latestcheck(last): gofiles.append(last+'/'+t)
 	else:
 		for root,dirnames,filenames in os.walk(last): break
 		for fn in filenames: gofiles.append(last+'/'+fn)
@@ -454,7 +452,7 @@ def script(single=None,rescript=False,**extras):
 		#---use the upload routine to only copy necessary files to scratch
 		if not ('start' in extras.keys() and extras['start']):
 			upload(silent=True)
-			with open('upload-rsync-list.txt','w') as fp: fp.write('gmxpaths.conf\n')
+			with open('upload-rsync-list.txt','a') as fp: fp.write('gmxpaths.conf\n')
 		#---if start flag is present then move everything
 		else:
 			files = [os.path.join(dp, f) for dp, dn, fns in os.walk('./') for f in fns]

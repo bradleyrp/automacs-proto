@@ -12,7 +12,7 @@ dictionary also keeps track of the available architectures for each hostname.
 #---here the hostname is a single word excluding punctuation which can be matched to the true hostname
 #---note that the first element in the corresponding list is the default architecture
 valid_hostnames = {
-	'compbio':['opterons_gpu','opterons','xeons'],
+	'compbio':['opterons','opterons_gpu','xeons'],
 	'walnut':None,
 	}
 
@@ -98,7 +98,6 @@ cluster_header_walnut_scratch = [
 echo "Job started on `hostname` at `date`"
 cd $PBS_O_WORKDIR
 function cleanup {
-	echo "Inside exit function"
 	cd /scratch-local
 	cp -arv $rundir/* $PBS_O_WORKDIR/
 	rm -rf $rundir
