@@ -1,9 +1,11 @@
 
 '''A class which wraps data from a molecular dynamics simulation.'''
 
-import MDAnalysis
-from amx.tools import *
-from numpy import *
+try:
+	import MDAnalysis
+	from amx.tools import *
+	from numpy import *
+except: print 'warning: import failure in simset'
 
 class SimSet:
 

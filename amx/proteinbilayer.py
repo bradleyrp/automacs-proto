@@ -14,10 +14,12 @@ from tools import call,checkout,tee,copy
 from amx.simset import SimSet
 import amxsim
 import numpy as np
-from MDAnalysis import *
-import scipy
-from scipy import spatial
-from numpy import where
+try:
+	from MDAnalysis import *
+	import scipy
+	from scipy import spatial
+	from numpy import where
+except: print 'warning: failed to load necessary packages for proteinbilayer.py'
 
 #---locate gmxpaths
 if os.path.isfile('gmxpaths.conf'): gmxpaths_path = './'

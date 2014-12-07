@@ -166,7 +166,7 @@ class ProteinWater(amxsim.AMXSimulation):
 			'-f prep-protein-start.pdb',
 			'-o prep-index-protein.ndx']
 		call(cmd,logfile='log-make-ndx-prep-protein',cwd=self.rootdir,inpipe="q\n")
-		protgrp = int(checkout(["awk","'/\s+Protein\s+:/ {print $1}'",
+		protgrp = int(checkout(["awk","'/[ ,\t]+Protein[ ,\t]+:/ {print $1}'",
 			"log-make-ndx-prep-protein"],cwd=self.rootdir).strip())
 		cmd = [gmxpaths['make_ndx'],
 			'-f prep-protein-start.pdb',
@@ -225,9 +225,12 @@ class ProteinWater(amxsim.AMXSimulation):
 		cmd = [gmxpaths['editconf'],
 			'-f vacuum-alone.gro',
 			'-d '+str(self.settings['wbuffer']),
+			('-princ' if 'align_x' in self.settings.keys() 
+			and self.settings['align_x'] == True else ''),
 			'-o vacuum.gro']
-		call(cmd,logfile='log-editconf-vacuum',cwd=self.rootdir)
-		
+		call(cmd,logfile='log-editconf-vacuum',cwd=self.rootdir,
+			inpipe=('0\n' if 'align_x' in self.settings.keys() 
+			and self.settings['align_x'] == True else None))		
 		self.minimization_method('vacuum')
 
 	def solvate(self):

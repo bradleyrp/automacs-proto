@@ -220,6 +220,8 @@ class ProteinHomology:
 				fp.write('\tset transformation_mat [measure fit $comparison_sel $reference_sel]\n')
 				fp.write('\tset move_sel [atomselect $i "all"]\n')
 				fp.write('\t$move_sel move $transformation_mat\n}\n')
+		
+		#---write comparison script here
 				
 	def build_model_multi(self):
 	
