@@ -24,6 +24,7 @@ use gmxwrap (
 #---inputs
 system("bash settings.sh");
 my $stepstring = getbashstr("settings.sh","STEPSTRING");
+my $stophours = getbashstr("settings.sh","STOPHOURS");
 my @steps = split(/\s+/, $stepstring);
 my %steplist = map { $_ => 1 } @steps;
 my %config = fileparse('../gmxpaths.conf');
@@ -77,6 +78,7 @@ $cmd .= " -e md.part" . $nrun . ".edr";
 $cmd .= " -g md.part" . $nrun . ".log";
 $cmd .= " -cpi md.part" . $prun . ".cpt";
 $cmd .= " -cpo md.part" . $nrun . ".cpt";
+$cmd .= " -maxh " . $stophours;
 $cmd .= " > " . $logname . " 2>&1";
 syscatch($cmd);
 errorscan($logname)==0 or finish "$!";

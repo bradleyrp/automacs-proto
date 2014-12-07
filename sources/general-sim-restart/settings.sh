@@ -1,3 +1,4 @@
 #!/bin/bash
 
 EXTENDTIME="50000"
+STOPHOURS="-1"

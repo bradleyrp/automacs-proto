@@ -5,6 +5,7 @@
 #---input files
 SOURCEDIR=../s2-equil
 EXTENDTIME="50000"
+STOPHOURS="-1"
 
 #---locate the latest checkpoint from the equilibrate folder
 THISDIR=$(pwd)
