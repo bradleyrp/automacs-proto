@@ -160,8 +160,8 @@ class AMXSimulation:
 			call(cmd,logfile='log-make-ndx-groups',cwd=self.rootdir,inpipe=inpipe)
 		elif grouptype == 'bilayer':
 			inpipe = 'keep 0\nr '+\
-				' | r '.join([l for l in self.lnames if l not in self.ion_residue_names])+\
-				'\n'+'r '+' | r '.join([l for l in self.lnames if l in self.ion_residue_names])+\
+				' | r '.join([l for l in self.lnames if l not in self.ion_residue_names+['ION']])+\
+				'\n'+'r '+' | r '.join([l for l in self.lnames if l in self.ion_residue_names]+['ION'])+\
 				'\nname 1 LIPIDS\nname 2 SOLV\ndel 0\nq\n'
 			#---write a groups file suitable for bilayers with separate lipid and solvent groups
 			cmd = [gmxpaths['make_ndx'],
@@ -170,12 +170,10 @@ class AMXSimulation:
 			call(cmd,logfile='log-make-ndx-groups',cwd=self.rootdir,inpipe=inpipe)
 		elif grouptype == 'protein-bilayer':
 			inpipe = 'keep 1\nr '+\
-				' | r '.join([l for l in self.lnames if l not in self.ion_residue_names and
+				' | r '.join([l for l in self.lnames if l not in self.ion_residue_names+['ION'] and
 				not re.match('(PROTEIN|Protein)',l)])+\
 				'\n'+'r '+' | r '.join([l for l in self.lnames if l in self.ion_residue_names]+['ION'])+\
 				'\nname 0 PROTEIN\nname 1 LIPIDS\nname 2 SOLV\nq\n'
-			print "GROUPSTRING"
-			print inpipe
 			#---write a groups file suitable for bilayers with separate lipid and solvent groups
 			cmd = [gmxpaths['make_ndx'],
 				'-f '+startstruct,
