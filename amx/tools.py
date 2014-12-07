@@ -220,7 +220,7 @@ def write_steps_to_bash(steps,startstep,oldsteps,extras=None):
 	for step in steps.keys(): 
 		#---intervene to see if this is a step or not
 		if steps[step] != None and re.match('^[a-z]([0-9]{1,2})-(.+)',steps[step]) \
-			and 'rescript' not in extras.keys() and not extras['rescript']:
+			and ('rescript' not in extras.keys() or not extras['rescript']):
 			si,stepname = re.findall('^[a-z]([0-9]{1,2})-(.+)',steps[step])[0]
 			#---maintain first letter and advance the step number to append the new step
 			newname = steps[step][0]+('%02d'%(int(si)+startstep))+'-'+stepname
