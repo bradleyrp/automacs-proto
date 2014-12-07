@@ -395,7 +395,10 @@ def upload(step=None,extras=None,silent=False):
 	for root,dirnames,filenames in os.walk('./amx'): break
 	for fn in filenames: gofiles.append('amx/'+fn)
 	if step == None:
-		for t in latestcheck(last): gofiles.append(last+'/'+t)
+		lcheck = latestcheck(last)
+		if lcheck == []: return False
+		else:
+			for t in latestcheck(last): gofiles.append(last+'/'+t)
 	else:
 		for root,dirnames,filenames in os.walk(last): break
 		for fn in filenames: gofiles.append(last+'/'+fn)
@@ -447,33 +450,66 @@ def script(single=None,rescript=False,**extras):
 		extras['walltime'] = proc_settings['walltime']
 		prep_scripts('rescript',script_dict,extras=extras)
 		#---write a list of files to move to scratch
-		upload(silent=True)
-		with open('upload-rsync-list.txt','a') as fp: fp.write('gmxpaths.conf\n')
+
+		#---use the upload routine to only copy necessary files to scratch
+		if not ('start' in extras.keys() and extras['start']):
+			upload(silent=True)
+			with open('upload-rsync-list.txt','w') as fp: fp.write('gmxpaths.conf\n')
+		#---if start flag is present then move everything
+		else:
+			files = [os.path.join(dp, f) for dp, dn, fns in os.walk('./') for f in fns]
+			files = [re.findall('^'+'\.?\/'+'([^.git].+)',f) for f in files]
+			files = [f[0] for f in files if f!=[]]
+			with open('upload-rsync-list.txt','w') as fp:
+				for f in files: fp.write(f+'\n')
 		#---write a simulation continuation script in the root directory on clusters
 		fp = open('cluster-md-continue','w')
 		fp.write(header_source_mod)
 		fp.write(script_maker('rescript',script_dict,
 			module_commands=proc_settings['module'],
-			sim_only=None,extras=extras,))
+			sim_only=None,extras=extras))
 		if hs_footer != None: fp.write(hs_footer)
 		fp.close()		
 		
 	#---single procedure script maker
+	#---note that supplying rescript=True will skip the preparation scripts and remake cluster scripts
 	else:
 		target = single
 		print helpstring
 		print "\tGenerating singleton script.\n"
+		if rescript: 
+			if extras == None: extras = {'rescript':True}
+			else: extras['rescript'] = True
 
 		#---update the input specs file simscale parameter according to the target simulation
 		#---? note that this might be broken
-		if any([j=='cgmd' for j in target.split('-')]): simscale = 'cgmd'                                                                                                       
-		elif any([j=='aamd' for j in target.split('-')]): simscale = 'aamd'                                                                                                     
-		else: simscale = None                                                                                                                                               
-		if simscale != None:                                                                                                                                                    
-			for fn in glob.glob('./inputs/input-specs*'):                                                                                                                   
+		if any([j=='cgmd' for j in target.split('-')]): simscale = 'cgmd'
+		elif any([j=='aamd' for j in target.split('-')]): simscale = 'aamd'
+		else: simscale = None
+		if simscale != None:
+			for fn in glob.glob('./inputs/input-specs*'):
 				sub = subprocess.call(['sed','-i',"s/^.*simscale.*$/simscale = \'"+simscale+"\'/",fn])
 	
 		proc_settings,header_source_mod,hs_footer = get_proc_settings()
+		#---if possible write the cluster script
+		if header_source_mod != None or rescript:
+			with open('./cluster-master-'+target,'w') as fp:
+				fp.write(header_source_mod)
+				fp.write(script_maker(target,script_dict,module_commands=proc_settings['module'],
+					sim_only=None,extras=extras))
+				fp.write(hs_footer)
+				if 'carefultime' in extras.keys() and extras['carefultime']: fp.write('qsub cluster-md-continue')
+				#---use the upload routine to only copy necessary files to scratch
+				if not ('start' in extras.keys() and extras['start']):
+					upload(silent=True)
+					with open('upload-rsync-list.txt','w') as fp: fp.write('gmxpaths.conf\n')
+				#---if start flag is present then move everything
+				else:
+					files = [os.path.join(dp, f) for dp, dn, fns in os.walk('./') for f in fns]
+					files = [re.findall('^'+'\.?\/'+'([^.git].+)',f) for f in files]
+					files = [f[0] for f in files if f!=[]]
+					with open('upload-rsync-list.txt','w') as fp:
+						for f in files: fp.write(f+'\n')
 
 		#---write the local script
 		print '\twriting script: script-master-'+str(target)
@@ -602,7 +638,7 @@ def makeface(arglist):
 	#---...to false while any var=val commands will be passed along via extras
 	argdict = {
 		'clean':{'args':['protected','sure'],'module_name':None,'defaults':{'sure':False}},
-		'script':{'module_name':None,'defaults':[],'args':[],
+		'script':{'module_name':None,'defaults':[],'args':['carefultime','rescript','start'],
 			'singles':[
 				'aamd-bilayer',
 				'cgmd-bilayer',

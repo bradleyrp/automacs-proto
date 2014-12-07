@@ -219,7 +219,8 @@ def write_steps_to_bash(steps,startstep,oldsteps,extras=None):
 	#---write variables in the steps entry in the simulation dictionary so bash can see them
 	for step in steps.keys(): 
 		#---intervene to see if this is a step or not
-		if steps[step] != None and re.match('^[a-z]([0-9]{1,2})-(.+)',steps[step]):
+		if steps[step] != None and re.match('^[a-z]([0-9]{1,2})-(.+)',steps[step]) \
+			and 'rescript' not in extras.keys() and not extras['rescript']:
 			si,stepname = re.findall('^[a-z]([0-9]{1,2})-(.+)',steps[step])[0]
 			#---maintain first letter and advance the step number to append the new step
 			newname = steps[step][0]+('%02d'%(int(si)+startstep))+'-'+stepname
@@ -231,12 +232,11 @@ def write_steps_to_bash(steps,startstep,oldsteps,extras=None):
 		elif step not in ['detect_previous_step']: bashheader += step+'='+steps[step]+'\n'
 	if extras != None:
 		for key in extras.keys():
-			if 0: print 'key = '+str(key)
-			if 0: print 'val = '+str(extras[key])
-			for extra in extras: bashheader += key+'='+str(extras[key])+'\n'
+			if key not in ['carefultime','rescript']:
+				bashheader += key+'='+str(extras[key])+'\n'
 	return bashheader
 	
-def script_maker(target,script_dict,module_commands=None,sim_only=False,extras=None):
+def script_maker(target,script_dict,module_commands=None,sim_only=False,stepcount=None,extras=None):
 	'''
 	Prepare the master script for a particular procedure.
 	'''
@@ -244,11 +244,14 @@ def script_maker(target,script_dict,module_commands=None,sim_only=False,extras=N
 	steps = script_dict[target]['steps']
 	script = '\n#---definitions\n'
 	startstep,oldsteps = chain_steps()
+	#---for time-sensitive cluster execution allow stepcount to truncate the number of steps in sequence
+	if 'carefultime' in extras.keys() and extras['carefultime']: stepcount = -1
 	#---if boolean the sim_only flag uses only the last, presumably "continuation" segment of the sequence
 	#---if list then the sim_only flag supplies the restart script
 	script += write_steps_to_bash(steps,startstep,oldsteps,extras=extras)+'\n'
 	if type(sim_only) == str: seq_segments = [str(sim_only)]
 	elif type(sim_only) == bool and sim_only: seq_segments = script_dict[target]['sequence'][-1:]
+	elif stepcount != None: seq_segments = script_dict[target]['sequence'][:stepcount]
 	else: seq_segments = script_dict[target]['sequence']
 	for segment in seq_segments: 
 		#---we add module_commands before each segment to ensure GROMACS paths are set
@@ -289,6 +292,7 @@ def latestcheck(last):
 	for root,dirnames,filenames in os.walk(last): break
 	tprs = [i for i in filenames if re.match('^md\.part[0-9]{4}\.tpr$',i)]
 	cpts = [i for i in filenames if re.match('^md\.part[0-9]{4}\.cpt$',i)]
+	if tprs == [] or cpts == []: return []
 	tnum = argsort([int(re.findall('^md\.part([0-9]{4})\.tpr$',i)[0]) for i in tprs])[-1]
 	cnum = argsort([int(re.findall('^md\.part([0-9]{4})\.cpt$',i)[0]) for i in cpts])[-1]
 	if tprs[tnum][:-4] != cpts[cnum][:-4]: raise Exception('latest cpt/tpr files have different indices')

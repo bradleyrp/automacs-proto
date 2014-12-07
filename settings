@@ -57,7 +57,6 @@ cd $rundir
 mv -f * $PBS_O_WORKDIR
 cd /scratch
 rmdir $rundir
-exit
 """]
 
 cluster_header_compbio_xeons_scratch = [
@@ -78,7 +77,6 @@ cd $rundir
 mv -f * $PBS_O_WORKDIR
 cd /scratch
 rmdir $rundir
-exit
 """]
 
 cluster_header_walnut = \
@@ -111,7 +109,6 @@ cp -arv * $PBS_O_WORKDIR
 cd /scratch-local
 rm -r $rundir/*
 rmdir $rundir
-exit
 """]
 
 #---formalize the collection of scripts to avoid using globals
@@ -174,7 +171,7 @@ default_proc_specs = {
 		'module':'module load gromacs-gcc-cuda',
 		'scratch':False},
 	'walnut':
-		{'nodes':1,'ppn':32,'walltime':1,'pmem':'1500mb',
+		{'nodes':1,'ppn':32,'walltime':24,'pmem':'1500mb',
 		'module':'module load gromacs/4.6.7-icc-single',
 		'scratch':True},
 	}
