@@ -15,13 +15,13 @@ procedure = [
 	'single',
 	'multi',
 	'mutator',
-	][2]
+	][0]
 
 homology_construction_settings = {
 	'single':{
-		'target':{'raw':('ENTHh0','MSTSSLRRQMKNIVHNYSEAEIKVREATSN')},
+		'target':{'raw':('plcdPH','GLQDDPDLQALLKGSQLLKVKSSSWRRERFYKLQEDCKTIWQESRKVMRSPESQLFSIEDIQEVRMGHRTEGLEKFARDIPEDRCFSIVFKDQRNTLDLIAPSPADAQHWVQGLRKIIH')},
 		'regex_subs':[('tttatttagagcctg','tttattagcctg')],
-		'template':[('1H0A','A')],
+		'template':[('1MAI','A')],
 		'n_models':10,
 		},
 	'multi':{

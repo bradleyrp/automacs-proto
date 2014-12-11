@@ -9,6 +9,7 @@ try:
 	from amx.protein import ProteinWater
 	from amx.proteinbilayer import ProteinBilayer	
 	from amx.proteinhomology import ProteinHomology
+	from amx.simset import SimSet
 	from amx.tools import *
 	import sys,traceback
 except:
@@ -21,5 +22,6 @@ except:
 	from protein import ProteinWater
 	from proteinbilayer import ProteinBilayer
 	from proteinhomology import ProteinHomology
+	from simset import SimSet
 	from tools import *
 

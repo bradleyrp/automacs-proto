@@ -317,7 +317,7 @@ def lastframe(prefix,rootdir,gmxpaths):
 		t0 = float(checkout(["awk","'/Reading\s+frame\s+0\s+time/ {print $5}'",
 			'log-gmxcheck-'+prefix],cwd=rootdir+'/').strip())
 		#---note that rpb added a rounding function after an error in an AAMD test 2014.08.24
-		lasttime = float(int((float(lastframe)+1)*ts))
+		lasttime = float(int((float(lastframe)-1)*ts))
 		lasttime = round(lasttime/10)*10
 		print 'last viable frame was at '+str(lasttime)+' ps'
 		print 'retrieving that frame'
@@ -328,6 +328,7 @@ def lastframe(prefix,rootdir,gmxpaths):
 			'-b '+str(lasttime),
 			'-e '+str(lasttime),
 			'-pbc mol',]
+		print ' '.join(cmd)
 		call(cmd,logfile='log-trjconv-'+prefix,cwd=rootdir+'/',inpipe='0\n')
 	else: print 'configuration file is already available'
 	

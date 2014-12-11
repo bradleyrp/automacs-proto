@@ -253,7 +253,7 @@ script_dict = {
 		'sequence':[
 			multiresub(dict({
 				'ROOTDIR':'s01-build-protein-water',
-				'COMMAND':'ProteinWater(rootdir=\'s01-build-protein-water\')',
+				'COMMAND':'ProteinWater(rootdir=\'$step_build\')',
 				}),python_from_bash),
 			call_equil,
 			call_sim,		

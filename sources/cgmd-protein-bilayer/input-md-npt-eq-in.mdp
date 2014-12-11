@@ -1,6 +1,6 @@
 integrator = md
 dt = 0.020
-nsteps = 50000
+nsteps = 500000
 nstcomm = 100
 comm-grps = LIPIDS SOLV PROTEIN
 
@@ -9,7 +9,7 @@ nstvout = 10000
 nstfout = 0
 nstlog = 100
 nstenergy = 100
-nstxtcout = 100
+nstxtcout = 1000
 xtc_precision = 100
 
 energygrps = LIPIDS SOLV PROTEIN

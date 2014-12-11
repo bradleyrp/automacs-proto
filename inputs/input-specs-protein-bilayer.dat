@@ -2,38 +2,39 @@
 
 #---SIMULATION RESOLUTION
 #---note specify either 'cgmd' or 'aamd' to set the correct parameters
-simscale = 'aamd'
+simscale = 'cgmd'
 
 #---CONSTRUCTION SETTINGS
 construction_settings = {
 	'cgmd':{
-		'director_cgmd':['name PO4','name C4A','name C4B'],
-		'selector_cgmd':'name PO4',
-		'struct_protein':'enth_h0-quickstart/orient-ENTH_H0.gro',
-		'struct_lipid':'membrane-v616/orient-PIP2.gro',
-		'struct_membrane':'membrane-v1003/md.part0002.gro',
-		'top_membrane':'membrane-v1003/system-membrane-start.top',
-		'top_protein':'enth_h0-quickstart/Protein_A.itp',
-		'method':'inter-oligo-spacing',
+		#---structures
+		'struct_protein':'repo/hAMPH1/hAMPH1-CG.gro',
+		'top_protein':'repo/hAMPH1/Protein.itp',
+		'struct_membrane':'repo/membrane-v630/md.part0003.gro',
+		'top_membrane':'repo/membrane-v630/system.top',
+		#---lattice specs
 		'method_lattice':['square','hex'][0],
 		'spacer':4,
-		'noligos_square':[2,2],
+		'noligos_square':[1,1],
 		'noligos_hex':[3,2,3],
 		'spacer_within':4.,
-		'natoms_replace':14,
-		'nmonos':1,
-		'rotation_list':None,
-		'protein_key_residues':range(50+1),
-		'replace_resname':'DOPS',
-		'replace_resname_new':'PIP2',
-		'water_gap_angstroms':5,
-		'residues':['DOPC','DOPS'],
+		'jitter':[0.,0.],
+		'zoffset':0.6,
+		#---adhesion method type
+		'method_adhesion':['ready','contact','partner'][0],
+		#---contact specs
+		'struct_lipid':'sources/cgmd-protein-bilayer/orient-PIP2.gro',
+		'struct_lipid_head_atoms':[1,2,3,4],
+		'protein_binding_pocket_residues':[5,16,19,23,27],
+		#---solvent specifications
 		'sol_name':'W',
 		'negative_ion_name':'CL-','nq':-1,
 		'positive_ion_name':'NA+','pq':1,
 		'ion_strength':0.150,
-		'jitter':[0.,0.],
-		'zoffset':0.8,
+		'water_gap_angstroms':5,
+		#---bilayer structure characterization
+		'director_cgmd':['name PO4','name C4A','name C4B'],
+		'selector_cgmd':'name PO4',
 		'top_includes':[
 			'martini.ff/martini-v2.2.itp',
 			'martini.ff/martini-v2.0-lipids.itp',
@@ -41,6 +42,6 @@ construction_settings = {
 			'martini.ff/martini-v2.2-aminoacids.itp',
 			'martini.ff/martini-v2.0-ions.itp',
 			],
-		},
+		}
 	}
 	
