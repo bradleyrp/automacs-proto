@@ -2,7 +2,7 @@
 
 #---SIMULATION RESOLUTION
 #---note specify either 'cgmd' or 'aamd' to set the correct parameters
-simscale = 'cgmd'
+simscale = 'aamd'
 
 #---CONSTRUCTION SETTINGS
 construction_settings = {

@@ -76,6 +76,38 @@ class ProteinWater(amxsim.AMXSimulation):
 					copy(self.sources_dir+'cgmd-protein-construct/*',self.rootdir)
 					copy(self.sources_dir+'martini.ff',self.rootdir+'martini.ff')
 				else: raise Exception('except: unclear simulation resolution')
+				#---transfer local force field if necessary
+				if self.settings['force_field_local'] != None:
+					print os.getcwd()
+					print self.settings['force_field_local']
+					if not os.path.isdir(self.settings['force_field_local']):
+						raise Exception('except: cannot locate local forcefield directory you wanted')
+					copy(self.settings['force_field_local'],
+						self.rootdir+os.path.basename(self.settings['force_field_local']))
+					#---using a local force field overrides the force_field setting
+					self.settings['force_field'] = os.path.basename(self.settings['force_field_local'])
+				#---check for default top_includes
+				if self.settings['top_includes'] == 'default' and \
+					self.settings['force_field_local'] != None:
+					ff_prefix = os.path.basename(self.settings['force_field_local'])
+					self.settings['top_includes'] = [
+						ff_prefix+'/forcefield.itp',
+						ff_prefix+'/tip3p.itp',
+						ff_prefix+'/ions.itp',
+						'protein.itp']
+					self.settings['force_field'] = ff_prefix.strip('.ff')
+				elif self.settings['top_includes'] == 'default' and \
+					self.settings['force_field_local'] == None:
+					ff_prefix = self.settings['force_field']
+					self.settings['top_includes'] = [
+						ff_prefix+'/forcefield.itp',
+						ff_prefix+'/tip3p.itp',
+						ff_prefix+'/ions.itp'
+						'protein.itp']
+				elif type(self.settings['top_includes']) != list:
+					raise Exception('except: incomprensible top_includes values '+\
+						'which must be either a list of explicit include files or "default" in which case '+\
+						'the correct forcefield.itp, tip3p.itp, and ions.itp will be inferred')
 			#---running list of composition
 			#---note that this method is only set to simulate a single protein
 			self.nprots = 1
@@ -160,6 +192,7 @@ class ProteinWater(amxsim.AMXSimulation):
 			if self.settings['histype'] == 'p':
 				hisfix = "awk '{gsub(/HIS /,\"HISP\");print}' < system-input.pdb > prep-protein-start.pdb"
 			call(hisfix,cwd=self.rootdir)
+		else: copy(self.rootdir+'system-input.pdb',self.rootdir+'prep-protein-start.pdb')
 			
 		print "stripping non-protein molecules"
 		cmd = [gmxpaths['make_ndx'],
