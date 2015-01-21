@@ -2,14 +2,14 @@
 
 #---SIMULATION RESOLUTION
 #---note specify either 'cgmd' or 'aamd' to set the correct parameters
-simscale = 'aamd'
+simscale = 'cgmd'
 
 #---CONSTRUCTION SETTINGS
 construction_settings = {
 	'cgmd':{
 		#---structures
-		'struct_protein':'repo/hAMPH1/hAMPH1-CG.gro',
-		'top_protein':'repo/hAMPH1/Protein.itp',
+		'struct_protein':'repo/snx9/snx9.gro',
+		'top_protein':'repo/snx9/Protein_A.itp',
 		'struct_membrane':'repo/membrane-v630/md.part0003.gro',
 		'top_membrane':'repo/membrane-v630/system.top',
 		#---lattice specs
@@ -21,11 +21,11 @@ construction_settings = {
 		'jitter':[0.,0.],
 		'zoffset':0.6,
 		#---adhesion method type
-		'method_adhesion':['ready','contact','partner'][0],
+		'method_adhesion':['ready','contact','partner'][1],
 		#---contact specs
 		'struct_lipid':'sources/cgmd-protein-bilayer/orient-PIP2.gro',
 		'struct_lipid_head_atoms':[1,2,3,4],
-		'protein_binding_pocket_residues':[5,16,19,23,27],
+		'protein_binding_pocket_residues':[48,91,423,458],
 		#---solvent specifications
 		'sol_name':'W',
 		'negative_ion_name':'CL-','nq':-1,

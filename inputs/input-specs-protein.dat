@@ -4,7 +4,7 @@
 input_filename = 'sources/aamd-protein-structs/3ala.pdb'
 
 #---controller sets the scale automatically
-simscale = 'aamd'
+simscale = 'cgmd'
 
 #---settings for protein.py
 protein_construction_settings = {

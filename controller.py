@@ -621,7 +621,7 @@ def makeface(arglist):
 	'''
 	Interface to makefile.
 	'''
-	
+	print arglist
 	#---print help if no arguments
 	if arglist == []:
 		print niceblock(helpstring,newlines=True)

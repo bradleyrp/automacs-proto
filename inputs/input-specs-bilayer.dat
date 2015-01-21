@@ -2,14 +2,14 @@
 
 #---COMPOSITIONS
 nlipids0 = 600
-complist0 = [72,18,0]
-lipidnames0 = ['DOPC','DOPS','PIP2']
+complist0 = [3,1,1]
+lipidnames0 = ['DOPC','DOPS','CHOL']
 nlipids1 = 600
-complist1 = [4,1]
-lipidnames1 = ['DOPC','DOPS']
+complist1 = [3,1,1]
+lipidnames1 = ['DOPC','DOPS','CHOL']
 
 #---SIMULATION RESOLUTION
-simscale = 'aamd'
+simscale = 'cgmd'
 
 #---CONSTRUCTION SETTINGS
 
@@ -70,6 +70,7 @@ bilayer_construction_settings = {
 			'lipids-tops/PIP2.itp',
 			'martini.ff/martini-v2.2-aminoacids.itp',
 			'martini.ff/martini-v2.0-ions.itp',
+			'martini.ff/martini-v2.0-cholesterol.itp',
 			],
 		}
 	}

@@ -244,6 +244,7 @@ class ProteinBilayer(amxsim.AMXSimulation):
 		#---load the protein gro file and read positions
 		with open(basedir+struct_protein,'r') as fp: grolines = fp.readlines()
 		groprotein = [l for l in grolines[2:-1] if l[10:15].strip() not in solvent_names]
+		print groprotein
 		protpos = np.array([[float(j) for j in i[20:].strip('\n').split()] for i in groprotein])
 
 		#---formatting trick to ensure aligned decimal places
@@ -290,6 +291,7 @@ class ProteinBilayer(amxsim.AMXSimulation):
 		resids = np.array([int(i[:5]) for i in grolines[2:-1]])
 		resnames = np.array([i[5:10].strip() for i in grolines[2:-1]])
 		atomnames = np.array([i[10:15].strip() for i in grolines[2:-1]])
+		print protein_key_residues
 		keypos = protpos[np.array([np.where(np.all(np.array([resids==i,
 			atomnames=='BB']).T,axis=1))[0][0] for i in protein_key_residues])]
 		keycom = np.array([np.mean(keypos,axis=0)])
