@@ -445,7 +445,9 @@ def script(single=None,rescript=False,**extras):
 		proc_settings,header_source_mod,hs_footer = get_proc_settings()
 		if header_source_mod == None: raise Exception('except: lone rescript only works on clusters')
 		#---run prep scripts
-		extras['walltime'] = proc_settings['walltime']
+		#---note that we add a 2% buffer here combined with 1% on the maxh flag so enough time to copy
+		#---...files back from scratch
+		extras['walltime'] = proc_settings['walltime']*0.98
 		prep_scripts('rescript',script_dict,extras=extras)
 		#---write a list of files to move to scratch
 
