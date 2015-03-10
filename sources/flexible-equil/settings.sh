@@ -1,10 +1,7 @@
 #!/bin/bash
 
 #---AUTOMACS (automatic GROMACS) run settings
-#---from sources/general-equil/settings.sh
-
-#---equilibration steps (nvt-short, nvt, npt)
-STEPSTRING="nvt-short nvt npt"
+#---from sources/flexible-equil/settings.sh
 
 #---input files
 SOURCEDIR=
@@ -21,9 +18,8 @@ cp $SOURCEDIR/$STRUCT ./system-input.gro
 cp $SOURCEDIR/$TOP ./system.top
 cp $SOURCEDIR/$GRP ./system-groups.ndx
 cp $SOURCEDIR/$ITP ./
-cp $SOURCEDIR/composition.dat ./
 cp -r $SOURCEDIR/*.ff ./
 cp -r $SOURCEDIR/lipids-tops ./
 
 #---copy standard input files for minimization
-cp $AMXPATH/cgmd-bilayer-equil/* ./
+cp $AMXPATH/cgmd-bilayer-equil/input-md* ./

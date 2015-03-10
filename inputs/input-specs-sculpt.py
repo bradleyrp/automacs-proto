@@ -72,6 +72,6 @@ bilayer_construction_settings = {
 			'martini.ff/martini-v2.0-ions.itp',
 			'martini.ff/martini-v2.0-cholesterol.itp',
 			],
-		},
+		}
 	}
 	
