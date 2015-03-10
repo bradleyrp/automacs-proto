@@ -678,6 +678,10 @@ class BilayerSculpted(Bilayer):
 					self.rootdir+'solvate-water.gro')
 				if 0: grofile = os.path.expanduser(self.params['bilayer_construction_settings']
 					[self.simscale]['starting_configuration'])
+<<<<<<< HEAD
+=======
+			raw_input('...?')
+>>>>>>> 3ab7135935efee2758a57569f35af9ced5498398
 			if not os.path.isfile(self.rootdir+'system.gro'): self.construction()
 			else: print 'skipping this step because system.gro exists'
 
@@ -694,8 +698,12 @@ class BilayerSculpted(Bilayer):
 				'gaussian_width',
 				'projected_spacing',
 				'monolayer_separation',
+<<<<<<< HEAD
 				'lipid_struct_file',
 				]]+' '+os.abspath(self.rootdir+'../'))
+=======
+				]])
+>>>>>>> 3ab7135935efee2758a57569f35af9ced5498398
 			call('./'+os.path.basename(os.path.expanduser(simuluxe_script))+' '+self.rootdir+' '+arglist,
 				cwd=os.path.dirname(os.path.expanduser(simuluxe_script)))
 			grofile = self.rootdir+'prep-saddle.gro'
