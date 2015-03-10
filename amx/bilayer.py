@@ -694,7 +694,6 @@ class BilayerSculpted(Bilayer):
 				'gaussian_width',
 				'projected_spacing',
 				'monolayer_separation',
-				'lipid_struct_file',
 				]]+' '+os.abspath(self.rootdir+'../'))
 			call('./'+os.path.basename(os.path.expanduser(simuluxe_script))+' '+self.rootdir+' '+arglist,
 				cwd=os.path.dirname(os.path.expanduser(simuluxe_script)))
