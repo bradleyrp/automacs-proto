@@ -1,7 +1,6 @@
 #!/bin/bash
 
 #---AUTOMACS (automatic GROMACS) run settings
-#---from sources/general-sim/settings.sh
 
 #---input files
 SOURCEDIR=../s2-equil

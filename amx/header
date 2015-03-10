@@ -6,6 +6,8 @@ try:
 	from amx.amxsim import *
 	from amx.lipidgrid import MonolayerGrids
 	from amx.bilayer import Bilayer
+	from amx.bilayer import BilayerSculpted
+	from amx.bilayer import BilayerSculptedFixed
 	from amx.protein import ProteinWater
 	from amx.proteinbilayer import ProteinBilayer	
 	from amx.proteinhomology import ProteinHomology
@@ -19,6 +21,8 @@ except:
 	from amxsim import *
 	from lipidgrid import MonolayerGrids
 	from bilayer import Bilayer
+	from bilayer import BilayerSculpted
+	from amx.bilayer import BilayerSculptedFixed
 	from protein import ProteinWater
 	from proteinbilayer import ProteinBilayer
 	from proteinhomology import ProteinHomology

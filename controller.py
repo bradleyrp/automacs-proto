@@ -38,6 +38,8 @@ helpstring = """\n
     cgmd-bilayer         : coarse-grained bilayer under MARTINI force field
     cgmd-protein         : coarse-grained protein under MARTINI force field 
                            with structure options
+    cgmd-protein-sculpt  : coarse-grained protein under MARTINI force field 
+                           with a custom shape
     aamd-bilayer         : bilayer under CHARMM36 force field
     aamd-protein         : protein in a water box using CHARMM27 force field
     protein-homology     : single- or muliple-template homology models with 
@@ -190,6 +192,44 @@ script_dict = {
 			multiresub(dict({
 				'ROOTDIR':'s02-build-bilayer',
 				'COMMAND':'Bilayer(rootdir=\'s02-build-bilayer\',previous_dir=\'s01-build-lipidgrid\')',
+				}),python_from_bash),
+			call_equil,
+			call_sim,
+			],
+		},
+	'cgmd-bilayer-sculpt':{
+		'prep':[multiresub(dict({
+			'general-equil':'flexible-equil',
+			'general-sim':'flexible-sim',
+			'equilibration':'equilibration_static'}),
+			'\n'.join(prepare_equil_sim[:1]))]+\
+			[multiresub(dict({
+			'general-equil':'flexible-equil',
+			'general-sim':'flexible-sim',
+			'input_files':'input_files2',
+			'step_build':'step_restrain'}),
+			'\n'.join(prepare_equil_sim))],
+		'steps':{
+			'step_build':'s01-build-bilayer',
+			'step_equilibration_static':'s02-equil',
+			'step_equilibration':'s04-equil',
+			'step_restrain':'s03-restrain',
+			'step_simulation':'s05-sim',
+			'input_files':'cgmd-bilayer-sculpt',
+			'input_files2':'cgmd-bilayer-sculpt-equil',
+			},
+		'continue':True,
+		'sequence':[
+			multiresub(dict({
+				'ROOTDIR':'s01-build-bilayer',
+				'COMMAND':'BilayerSculpted(rootdir=\'s01-build-bilayer\')',
+				}),python_from_bash),
+			multiresub(dict({
+				'step_equilibration':'step_equilibration_static'}),
+				call_equil),
+			multiresub(dict({
+				'ROOTDIR':'s03-restrain',
+				'COMMAND':'BilayerSculptedFixed(rootdir=\'s03-restrain\',previous_dir=\'s02-equil\')',
 				}),python_from_bash),
 			call_equil,
 			call_sim,
@@ -646,6 +686,7 @@ def makeface(arglist):
 			'singles':[
 				'aamd-bilayer',
 				'cgmd-bilayer',
+				'cgmd-bilayer-sculpt',
 				'aamd-protein',
 				'cgmd-protein',
 				'cgmd-protein-bilayer',
