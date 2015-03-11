@@ -694,11 +694,7 @@ class BilayerSculpted(Bilayer):
 				'gaussian_width',
 				'projected_spacing',
 				'monolayer_separation',
-<<<<<<< HEAD
 				]])+' '+os.path.abspath(self.rootdir+'../')
-=======
-				]]+' '+os.abspath(self.rootdir+'../'))
->>>>>>> 9dbb6ae37487bac24535ab500922a69c40df0a7e
 			call('./'+os.path.basename(os.path.expanduser(simuluxe_script))+' '+self.rootdir+' '+arglist,
 				cwd=os.path.dirname(os.path.expanduser(simuluxe_script)))
 			grofile = self.rootdir+'prep-saddle.gro'
