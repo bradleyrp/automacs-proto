@@ -46,8 +46,11 @@ import os
 import sys
 import time
 import datetime
-from tools import call,checkout,tee,copy
+from tools import call,checkout,tee,copy,lastframe
 import amxsim
+from numpy import unique,array
+import subprocess
+import re
 
 #---locate gmxpaths
 if os.path.isfile('gmxpaths.conf'): gmxpaths_path = './'
@@ -478,7 +481,7 @@ class Bilayer(amxsim.AMXSimulation):
 			'-pbc mol']
 		call(cmd,logfile='log-trjconv-solvate-shift-center',cwd=self.rootdir,inpipe='0\n')
 
-	def counterionize(self):
+	def counterionize(self,water_check=False):
 		'''Add counterions to the water slab.'''
 		if self.settings['concentration_calc'] == 'exempt_lipids':
 			print "running genion on the water only"
@@ -596,18 +599,320 @@ class Bilayer(amxsim.AMXSimulation):
 		#---diagnostic
 		pcount,ncount = [int(checkout(["awk","'/Will try to add / {print $"+str(col)+\
 			"}'","log-genion"],cwd=self.rootdir)) for col in [5,9]]
-		if self.simscale == 'aamd':
-			nwaters = (int(checkout(['wc','-l','solvate-empty-uncentered.gro'],
-				cwd=self.rootdir).split()[0])-3)/3
-		elif self.simscale == 'cgmd':
-			nwaters = (int(checkout(['wc','-l','solvate-empty-uncentered.gro'],
-				cwd=self.rootdir).split()[0])-3)
+		#---force the program to check the water count
+		if water_check:
+			cmd = [gmxpaths['make_ndx'],
+				'-f counterions.gro',
+				'-o counterions-water-check.ndx']
+			call(cmd,logfile='log-make-ndx-counterions-check',cwd=self.rootdir,inpipe="q\n")	
+			actual_waters = int(checkout(["awk","'/ "+self.settings['sol_name']+" / {print $4;exit;}'",
+				"log-make-ndx-counterions-check"],cwd=self.rootdir))/(3 if self.simscale == 'aamd' else 1)
+		else:
+			if self.simscale == 'aamd':
+				nwaters = (int(checkout(['wc','-l','solvate-empty-uncentered.gro'],
+					cwd=self.rootdir).split()[0])-3)/3
+			elif self.simscale == 'cgmd':
+				nwaters = (int(checkout(['wc','-l','solvate-empty-uncentered.gro'],
+					cwd=self.rootdir).split()[0])-3)
+			actual_waters = nwaters - pcount - ncount
 		self.lnames.append(self.settings['positive_ion_name'])
 		self.comps.append([self.settings['positive_ion_name'],str(pcount)])
 		self.lnames.append(self.settings['negative_ion_name'])
 		self.comps.append([self.settings['negative_ion_name'],str(ncount)])
-		self.comps[self.lnames.index(self.settings['sol_name'])][1] = str(nwaters - pcount - ncount)
+		self.comps[self.lnames.index(self.settings['sol_name'])][1] = str(actual_waters)
 
 		self.write_topology_bilayer('counterions.top')
 		self.minimization_method('counterions')
 
+class BilayerSculpted(Bilayer):
+
+	def __init__(self,rootdir=None,**kwargs):
+
+		#---set paths for the previous and current steps
+		self.rootdir = os.path.abspath(os.path.expanduser(rootdir))+'/'
+
+		#---manually specify the sources directory and the inputs file
+		if 'sources_dir' in kwargs.keys(): 
+			self.sources_dir = os.path.abspath(os.path.expanduser(kwargs['sources_dir']))+'/'
+		else: self.sources_dir = os.path.abspath(os.path.expanduser('./sources/'))+'/'
+		if 'inputs_file' in kwargs.keys(): 
+			self.inputs_file = os.path.abspath(os.path.expanduser(kwargs['inputs_file']))+'/'
+		else: self.inputs_file = os.path.abspath(os.path.expanduser(
+			'./inputs/input-specs-bilayer-sculpt.dat'))
+
+		#---skip everything if the procedure is final configuration is already available
+		#---note that this takes the place of an exception and hence expects the user to remove old files
+		if os.path.isfile(self.rootdir+'system.gro'): 
+			sys.stdout = tee(open(self.rootdir+'log-script-master','a',1))
+			sys.stderr = tee(open(self.rootdir+'log-script-master','a',1),error=True)
+			print 'START BILAYER'
+			print 'skipping this step because system.gro exists'
+		else:
+
+			#---make root directory
+			if not os.path.isdir(self.rootdir): 
+				os.mkdir(rootdir)
+				needs_file_transfers = True
+			else: needs_file_transfers = False
+
+			#---start the logger
+			sys.stdout = tee(open(self.rootdir+'log-script-master','a',1))
+			sys.stderr = tee(open(self.rootdir+'log-script-master','a',1),error=True)
+
+			print 'START BILAYER SCULPTING'
+			#---bilayer construction settings are pulled from the inputs_file
+			self.params = dict()
+			execfile(self.inputs_file,self.params)
+			
+			self.simscale = self.params['simscale']
+			self.settings = self.params['bilayer_construction_settings'][self.simscale]
+			self.ion_residue_names = [self.settings['sol_name']]+\
+				self.params['bilayer_construction_settings'][self.simscale]['ion_residue_names']
+
+			#---copy input files from standard sources i.e. the forcefield only if absent
+			if needs_file_transfers:
+				copy(self.sources_dir+'cgmd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
+				copy(self.sources_dir+'martini.ff',self.rootdir+'martini.ff')
+				copy(self.sources_dir+'cgmd-bilayer-sculpt/input-em-*',self.rootdir)
+				copy(self.sources_dir+'cgmd-bilayer-sculpt/solvate-water.gro',
+					self.rootdir+'solvate-water.gro')
+				if 0: grofile = os.path.expanduser(self.params['bilayer_construction_settings']
+					[self.simscale]['starting_configuration'])
+			if not os.path.isfile(self.rootdir+'system.gro'): self.construction()
+			else: print 'skipping this step because system.gro exists'
+
+	def construction(self):
+
+		print 'starting bilayer construction'
+		if not os.path.isfile(self.rootdir+'prep-start.gro'):
+			simuluxe_script = self.params['bilayer_construction_settings'][self.simscale]['simuluxe_script']
+			print '[CONSTRUCT] external construction step'
+			arglist = ' '.join([str(self.settings[i]) for i in [
+				'extent',
+				'extent_z',
+				'gaussian_height',
+				'gaussian_width',
+				'projected_spacing',
+				'monolayer_separation',
+				]])+' '+os.path.abspath(self.rootdir+'../')
+			call('./'+os.path.basename(os.path.expanduser(simuluxe_script))+' '+self.rootdir+' '+arglist,
+				cwd=os.path.dirname(os.path.expanduser(simuluxe_script)))
+			grofile = self.rootdir+'prep-saddle.gro'
+			copy(grofile,self.rootdir+'prep-start.gro')
+
+		#---detect compositions
+		with open(self.rootdir+'prep-start.gro','r') as fp: rawgro = fp.readlines()
+		resnums = unique([int(i[:5]) for i in rawgro[2:-1]])
+		resnames = list(unique([i[5:10].strip() for i in rawgro[2:-1]]))
+		counts = [sum(array([j[1] for j in list(set([(int(i[:5]),i[5:10].strip()) 
+			for i in rawgro[2:-1]]))])==r) for r in resnames]
+
+		#---running lists of molecules and compositions
+		self.lnames,self.comps = resnames,[[resnames[i],counts[i]] for i in range(len(resnames))]
+		copy(self.rootdir+'prep-start.gro',self.rootdir+'vacuum.gro')
+	
+		#---vacuum minimization
+		if not os.path.isfile(self.rootdir+'vacuum-minimized.gro'): 
+			self.write_topology_bilayer('vacuum.top')
+			self.minimization_method('vacuum')
+		
+		#---solvate
+		if not os.path.isfile(self.rootdir+'solvate-minimized.gro'): 
+
+			#---prevent jumps across boundary for easier visualization
+			self.resituate('vacuum-minimized','em-vacuum-steep')
+			
+			print "checking the size of the box"
+			cmd = [gmxpaths['editconf'],
+				'-f vacuum-minimized.gro',
+				'-o solvate-box-alone.gro',
+				'-d 0']
+			call(cmd,logfile='log-editconf-checksize',cwd=self.rootdir)
+			boxdims = self.get_box_vectors('log-editconf-checksize',new=False)
+			boxvecs = boxdims
+			print "box vectors = "+str(boxvecs)
+
+			#---manually create a large water box
+			print 'creating a custom water box'
+			nmult = [int(i/3.644+1) for i in boxvecs]
+			cmd = [gmxpaths['genconf'],
+				'-f '+self.settings['solvent_structure'],
+				'-o solvate-water-big.gro',
+				'-nbox '+' '.join([str(i) for i in nmult])]
+			call(cmd,logfile='log-genconf-replicate',cwd=self.rootdir)
+			#---concatenate the bilayer and water box
+			with open(self.rootdir+'vacuum-minimized.gro','r') as fp: gro1 = fp.readlines()
+			with open(self.rootdir+'solvate-water-big.gro','r') as fp: gro2 = fp.readlines()
+			natoms = int(gro1[1].strip())+int(gro2[1].strip())
+			with open(self.rootdir+'solvate-merge.gro','w') as fp:
+				fp.write('bilayer+water merged\n')
+				fp.write(str(natoms)+'\n')
+				for line in gro1[2:-1]: fp.write(line)
+				for line in gro2[2:]: fp.write(line)		
+			vmdtrim = [
+				'mol new solvate-merge.gro',
+				'set sel [atomselect top \"(all not (name '+self.settings['sol_name']+\
+				' and within '+str(self.settings['water_gap'])+\
+				' of not name '+self.settings['sol_name']+')) and '+\
+				'((name '+self.settings['sol_name']+' and (x>=0 and x<='+str(10*boxvecs[0])+\
+				' and y>=0 and y<= '+str(10*boxvecs[1])+\
+				' and z>=0 and z<= '+str(10*boxvecs[2])+')) or (not name '+self.settings['sol_name']+'))"]',
+				'$sel writepdb '+self.rootdir+'solvate-vmd.pdb',
+				'exit',]			
+			with open(self.rootdir+'script-vmd-trim.tcl','w') as fp:
+				for line in vmdtrim: fp.write(line+'\n')
+			vmdlog = open(self.rootdir+'log-script-vmd-trim','w')
+			p = subprocess.Popen('vmd -dispdev text -e script-vmd-trim.tcl',
+				stdout=vmdlog,stderr=vmdlog,cwd=self.rootdir,shell=True)
+			p.communicate()
+			cmd = [gmxpaths['editconf'],
+				'-f solvate-vmd.pdb',
+				'-o solvate.gro','-resnr 1']
+			call(cmd,logfile='log-editconf-convert',cwd=self.rootdir)
+
+			cmd = [gmxpaths['make_ndx'],
+				'-f solvate.gro',
+				'-o solvate-water-check.ndx']
+			call(cmd,logfile='log-make-ndx-solvate-check',cwd=self.rootdir,inpipe="q\n")	
+			nwaters = int(checkout(["awk","'/ "+self.settings['sol_name']+" / {print $4}'",
+				"log-make-ndx-solvate-check"],cwd=self.rootdir))/(3 if self.simscale == 'aamd' else 1)
+			self.lnames.append(self.settings['sol_name'])
+			self.comps.append([self.settings['sol_name'],str(nwaters)])
+			self.write_topology_bilayer('solvate.top')
+
+			print "minimizing with solvent"
+			self.minimization_method('solvate')		
+			#---prevent jumps across boundary for easier visualization
+			self.resituate('solvate-minimized','em-solvate-steep')
+		
+		#---trick for continuation
+		if self.settings['sol_name'] not in self.lnames:
+			self.lnames.append('W')
+			self.comps.append(['W',0])
+
+		if not os.path.isfile(self.rootdir+'counterions-minimized.gro'):
+			self.counterionize(water_check=True)
+			#---prevent jumps across boundary for easier visualization
+			self.resituate('counterions-minimized','em-counterions-steep')
+
+		if not os.path.isfile(self.rootdir+'system.gro'):
+			call('cp counterions-minimized.gro system-uncentered.gro',cwd=self.rootdir)
+		if not os.path.isfile(self.rootdir+'system.top'): self.write_topology_bilayer('system.top')
+		if not os.path.isfile(self.rootdir+'system-groups.ndx'): self.grouping(grouptype='bilayer')
+
+		print "translating the final configuration so the bilayer is in the middle"
+		lipid_resnames = [i for i in self.lnames if i not in [self.settings[j] 
+			for j in ['negative_ion_name','positive_ion_name','sol_name']]]
+		selstring = ' | '.join(['r '+i for i in lipid_resnames])
+		cmd = [gmxpaths['make_ndx'],
+			'-f system-uncentered.gro',
+			'-o index-lipids.ndx']
+		call(cmd,logfile='log-make-ndx-lipids',cwd=self.rootdir,inpipe='keep 0\n'+selstring+'\nq\n')
+		#---the following does not center the bilayer if it broken over PBCs because it uses center
+		#---...hence we have a previous heuristic method to center the bilayer during the solvate step
+		cmd = [gmxpaths['trjconv'],
+			'-f system-uncentered.gro',
+			'-o system.gro',
+			'-n index-lipids.ndx',
+			'-s em-counterions-steep.tpr',
+			'-center',
+			'-pbc mol']
+		call(cmd,logfile='log-trjconv-system-shift-center',cwd=self.rootdir,inpipe='1\n0\n')
+
+class BilayerSculptedFixed(Bilayer):
+
+	def __init__(self,rootdir=None,previous_dir=None,**kwargs):
+
+		#---set paths for the previous and current steps
+		self.rootdir = os.path.abspath(os.path.expanduser(rootdir))+'/'
+
+		print "retrieving last frame from static equilibration"
+		self.prevdir = os.path.abspath(os.path.expanduser(previous_dir))+'/'
+		lastframe(rootdir=self.prevdir,prefix='md.part0001',gmxpaths=gmxpaths)
+
+		#---set paths for the previous and current steps
+		self.rootdir = os.path.abspath(os.path.expanduser(rootdir))+'/'
+		if 'sources_dir' in kwargs.keys(): 
+			self.sources_dir = os.path.abspath(os.path.expanduser(kwargs['sources_dir']))+'/'
+		else: self.sources_dir = os.path.abspath(os.path.expanduser('./sources/'))+'/'
+		if 'inputs_file' in kwargs.keys(): 
+			self.inputs_file = os.path.abspath(os.path.expanduser(kwargs['inputs_file']))+'/'
+		else: self.inputs_file = os.path.abspath(os.path.expanduser(
+			'./inputs/input-specs-bilayer-sculpt.dat'))
+
+		#---bilayer construction settings are pulled from the inputs_file
+		self.params = dict()
+		execfile(self.inputs_file,self.params)
+		self.simscale = self.params['simscale']
+		self.settings = self.params['bilayer_construction_settings'][self.simscale]
+
+		#---skip everything if the procedure is final configuration is already available
+		#---note that this takes the place of an exception and hence expects the user to remove old files
+		if os.path.isfile(self.rootdir+'system.gro'): 
+			sys.stdout = tee(open(self.rootdir+'log-script-master','a',1))
+			sys.stderr = tee(open(self.rootdir+'log-script-master','a',1),error=True)
+			print 'START BILAYER'
+			print 'skipping this step because system.gro exists'
+		else:
+			#---make root directory
+			if not os.path.isdir(self.rootdir): 
+				os.mkdir(rootdir)
+				needs_file_transfers = True
+			else: needs_file_transfers = False
+			#---start the logger
+			sys.stdout = tee(open(self.rootdir+'log-script-master','a',1))
+			sys.stderr = tee(open(self.rootdir+'log-script-master','a',1),error=True)
+			if needs_file_transfers:
+				copy(self.prevdir+'md.part0001.gro',self.rootdir+'prep-equilibrated.gro')
+				copy(self.prevdir+'md.part0001.tpr',self.rootdir+'prep-equilibrated.tpr')
+				copy(self.sources_dir+'martini.ff',self.rootdir+'martini.ff')
+				copy(self.sources_dir+'cgmd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
+				
+			self.construct()
+
+	def construct(self):
+		
+		cmd = [gmxpaths['trjconv'],
+			'-f prep-equilibrated.gro',
+			'-o prep-equilibrated-pbcmol.gro',
+			'-s prep-equilibrated.tpr',
+			'-pbc mol']
+		call(cmd,logfile='log-trjconv-prep-equilibrated',cwd=self.rootdir,inpipe='1\n0\n')
+
+		#---call simuluxe script for identify the poles
+		simuluxe_script = os.path.expanduser(self.params['bilayer_construction_settings']
+			[self.simscale]['simuluxe_script_restrain'])
+
+		arglist = self.rootdir+' '+' '.join([str(self.settings[i]) for i in [
+			'pole_restrain_cutoff',
+			]])+' '+self.rootdir+'prep-equilibrated-pbcmol.gro'
+		cmd = './'+os.path.basename(simuluxe_script)+' '+arglist
+		cwd=os.path.dirname(simuluxe_script)+'/'
+		call(cmd,cwd=cwd,logfile='log-script-fixer')
+		copy(cwd+'log-script-fixer',self.rootdir+'log-script-fixer')
+		os.remove(cwd+'log-script-fixer')
+		copy(self.rootdir+'prep-saddle-restrain.gro',self.rootdir+'system.gro')
+
+		#---compact method for generating a new topology				
+		cmd = [gmxpaths['make_ndx'],
+			'-f system.gro',
+			'-o system-composition-check.ndx']
+		call(cmd,logfile='log-make-ndx-system-check',cwd=self.rootdir,
+			inpipe="\n".join(['a '+self.settings[r] for r in ['positive_ion_name','negative_ion_name']])+\
+			"\nq\n")	
+		with open(self.rootdir+'prep-resnames.txt','r') as fp: 
+			lnames,atomcounts = [i.split() for i in fp.readlines()]
+		with open('s03-restrain/log-make-ndx-system-check','r') as fp: ndxfile = fp.readlines()
+		ndxlookup = dict([(i.split(':')[0].split()[1],int(i.split(':')[1].split()[0])) 
+			for i in ndxfile if re.match('\s+[0-9]+.+:',i)])
+		sollist = [self.settings[i] for i in ['sol_name','positive_ion_name','negative_ion_name']]
+		comps = []
+		for s in lnames: 
+			comps.append((s,ndxlookup[s]/int(atomcounts[lnames.index(s)])))
+		for s in sollist: 
+			lnames.append(s)
+			comps.append((s,ndxlookup[s]))
+		self.comps,self.lnames = comps,lnames
+		self.write_topology_bilayer('system.top')
+		self.grouping(grouptype='bilayer',startstruct='system.gro')
+		

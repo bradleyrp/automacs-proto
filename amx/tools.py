@@ -451,4 +451,3 @@ def ultrasweep(hypothesis_default,sweep):
 		#---once we set all the values, the hypothesis is ready
 		hypotheses.append(newhypo)	
 	return hypotheses
-

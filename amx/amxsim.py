@@ -223,6 +223,20 @@ class AMXSimulation:
 		self.write_topology_bilayer('counterions.top')
 		self.minimization_method('counterions')
 
+	def resituate(self,basename,tpr):
+
+		"""
+		After minimization steps it is often useful to stop lipid from jumping across the box.
+		"""
+		copy(self.rootdir+basename+'.gro',self.rootdir+basename+'-jumped.gro')
+		call('rm '+basename+'.gro',cwd=self.rootdir)
+		cmd = [gmxpaths['trjconv'],
+			'-f '+basename+'-jumped.gro',
+			'-o '+basename+'.gro',
+			'-s '+tpr+'.tpr',
+			'-pbc nojump']
+		call(cmd,logfile='log-trjconv-nojump-'+basename,cwd=self.rootdir,inpipe="0\n")				
+
 class Multiply(AMXSimulation):
 
 	'''A generic class which continues a larger, periodic replicate of a simulation.'''
