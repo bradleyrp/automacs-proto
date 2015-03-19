@@ -1,7 +1,7 @@
 define = -DPOSRES
 
 integrator = md
-dt = 0.002
+dt = 0.01
 nsteps = 50000
 nstcomm = 100
 comm-grps = LIPIDS SOLV
@@ -37,10 +37,10 @@ tau_t = 1.0 1.0
 ref_t = 310 310
 
 Pcoupl = Berendsen
-Pcoupltype = surface-tension
-tau_p = 0.5 0.5
+Pcoupltype = semiisotropic
+tau_p = 1.0 1.0
 compressibility = 3e-4 0
-ref_p = 0.0 1.0
+ref_p = 10.0 1.0
 
 gen_vel = no
 gen_temp = 300
