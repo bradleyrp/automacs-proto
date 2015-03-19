@@ -696,7 +696,8 @@ class BilayerSculpted(Bilayer):
 				'monolayer_separation',
 				]])+' '+os.path.abspath(self.rootdir+'../')
 			call('./'+os.path.basename(os.path.expanduser(simuluxe_script))+' '+self.rootdir+' '+arglist,
-				cwd=os.path.dirname(os.path.expanduser(simuluxe_script)))
+				cwd=os.path.dirname(os.path.expanduser(simuluxe_script))+'/',
+				logfile='log-script-saddle')
 			grofile = self.rootdir+'prep-saddle.gro'
 			copy(grofile,self.rootdir+'prep-start.gro')
 
