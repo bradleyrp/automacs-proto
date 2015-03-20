@@ -1,0 +1,15 @@
+Getting the Right Output Means no Artefacts in Calculating Stuff
+   14
+    1DPPC   NC3    1  -0.104  -0.153   1.596
+    1DPPC   PO4    2  -0.035   0.185   1.321
+    1DPPC   GL1    3   0.104   0.068   0.895
+    1DPPC   GL2    4  -0.125  -0.018   0.600
+    1DPPC   C1A    5   0.287   0.044   0.362
+    1DPPC   C2A    6   0.375  -0.253   0.038
+    1DPPC   C3A    7   0.030  -0.488  -0.207
+    1DPPC   C4A    8  -0.292  -0.239  -0.430
+    1DPPC   C1B   10  -0.112   0.076   0.090
+    1DPPC   C2B   11  -0.150   0.238  -0.326
+    1DPPC   C3B   12   0.170   0.280  -0.686
+    1DPPC   C4B   13   0.212   0.125  -1.013
+   0.86690   0.96800   3.21450

@@ -686,19 +686,17 @@ class BilayerSculpted(Bilayer):
 		print 'starting bilayer construction'
 		if not os.path.isfile(self.rootdir+'prep-start.gro'):
 			simuluxe_script = self.params['bilayer_construction_settings'][self.simscale]['simuluxe_script']
-			print '[CONSTRUCT] external construction step'
-			arglist = ' '.join([str(self.settings[i]) for i in [
-				'extent',
-				'extent_z',
-				'gaussian_height',
-				'gaussian_width',
-				'projected_spacing',
-				'monolayer_separation',
-				]])+' '+os.path.abspath(self.rootdir+'../')
-			call('./'+os.path.basename(os.path.expanduser(simuluxe_script))+' '+self.rootdir+' '+arglist,
-				cwd=os.path.dirname(os.path.expanduser(simuluxe_script))+'/',
-				logfile='log-script-saddle')
-			grofile = self.rootdir+'prep-saddle.gro'
+			
+			cmd = './'+os.path.basename(os.path.expanduser(simuluxe_script))
+			self.shape = self.settings['shape']
+			cmd += ' dropspot='+self.rootdir
+			cmd += ' amxroot='+os.path.abspath(self.rootdir+'../')
+			cmd += ' type='+self.shape
+			for key in self.settings['shape_details'][self.shape]: 
+				cmd += ' '+key+'='+str(self.settings['shape_details'][self.shape][key])
+			call(cmd,logfile='log-script-sculpt',
+				cwd=os.path.dirname(os.path.expanduser(simuluxe_script))+'/')
+			grofile = self.rootdir+'prep-sculpt.gro'
 			copy(grofile,self.rootdir+'prep-start.gro')
 
 		#---detect compositions
@@ -880,19 +878,20 @@ class BilayerSculptedFixed(Bilayer):
 			'-pbc mol']
 		call(cmd,logfile='log-trjconv-prep-equilibrated',cwd=self.rootdir,inpipe='1\n0\n')
 
-		#---call simuluxe script for identify the poles
-		simuluxe_script = os.path.expanduser(self.params['bilayer_construction_settings']
-			[self.simscale]['simuluxe_script_restrain'])
-
-		arglist = self.rootdir+' '+' '.join([str(self.settings[i]) for i in [
-			'pole_restrain_cutoff',
-			]])+' '+self.rootdir+'prep-equilibrated-pbcmol.gro'
-		cmd = './'+os.path.basename(simuluxe_script)+' '+arglist
+		#---call simuluxe script for adding restraints if necessary
+		self.shape = self.settings['shape']
+		simuluxe_script = os.path.expanduser(self.settings['simuluxe_script_restrain'])
 		cwd=os.path.dirname(simuluxe_script)+'/'
-		call(cmd,cwd=cwd,logfile='log-script-fixer')
+		cmd = './'+os.path.basename(os.path.expanduser(simuluxe_script))
+		cmd += ' dropspot='+self.rootdir
+		cmd += ' amxroot='+os.path.abspath(self.rootdir+'../')
+		cmd += ' gro='+self.rootdir+'prep-equilibrated-pbcmol.gro'
+		for key in self.settings['restraints'][self.shape]: 
+			cmd += ' '+key+'='+str(self.settings['restraints'][self.shape][key])
+		call(cmd,logfile='log-script-fixer',cwd=cwd)
 		copy(cwd+'log-script-fixer',self.rootdir+'log-script-fixer')
 		os.remove(cwd+'log-script-fixer')
-		copy(self.rootdir+'prep-saddle-restrain.gro',self.rootdir+'system.gro')
+		copy(self.rootdir+'prep-sculpt-restrain.gro',self.rootdir+'system.gro')
 
 		#---compact method for generating a new topology				
 		cmd = [gmxpaths['make_ndx'],
