@@ -490,7 +490,6 @@ def script(single=None,rescript=False,**extras):
 		extras['walltime'] = proc_settings['walltime']*0.98
 		prep_scripts('rescript',script_dict,extras=extras)
 		#---write a list of files to move to scratch
-
 		#---use the upload routine to only copy necessary files to scratch
 		if not ('start' in extras.keys() and extras['start']):
 			upload(silent=True)
@@ -541,7 +540,8 @@ def script(single=None,rescript=False,**extras):
 				if hs_footer != None: fp.write(hs_footer)
 				if 'carefultime' in extras.keys() and extras['carefultime']: fp.write('qsub cluster-md-continue')
 				#---use the upload routine to only copy necessary files to scratch
-				if not ('start' in extras.keys() and extras['start']):
+				extras_start = not any([re.match('^[a-z][0-9]{1,2}',i) for i in os.listdir('.')])
+				if not ('start' in extras.keys() and extras['start']) and not extras_start:
 					upload(silent=True)
 					with open('upload-rsync-list.txt','w') as fp: fp.write('gmxpaths.conf\n')
 				#---if start flag is present then move everything

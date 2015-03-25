@@ -17,13 +17,13 @@ bilayer_construction_settings = {
 		'ion_residue_names':['NA+','CL-','ION'],
 		'concentration_calc':['simple','lipid_exempt'][0],
 		'water_gap':10,
-		'shape':'buckle',
+		'shape':'saddle',
 		'shape_details':{
 			'saddle':{
-				'lx':35,
-				'ly':35,
+				'lx':50,
+				'ly':50,
 				'lz':50,
-				'height':8,
+				'height':12,
 				'width':10,
 				'binsize':0.9,
 				'mono_offset':1.5,

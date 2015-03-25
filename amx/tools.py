@@ -343,7 +343,7 @@ def get_proc_settings():
 		try: check_host = re.match(key,subprocess.check_output(['echo $HOSTNAME'],
 			shell=True).strip('\n'))
 		except: check_host = False
-		if check_host or re.match(key,socket.gethostname()):
+		if check_host or re.match(key,socket.gethostname(),flags=re.I):
 			hostname = key
 			break
 	print '\thostname = '+str(hostname)

@@ -758,12 +758,14 @@ class BilayerSculpted(Bilayer):
 				' and z>=0 and z<= '+str(10*boxvecs[2])+')) or (not name '+self.settings['sol_name']+'))"]',
 				'$sel writepdb '+self.rootdir+'solvate-vmd.pdb',
 				'exit',]			
-			with open(self.rootdir+'script-vmd-trim.tcl','w') as fp:
-				for line in vmdtrim: fp.write(line+'\n')
+			#---previously wrote a script and executed by vmd was giving core dumped errors
+			if 0: 
+				with open(self.rootdir+'script-vmd-trim.tcl','w') as fp:
+					for line in vmdtrim: fp.write(line+'\n')
 			vmdlog = open(self.rootdir+'log-script-vmd-trim','w')
-			p = subprocess.Popen('vmd -dispdev text -e script-vmd-trim.tcl',
-				stdout=vmdlog,stderr=vmdlog,cwd=self.rootdir,shell=True)
-			p.communicate()
+			p = subprocess.Popen('vmd -dispdev text',
+				stdout=vmdlog,stderr=vmdlog,stdin=subprocess.PIPE,cwd=self.rootdir,shell=True)
+			p.communicate(input='\n'.join(vmdtrim)+'\n')
 			cmd = [gmxpaths['editconf'],
 				'-f solvate-vmd.pdb',
 				'-o solvate.gro','-resnr 1']
