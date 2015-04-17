@@ -12,7 +12,7 @@ dictionary also keeps track of the available architectures for each hostname.
 #---here the hostname is a single word excluding punctuation which can be matched to the true hostname
 #---note that the first element in the corresponding list is the default architecture
 valid_hostnames = {
-	'compbio':['opterons','opterons_gpu','xeons'],
+	'compbio':['opterons','opterons_gpu','xeons'][1],
 	'walnut':None,
 	'tobias':None,
 	}

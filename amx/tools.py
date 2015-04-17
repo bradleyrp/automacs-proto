@@ -349,9 +349,12 @@ def get_proc_settings():
 	print '\thostname = '+str(hostname)
 	#---if no hostname matches use the local steps
 	if hostname == None: system_id = 'local'
-	#---check for multiple architectures and choose the first one by default
-	if hostname in valid_hostnames.keys() and valid_hostnames[hostname] != None: 
+	#---check for multiple architectures but select the 
+	if hostname in valid_hostnames.keys() and valid_hostnames[hostname] != None and \
+		type(valid_hostnames[hostname])==list: 
 		arch = valid_hostnames[hostname][0]
+	elif hostname in valid_hostnames.keys() and valid_hostnames[hostname] != None:
+		arch = valid_hostnames[hostname]
 	else: arch = None
 	if hostname != None: system_id = hostname+('' if arch == None else '_'+arch)
 	if hostname != None and system_id in default_proc_specs.keys():
