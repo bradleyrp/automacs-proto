@@ -314,7 +314,8 @@ script_dict = {
 			],
 		},
 	'restart':{
-		'prep':prepare_restart,
+		'prep':prepare_restart+\
+			["sed -i 's/use_gpu.*/use_gpu=\"gpu\"/g' $step_simulation/settings.sh"],
 		'steps':{
 			'step_simulation':'s01-restart',
 			'detect_previous_step':None,
