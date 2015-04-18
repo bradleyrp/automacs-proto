@@ -12,7 +12,7 @@ dictionary also keeps track of the available architectures for each hostname.
 #---here the hostname is a single word excluding punctuation which can be matched to the true hostname
 #---note that the first element in the corresponding list is the default architecture
 valid_hostnames = {
-	'compbio':['opterons','opterons_gpu','xeons'],
+	'compbio':['opterons','opterons_gpu','xeons'][1],
 	'walnut':None,
 	'tobias':None,
 	}
@@ -177,11 +177,11 @@ default_proc_specs = {
 		'module':'module load gromacs-gcc',
 		'scratch':False},
 	'compbio_opterons':
-		{'nodes':1,'ppn':16,'walltime':96,
+		{'nodes':1,'ppn':16,'walltime':48,
 		'module':'module load gromacs-gcc',
 		'scratch':False},
 	'compbio_opterons_gpu':
-		{'nodes':1,'ppn':16,'walltime':96,
+		{'nodes':1,'ppn':16,'walltime':48,
 		'module':'module load gromacs-gcc-cuda',
 		'scratch':False},
 	'walnut':

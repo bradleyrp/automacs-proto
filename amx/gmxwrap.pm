@@ -76,10 +76,7 @@ sub getbashstr {
 	my $setting_name = shift;
 	open(my $infile, '<', $filename) or finish "error opening @_: $!";
 	while (my $line = <$infile>) {
-		if ($line =~ /$setting_name/) {
-			$line =~ /"(.*?)"/;
-			return $1
-		}
+		if ($line =~ /^$setting_name\="?(.*?)"?$/) { return $1 }
 	}
 }
 

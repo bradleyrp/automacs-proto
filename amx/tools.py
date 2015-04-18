@@ -31,7 +31,8 @@ elif os.path.isfile('../settings'): execfile('../settings')
 def argsort(seq): return [x for x,y in sorted(enumerate(seq), key = lambda x: x[1])]
 
 class tee(object):
-	'''
+
+	"""
 	Routes print statements to the screen and a log file.
 	
 	Routes output to multiple streams, namely a log file and stdout, emulating the linux "tee" function. 
@@ -43,7 +44,8 @@ class tee(object):
 	Initialize the object with a file handle for the new log file. It is possible to run ``tee`` multiple
 	times in order to redirect ``print`` output to a new file. The new object checks to see if 
 	``sys.stdout`` is a tee object or the "real" stream, and rolls both into the new object.
-	'''
+	"""
+
 	def __init__(self, *files,**kwargs):
 		#---if sys.stdout is already a tee object, then just steal its stdout member
 		if str(sys.stdout.__class__) == "<class 'amx.tools.tee'>": self.stdout = sys.stdout.stdout
@@ -55,10 +57,10 @@ class tee(object):
 		if 'error' in kwargs.keys() and kwargs['error'] == True: self.error = True
 		else: self.error = False
 	def write(self, obj): 
-		'''
+		"""
 		The write function here emulates the write functions for both files and the standard output stream
 		so that the tee object will always write to both places.
-		'''
+		"""
 		st = datetime.datetime.fromtimestamp(time.time()).strftime('%Y.%m.%d.%H%M') if not self.error else ''
 		if obj != '\n': self.stdout.write(st+' ')
 		self.stdout.write(obj)
@@ -67,9 +69,11 @@ class tee(object):
 			f.write(obj)
 
 def call(command,logfile=None,cwd=None,silent=False,inpipe=None,suppress_stdout=False):
-	'''
+
+	"""
 	Wrapper for system calls in a different directory with a dedicated log file.
-	'''
+	"""
+
 	if inpipe != None:
 		output = open(('' if cwd == None else cwd)+logfile,'wb')
 		if type(command) == list: command = ' '.join(command)
@@ -107,13 +111,15 @@ def call(command,logfile=None,cwd=None,silent=False,inpipe=None,suppress_stdout=
 				else: raise Exception('except: execution error')
 
 def checkout(command,cwd=None):
-	'''
+
+	"""
 	Return the result of a shell command.
 	
 	This command emulates the ``subprocess.check_output`` function for systems with older versions of that 
 	module. If ``subprocess.check_output`` is unavailable, it routes the ``STDOUT`` from the command to
 	a temporary text file and then reads that.
-	'''
+	"""
+
 	try:
 		result = subprocess.check_output(' '.join(command),shell=True,cwd=cwd)
 	except AttributeError:
@@ -123,13 +129,15 @@ def checkout(command,cwd=None):
 	return result
 
 def copy(source,destination):
-	'''
+
+	"""
 	Generic copy function for handling files or directories.
 	
 	This copy function can copy directories as long as the destination folder is fully specified. It will
 	also copy a folder's contents to another folder directly if the Bash-style asterisk wildcard is found
 	in the source argument. It also copies individual files.
-	'''
+	"""
+
 	#---check if wildcard in the source in which case use glob
 	if '*' in source:
 		for filename in glob.glob(source): 
@@ -143,15 +151,21 @@ def copy(source,destination):
 			else: raise
 
 def multiresub(switches,text):
-	'''
+
+	"""
 	Function which performs a multiple regex substitution on some text.\n
 	Primarily used in controller to prepare ad hoc bash scripts.
-	'''
+	"""
+
 	regex = re.compile("(%s)" % "|".join(map(re.escape,switches.keys())))
 	return regex.sub(lambda mo: switches[mo.string[mo.start():mo.end()]],text) 
 	
 def confirm():
-	'''Generic function to check with the user.'''
+
+	"""
+	Generic function to check with the user.
+	"""
+	
 	go = True if raw_input("%s (y/N) " % 'continue?').lower() == 'y' else False
 	if not go:
 		print 'aborting' 
@@ -160,7 +174,11 @@ def confirm():
 	if go and sure: return True
 	
 def status(string,start=None,i=None,looplen=None,blocked=False):
-	'''Print status to the screen also allows for re-writing the line. Duplicated in the membrain library.'''
+	
+	"""
+	Print status to the screen also allows for re-writing the line. Duplicated in the membrain library.
+	"""
+	
 	#---note: still looking for a way to use the carriage return for dynamic counter without
 	#---...having many newlines printed to the file. it seems impossible to use the '\r' + flush()
 	#---...method with both screen and file output, since I can't stop the buffer from being written
@@ -187,9 +205,9 @@ def status(string,start=None,i=None,looplen=None,blocked=False):
 	
 def chain_steps():
 	
-	'''
+	"""
 	Check for previous steps to enable chaining.
-	'''
+	"""
 
 	#---intervene here to check if this is an add-on singleton script
 	#---...for example, if you want a restart of a previous procedure
@@ -208,13 +226,15 @@ def chain_steps():
 	return startstep,oldsteps
 	
 def write_steps_to_bash(steps,startstep,oldsteps,extras=None):
-	'''
+
+	"""
 	Given a file pointer and a list of steps from the script_dict, this function will write the relevant 
 	variables to bash variables. Note that we use this function in script_maker and prep_scripts (which
 	is why we place it in a central location here). The steps dictionary does two things: it defines the 
 	folders for steps which the execute and preparation scripts require, and also handles special functions
 	e.g. looking for previous step names.
-	'''
+	"""
+
 	bashheader = ''
 	#---write variables in the steps entry in the simulation dictionary so bash can see them
 	for step in steps.keys(): 
@@ -237,9 +257,11 @@ def write_steps_to_bash(steps,startstep,oldsteps,extras=None):
 	return bashheader
 	
 def script_maker(target,script_dict,module_commands=None,sim_only=False,stepcount=None,extras=None):
-	'''
+
+	"""
 	Prepare the master script for a particular procedure.
-	'''
+	"""
+
 	if target not in script_dict.keys(): raise Exception('except: unclear make target')
 	steps = script_dict[target]['steps']
 	script = '\n#---definitions\n'
@@ -265,10 +287,19 @@ def script_maker(target,script_dict,module_commands=None,sim_only=False,stepcoun
 		else: script += segment
 	return script
 	
-def prep_scripts(target,script_dict,extras=None):
-	'''
+def prep_scripts(target,script_dict,extras=None,extra_settings=None):
+
+	"""
 	Execute temporary bash scripts to setup the directories.
-	'''
+	"""
+	
+	#---extra settings can come from script_dict steps or override via flags passed to make
+	#---note that the canonical sets_flags must match those in controller.script
+	exset = {} if extra_settings == None else extra_settings
+	sets_flags = ['gpu_flag']
+	for f in sets_flags:
+		if f in script_dict[target]['steps'] and f not in exset:
+			exset[f] = script_dict[target]['steps'][f]
 	
 	startstep,oldsteps = chain_steps()
 	if target not in script_dict.keys(): raise Exception('except: unclear make target')
@@ -281,14 +312,33 @@ def prep_scripts(target,script_dict,extras=None):
 		fp.write(segment)
 		fp.close()
 		os.system('bash script-temporary-prep.sh')
+		#---any extra_settings are appended to settings.sh files if they appear in a folder 
+		#---...labelled by step_name in the steps key of the script_dict
+		if extra_settings != None:
+			#---extract any step folders that might have settings.sh files
+			step_folders = [re.findall('^.+=(.+)$',s)[0] 
+				for s in bashheader.split('\n') if any([re.match(r,s) 
+				for r in ['^step_','detect_previous_step']])]
+			for s in step_folders:
+				if os.path.isfile(s+'/settings.sh'):
+					with open(s+'/settings.sh','a') as fp: 
+						for ex in exset: fp.write(ex+'='+exset[ex]+'\n')
 		os.system('rm script-temporary-prep.sh')
 
 def niceblock(text,newlines=False):
-	'''Remove tabs so that large multiline text doesn't awkwardly wrap in the code.'''
+	
+	"""
+	Remove tabs so that large multiline text doesn't awkwardly wrap in the code.
+	"""
+	
 	return re.sub('\n([\t])+',(' ' if not newlines else '\n'),re.sub('^\n([\t])+','',text))
 	
 def latestcheck(last):
-	'''Return the most recept tpr/cpt files in a particular folder.'''
+	
+	"""
+	Return the most recept tpr/cpt files in a particular folder.
+	"""
+	
 	for root,dirnames,filenames in os.walk(last): break
 	tprs = [i for i in filenames if re.match('^md\.part[0-9]{4}\.tpr$',i)]
 	cpts = [i for i in filenames if re.match('^md\.part[0-9]{4}\.cpt$',i)]
@@ -299,12 +349,14 @@ def latestcheck(last):
 	return [tprs[tnum],cpts[cnum]]
 	
 def lastframe(prefix,rootdir,gmxpaths):
-	'''
+
+	"""
 	This function is used to retreive the last frame of a particular simulation.\n
 	The user supplies a filename prefix and root directory (via kwargs `prefix` and `rootdir`) and this
 	function will check for the corresponding <prefix>.gro file. If it's absent, it checks for a <prefix>.xtc 
 	file and extract the last frame from it.
-	'''
+	"""
+
 	if not os.path.isfile(rootdir+'/'+prefix+'.gro'):
 		print 'configuration is missing so we will extract the last frame'
 		cmd = [gmxpaths['gmxcheck'],
@@ -334,7 +386,9 @@ def lastframe(prefix,rootdir,gmxpaths):
 	
 def get_proc_settings():
 
-	'''Determine processor settings from hostname.'''
+	"""
+	Determine processor settings from hostname.
+	"""
 
 	#---determine location
 	hostname = None
@@ -349,9 +403,12 @@ def get_proc_settings():
 	print '\thostname = '+str(hostname)
 	#---if no hostname matches use the local steps
 	if hostname == None: system_id = 'local'
-	#---check for multiple architectures and choose the first one by default
-	if hostname in valid_hostnames.keys() and valid_hostnames[hostname] != None: 
+	#---check for multiple architectures but select the 
+	if hostname in valid_hostnames.keys() and valid_hostnames[hostname] != None and \
+		type(valid_hostnames[hostname])==list: 
 		arch = valid_hostnames[hostname][0]
+	elif hostname in valid_hostnames.keys() and valid_hostnames[hostname] != None:
+		arch = valid_hostnames[hostname]
 	else: arch = None
 	if hostname != None: system_id = hostname+('' if arch == None else '_'+arch)
 	if hostname != None and system_id in default_proc_specs.keys():
@@ -407,9 +464,11 @@ def get_proc_settings():
 	return proc_settings,header_source_mod,header_source_footer
 	
 def ultrasweep(hypothesis_default,sweep):
-	'''
+
+	"""
 	Code for sweeping an arbitrarily deep dictionary over many dimensions in combinations.
-	'''
+	"""
+
 	#---extract a list of lists of parameters to sweep over
 	t = [i['values'] for i in sweep]
 	for si,sweepset in enumerate(t):
@@ -451,3 +510,4 @@ def ultrasweep(hypothesis_default,sweep):
 		#---once we set all the values, the hypothesis is ready
 		hypotheses.append(newhypo)	
 	return hypotheses
+	

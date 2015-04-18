@@ -138,6 +138,7 @@ cd ..
 call_sim_restart = """#---execute simulation restart step
 cd $step_simulation
 ./script-sim-restart.pl
+./script-sim.pl
 if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
 cd ..
 \n"""
@@ -317,6 +318,7 @@ script_dict = {
 		'steps':{
 			'step_simulation':'s01-restart',
 			'detect_previous_step':None,
+			'gpu_flag':'cpu',
 			},
 		'continue':True,
 		'sequence':[
@@ -327,6 +329,8 @@ script_dict = {
 		'prep':prepare_rescript,
 		'steps':{
 			'detect_previous_step':None,
+			'step_simulation':'s01-restart',
+			'gpu_flag':'cpu',
 			},
 		'sequence':[
 			call_sim_rescript,
@@ -374,9 +378,11 @@ script_dict = {
 #-------------------------------------------------------------------------------------------------------------
 
 def clean(sure=True,protected=False,extras=None):
-	'''
+
+	"""
 	Clears all run files from the current directory structure.
-	'''
+	"""
+
 	if protected: print 'delete protected locations = '+str(protected)
 	rootdir = os.path.expanduser('.')
 	delfiles,delfiles_protect,deldirs,deldirs_protect,deldirs_all = [],[],[],[],[]
@@ -420,11 +426,19 @@ def clean(sure=True,protected=False,extras=None):
 		for f in deldirs_protect: os.system('rm -rf '+f[0]+'/'+f[1])
 					
 def docs(extras=None):
-	'''Regenerate the documentation using sphinx-apidoc and code in amx/gendoc.sh'''
+
+	"""
+	Regenerate the documentation using sphinx-apidoc and code in amx/gendoc.sh
+	"""
+
 	os.system('./amx/script-make-docs.sh '+os.path.abspath('.'))
 	
 def upload(step=None,extras=None,silent=False):
-	'''Provides a file list and rsync syntax to upload this to a cluster without extra baggage.'''
+
+	"""
+	Provides a file list and rsync syntax to upload this to a cluster without extra baggage.
+	"""
+
 	gofiles = ['controller.py','makefile','settings']
 	startstep,oldsteps = chain_steps()
 	if step != None:
@@ -450,6 +464,11 @@ def upload(step=None,extras=None,silent=False):
 	if not silent: print 'rsync -avi --files-from=upload-rsync-list.txt ../'+cwd+' DEST/'+cwd
 	
 def copycode():
+
+	"""
+	Utility function for moving code. Deprecated.
+	"""
+
 	startstep,oldsteps = chain_steps()
 	cwd = os.path.basename(os.path.abspath(os.getcwd()))
 	with open('upload-rsync-code-excludes.txt','w') as fp: 
@@ -459,9 +478,11 @@ def copycode():
 #-------------------------------------------------------------------------------------------------------------
 
 def batchscript(batchdir,proc):
-	'''
+
+	"""
 	Recurseively run make commands for a large batch.
-	'''
+	"""
+
 	batchdir = os.path.abspath(batchdir)+'/'
 	for root,dirnames,filenames in os.walk(batchdir,followlinks=False): break
 	for dn in dirnames: 
@@ -473,10 +494,14 @@ def rescript(single=None,**extras): script(single=single,rescript=True,**extras)
 					
 def script(single=None,rescript=False,**extras):
 
-	'''
+	"""
 	Deposit PBS scripts in each step folder for the corresponding step and make master scripts.
-	'''
+	"""
 	
+	#---flags which are passed to settings.sh files if necessary
+	sets_flags = ['gpu_flag']
+	sets_pass = dict([(sf,extras[sf]) for sf in [s for s in extras if s in sets_flags]])
+
 	#---check for sensible script target
 	if single == None and rescript == False: raise Exception('except: unclear target')
 	#---a rescript on the cluster will find the most recent step and add a continue script to it
@@ -488,7 +513,7 @@ def script(single=None,rescript=False,**extras):
 		#---note that we add a 2% buffer here combined with 1% on the maxh flag so enough time to copy
 		#---...files back from scratch
 		extras['walltime'] = proc_settings['walltime']*0.98
-		prep_scripts('rescript',script_dict,extras=extras)
+		prep_scripts('rescript',script_dict,extras=extras,extra_settings=sets_pass)
 		#---write a list of files to move to scratch
 		#---use the upload routine to only copy necessary files to scratch
 		if not ('start' in extras.keys() and extras['start']):
@@ -538,7 +563,8 @@ def script(single=None,rescript=False,**extras):
 				fp.write(script_maker(target,script_dict,module_commands=proc_settings['module'],
 					sim_only=None,extras=extras))
 				if hs_footer != None: fp.write(hs_footer)
-				if 'carefultime' in extras.keys() and extras['carefultime']: fp.write('qsub cluster-md-continue')
+				if 'carefultime' in extras.keys() and extras['carefultime']: 
+					fp.write('qsub cluster-md-continue')
 				#---use the upload routine to only copy necessary files to scratch
 				extras_start = not any([re.match('^[a-z][0-9]{1,2}',i) for i in os.listdir('.')])
 				if not ('start' in extras.keys() and extras['start']) and not extras_start:
@@ -561,7 +587,7 @@ def script(single=None,rescript=False,**extras):
 		os.system('chmod u+x '+'script-master-'+str(target))
 		
 		#---prepare the files and directories
-		if not rescript: prep_scripts(target,script_dict,extras=extras)
+		if not rescript: prep_scripts(target,script_dict,extras=extras,extra_settings=sets_pass)
 		
 		#---for simulations that can be continued we write a script for only the final step in the sequence
 		if 'continue' in script_dict[target].keys() and script_dict[target]['continue']:
@@ -578,12 +604,14 @@ def script(single=None,rescript=False,**extras):
 		print '\tsee the documentation for details\n'
 		
 def batch(**extras):
-	'''
+
+	"""
 	Function which spawns a particular simulation into many.\n
 	Recommended useage: 
 		make clean sure; make script protein-homology; ./script-master-protein-homology
 		make spawn proc=aamd-protein infiles=repo/simulation_targets.txt batchdir=../protein-v1020-batch
-	'''
+	"""
+
 	batchspecs = {}
 	execfile('inputs/input-specs-batch.dat',batchspecs)
 	batchdir = os.path.abspath(batchspecs['batchdir'])+'/'
@@ -651,19 +679,19 @@ def batch(**extras):
 #---INTERFACE
 #-------------------------------------------------------------------------------------------------------------
 
-'''
+"""
 Functions exposed to makefile:
 def avail
 def timeslice
 def catalog
-'''
+"""
 
 def makeface(arglist):
 
-	'''
+	"""
 	Interface to makefile.
-	'''
-	print arglist
+	"""
+	
 	#---print help if no arguments
 	if arglist == []:
 		print niceblock(helpstring,newlines=True)
@@ -682,7 +710,7 @@ def makeface(arglist):
 	#---...to false while any var=val commands will be passed along via extras
 	argdict = {
 		'clean':{'args':['protected','sure'],'module_name':None,'defaults':{'sure':False}},
-		'script':{'module_name':None,'defaults':[],'args':['carefultime','rescript','start'],
+		'script':{'module_name':None,'defaults':[],'args':['carefultime','rescript','start','gpu_flag'],
 			'singles':[
 				'aamd-bilayer',
 				'cgmd-bilayer',
@@ -719,11 +747,11 @@ def makeface(arglist):
 		if arglist[0] in argd['singles']: kwargs['single'] = arglist.pop(0)
 	#---all remaining keywords are handled as flags
 	for a in list(arglist):
-		if not re.match('^[a-z,A-Z,0-9]+\=([a-z,A-Z,0-9,\-,_,\.,\/]+)+$',a):
+		if not re.match('^[a-z,A-Z,0-9,_]+\=([a-z,A-Z,0-9,\-,_,\.,\/]+)+$',a):
 			kwargs[a] = True if a in argd['args'] else False
 			if a in argd['args']: arglist.remove(a)
 		else:
-			flag = re.findall('^([a-z,A-Z,0-9]+)\=([a-z,A-Z,0-9,\-,_,\.,\/]+)$',a)[0]
+			flag = re.findall('^([a-z,A-Z,0-9,_]+)\=([a-z,A-Z,0-9,\-,_,\.,\/]+)$',a)[0]
 			kwargs[flag[0]] = flag[1]
 			arglist.remove(a)
 	if arglist != []: 
