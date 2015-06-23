@@ -1,10 +1,12 @@
 #!/usr/bin/python
 
 #---COMPOSITIONS
-nlipids0 = 600
+nlipids0 = 100
 complist0 = [3,1,1]
 lipidnames0 = ['DOPC','DOPS','CHOL']
-nlipids1 = 600
+
+#---ASYMMETRIC COMPOSITION
+nlipids1 = 100
 complist1 = [3,1,1]
 lipidnames1 = ['DOPC','DOPS','CHOL']
 
@@ -13,7 +15,7 @@ simscale = 'cgmd'
 
 #---CONSTRUCTION SETTINGS
 
-'''
+"""
 lbuffer : spacing between periodic images
 tbuffer : spacing between the ends of lipid tails when making a bilayer from a monolayer
 pbc_spacing : distance between monolayers under PBC during vacuum construction step
@@ -21,7 +23,7 @@ solvent_thickness : thickness of the water slab in nm, normal to the bilayer (ma
 lipid_water_buffer : gap between lipids and water during solvate step
 ion_strength : molar ion concentration (check the code for the exact procedure)
 lipid_spacing : the distance in nm between adjacent lipids during combinator and combinator_row methods
-'''
+"""
 
 bilayer_construction_settings = {
 	'aamd': {

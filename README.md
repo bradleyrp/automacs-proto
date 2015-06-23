@@ -6,7 +6,7 @@ reproducibly generate molecular dynamics simulations
 of biophysical systems. The code is commented and 
 documentation can be found in the docs folder. This
 software is maintained on the 
-[github](https://github.com/bradleyrp/automacs)/
+[github](https://github.com/bradleyrp/automacs).
 
 Requires
 --------
@@ -30,11 +30,4 @@ Usage
 	./controller make (operation)    | Prepare scripts for "operation"
 	./controller make_docs           | Rebuild documentation
 
-Contributing
-------------
-
-Ryan Bradley. For other developers, you may view the changelog_specific.md which is updated from time to 
-time via a ruby gem called katip. If you have the program, running `katip2.0 changelog_specific.md` will 
-update this changelog according to the information from git. A changelog for the project is also located at
-changelog.md
 

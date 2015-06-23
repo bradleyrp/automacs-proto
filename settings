@@ -3,12 +3,6 @@
 #---CLUSTER HEADERS
 #-------------------------------------------------------------------------------------------------------------
 
-#---hostname-to-architecture dictionary
-'''
-The keys in valid_hostnames are single word strings excluding punctuation which can be mathced to the true
-true hostname. For example, if $HOSTNAME is likely to be kraken.school.login2 then just use "kraken". This
-dictionary also keeps track of the available architectures for each hostname.
-'''
 #---here the hostname is a single word excluding punctuation which can be matched to the true hostname
 #---note that the first element in the corresponding list is the default architecture
 valid_hostnames = {
@@ -16,6 +10,13 @@ valid_hostnames = {
 	'walnut':None,
 	'tobias':None,
 	}
+
+#---hostname-to-architecture dictionary
+"""
+The keys in valid_hostnames are single word strings excluding punctuation which can be mathced to the true
+true hostname. For example, if $HOSTNAME is likely to be kraken.school.login2 then just use "kraken". This
+dictionary also keeps track of the available architectures for each hostname.
+"""
 
 #---header file definitions
 #---note the variable naming must be cluster_header_hostname_architecture
@@ -225,5 +226,4 @@ tool_paths = {
 	'modeller':'mod9.14',
 	'vmd':'vmd',
 	}
-
 

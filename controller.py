@@ -45,7 +45,7 @@ helpstring = """\n
     protein-homology     : single- or muliple-template homology models with 
                            options for batches of mutations
     multiply nx=N ny=M   : replicate a simulation box
-    restart              : generic restart which autodetects a CPT or GRO file
+    restart              : generic restart which auto-detects CPT/GRO
     """
 
 document_string = \
@@ -625,6 +625,7 @@ def batch(**extras):
 		'cgmd-protein':'inputs/input-specs-protein.dat',
 		'aamd-bilayer':'inputs/input-specs-bilayer.dat',
 		'cgmd-protein':'inputs/input-specs-bilayer.dat',
+		'cgmd-bilayer':'inputs/input-specs-bilayer.dat',
 		}[batchspecs['procedure']]
 	defaults = {}
 	execfile(specsfile,defaults)
@@ -663,6 +664,7 @@ def batch(**extras):
 			for key in hypo:
 				keystring = json.dumps(hypo[key],indent=4).replace('false','False').replace('true','True')
 				fp.write(key+' = '+keystring+'\n')
+		raw_input(newdir)
 		call('python controller.py script aamd-protein',cwd=os.path.abspath(newdir),
 			silent=True,suppress_stdout=True)
 		loclist.append(newdir)

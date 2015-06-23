@@ -13,6 +13,7 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
 	commit_message=$timestamp" : "${@:2}
+	make -C ./docs/ clean
 	git add . --all
   	git commit -a -m "$commit_message"
     git push

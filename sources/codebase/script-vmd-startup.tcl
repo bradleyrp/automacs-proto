@@ -8,7 +8,7 @@ color Display Background white
 display resize 800 800
 display projection orthographic
 
-mol new s1-build-lipidgrid/place-grid-start0.gro
+mol new s01-build-lipidgrid/place-grid-start0.gro
 set ind [molinfo top]
 mol modstyle 0 $ind Licorice 2.3
 set viewpoints(0,$ind,0) { {{0.686704 -0.726339 -0.0295325 0} {0.396589 0.340281 0.852601 0} {-0.609228 -0.597196 0.521731 0} {0 0 0 1}} }
@@ -23,7 +23,7 @@ render Tachyon scene {
 	}
 mol delete 0
 
-mol new s2-build-bilayer/vacuum.gro
+mol new s02-build-bilayer/vacuum.gro
 cg_bonds -tpr s2-build-bilayer/em-vacuum-steep.tpr
 mol modstyle 0 1 Licorice 2
 set viewpoints(0,$ind,0) { {{0.686704 -0.726339 -0.0295325 0} {0.396589 0.340281 0.852601 0} {-0.609228 -0.597196 0.521731 0} {0 0 0 1}} }

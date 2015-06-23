@@ -4,22 +4,29 @@
    contain the root `toctree` directive.
 
 Automacs (AMX) Documentation
-===============================
+============================
 
-The following documentation explains how to use Automacs: the "automatic GROMACS" package.
+The following documentation explains how to use *automacs* --- the "automatic GROMACS" package.
+The code can be quickly deployed using ``make`` which generates automatic scripts for making biophysical simulations.
 
 .. figure:: ../sources/docs/automacs-cgmd-v614.jpeg
    :align: center
    :alt: monolayer snapshot
    :width: 75 %
    
-   Proteins adhered to a coarse-grained lipid bilayer.
+   The author's favorite proteins adhered to a coarse-grained lipid bilayer.
 
+Contents
+========
+   
 .. toctree::
    :maxdepth: 4
 
    amx
 
+Basics
+======
+   
 This documentation was automatically generated via Python's *Sphinx* documentation system. As such, it
 is primarily written from class and function `docstrings <http://en.wikipedia.org/wiki/Docstring>`_ 
 embedded in the source code. The functions in the ``amx`` module are almost always a wrapper around a set of 
@@ -28,7 +35,8 @@ easily infer the underlying GROMACS commands. For example, the ``minimization_me
 ``amx.bilayer`` module, contains the following wrapper around the GROMACS ``grompp`` command-line utility. ::
 
 	def minimization_method(self,name):
-		'''Generic minimization method with a drop-in name and standard inputs.'''
+		
+		"""Generic minimization method with a drop-in name and standard inputs."""
 		
 		print name+" minimization, steepest descent"
 		cmd = [gmxpaths['grompp'],
@@ -71,5 +79,3 @@ Indices and tables
 
 * :ref:`genindex`
 * :ref:`modindex`
-* :ref:`search`
-

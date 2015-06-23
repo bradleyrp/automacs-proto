@@ -32,7 +32,7 @@ batchdir = '../protein-v1022b/'
 callsign = '1022'
 
 #---which procedure to execute (same names as "make script")
-procedure = 'aamd-protein'
+procedure = ['aamd-protein','cgmd-bilayer'][-1]
 
 #---list of route/values dictionaries to specify how to change the input-specs dictionary
 #---...and which parameters to sweep over
@@ -40,6 +40,7 @@ procedure = 'aamd-protein'
 sweep = [
 	{'route':['protein_construction_settings','aamd','wbuffer'],'values':range(1,1+5)},
 	{'route':['input_filename'],'values':{'file_list_file':'repo/batch_file_list.txt'}},
+	{'route':['complist0'],'values':[[i,1,1] for i in [3,4,5]]},
 	][-1:]
 
 #---overrides for default parameters in auto-generate input-specs files
