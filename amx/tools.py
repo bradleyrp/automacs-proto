@@ -427,8 +427,9 @@ def get_proc_settings():
 	#---...this means that ./controller make must be rerun to switch processor counts
 	fp = open('gmxpaths.conf','w')
 	for key in standard_gromacs_commands:
-		if system_id in gmx_overrides.keys() and key in gmx_overrides[system_id].keys():
-			command_syntax = gmx_overrides[system_id][key]
+		if gmxversion==5 or (system_id in gmx_overrides.keys() and key in gmx_overrides[system_id].keys()):
+			if key in gmx_overrides[system_id]: command_syntax = gmx_overrides[system_id][key]
+			else: command_syntax = key
 			if proc_settings != None:
 				command_syntax = re.sub('NPROCS',
 					str(proc_settings['nodes']*proc_settings['ppn']),command_syntax)
