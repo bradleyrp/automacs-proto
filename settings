@@ -217,6 +217,11 @@ gmx_overrides = {
 	'compbio_opterons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	'walnut':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	}
+	
+#---convert gromacs 4 commands to gromacs 5
+gmx_syntax5 = dict([(key,'gmx '+key) for key in standard_gromacs_commands])
+special_keys5 = {'genbox':'gmx solvate','tpbconv':'gmx convert-tpr'}
+for key in special_keys5: gmx_syntax5[key] = special_keys5[key]
 
 #---paths to extra tools
 #---set paths to DSSP executable and martinize.py for MARTINI protein simulations from scratch

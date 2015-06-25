@@ -103,7 +103,7 @@ def call(command,logfile=None,cwd=None,silent=False,inpipe=None,suppress_stdout=
 			try: 
 				if suppress_stdout: 
 					devnull = open('/dev/null','w')
-					subprocess.check_call(command,shell=True,stderr=stderr,cwd=cwd,stdout=devnull)
+					subprocess.check_call(command,shell=True,stderr=devnull,cwd=cwd,stdout=devnull)
 				else: subprocess.check_call(command,shell=True,stderr=None,cwd=cwd)
 			except:
 				if logfile[-3:] == '-cg' and re.search('mdrun-em',logfile):
@@ -403,6 +403,10 @@ def get_proc_settings():
 	print '\thostname = '+str(hostname)
 	#---if no hostname matches use the local steps
 	if hostname == None: system_id = 'local'
+	#---check for gromacs version and update the overrides if necessary
+	gmxversion = 5
+	try: call('gmx',suppress_stdout=True,silent=True)
+	except: gmxversion = 4
 	#---check for multiple architectures but select the 
 	if hostname in valid_hostnames.keys() and valid_hostnames[hostname] != None and \
 		type(valid_hostnames[hostname])==list: 
@@ -428,6 +432,7 @@ def get_proc_settings():
 			if proc_settings != None:
 				command_syntax = re.sub('NPROCS',
 					str(proc_settings['nodes']*proc_settings['ppn']),command_syntax)
+			if gmxversion==5: command_syntax = re.sub(key,gmx_syntax5[key],command_syntax)
 			fp.write(key+' '+command_syntax+'\n')
 		elif system_id in gmx_suffixes.keys(): 
 			fp.write(key+' '+key+gmx_suffixes[system_id]+'\n')
