@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from tools import call,checkout,tee,copy,chain_steps,latestcheck,lastframe
+from tools import call,checkout,tee,copy,chain_steps,latestcheck,lastframe,bp,delve,mapdict,redundant
 import os,sys,re
 
 #---locate gmxpaths
@@ -15,14 +15,18 @@ gmxpaths = dict([[i.split()[0],' '.join(i.split()[1:])]
 #---CLASS
 #-------------------------------------------------------------------------------------------------------------
 
-'''
+"""
 Parent class for any GROMACS simulation. Comprised of common functions necessary for building most systems.
-'''
+"""
 
 class AMXSimulation:
 
 	def get_box_vectors(self,logfile,new=True):
-		'''Read box vectors from editconf output stored in a log file.'''
+
+		"""
+		Read box vectors from editconf output stored in a log file.
+		"""
+
 		if new:
 			boxdims = [float(checkout(["awk","'/new box vectors/ {print $"+\
 				str(i+5)+"}'",logfile],cwd=self.rootdir).strip()) for i in range(3)]
@@ -32,9 +36,11 @@ class AMXSimulation:
 		return boxdims
 		
 	def write_topology_bilayer(self,topname,water_only=False):
-		'''
+
+		"""
 		Write the bilayer topology file from residue lists stored in ``self.lnames`` and ``self.complist``.
-		'''
+		"""
+
 		print 'writing topology'
 		#---atomistic topology disabled here
 		if self.simscale == 'aamd':
@@ -66,9 +72,11 @@ class AMXSimulation:
 		else: raise Exception('except: unclear procedure to write topology')
 
 	def write_topology_protein(self,topname):
-		'''
+
+		"""
 		Write a protein+water topology file.
-		'''
+		"""
+		
 		print "printing protein topology file"
 		if self.simscale == 'aamd':
 			fp = open(self.rootdir+topname,'w')
@@ -101,10 +109,12 @@ class AMXSimulation:
 			fp.close()
 	
 	def minimization_method(self,name,posre=False):
-		'''
+
+		"""
 		Generic minimization method with a drop-in name and standard inputs. This function takes a file
 		suffix and performs a minimization on the corresponding ``gro`` file.
-		'''
+		"""
+		
 		print name+" minimization, steepest descent"
 		cmd = [gmxpaths['grompp'],
 			'-f input-em-steep-'+('posre-' if posre else '')+'in.mdp',
@@ -140,10 +150,12 @@ class AMXSimulation:
 		call('cp '+bestmin+' '+name+'-minimized.gro',cwd=self.rootdir)
 		
 	def grouping(self,grouptype='standard',startstruct='counterions-minimized.gro'):
-		'''
+
+		"""
 		Write the ``system-groups.ndx`` file for further simulation, which requires that the water and 
 		lipids and possibly proteins are coupled to their own temperature baths.
-		'''
+		"""
+
 		print "writing groups ndx file"
 		if grouptype == 'standard':
 			#---write a naive groups file
@@ -182,7 +194,10 @@ class AMXSimulation:
 		else: raise Exception('except: incomprehensible group type')
 		
 	def counterionize_general(self):
-		'''Add counterions to the water slab.'''
+
+		"""
+		Add counterions to the water slab.
+		"""
 
 		print 'adding counterions'
 		call('cp solvate.top counterions.top',cwd=self.rootdir)
@@ -228,6 +243,7 @@ class AMXSimulation:
 		"""
 		After minimization steps it is often useful to stop lipid from jumping across the box.
 		"""
+		
 		copy(self.rootdir+basename+'.gro',self.rootdir+basename+'-jumped.gro')
 		call('rm '+basename+'.gro',cwd=self.rootdir)
 		cmd = [gmxpaths['trjconv'],
@@ -236,10 +252,75 @@ class AMXSimulation:
 			'-s '+tpr+'.tpr',
 			'-pbc nojump']
 		call(cmd,logfile='log-trjconv-nojump-'+basename,cwd=self.rootdir,inpipe="0\n")				
+		
+	def write_mdp(self,name,sigs):
+	
+		"""
+		Universal MDP file writer which creates input files based on a unified dictionary.
+		"""
+	
+		mdpspecs = self.params['bilayer_construction_settings']['cgmd']['mdp']
+		mdpfile = {}
+		execfile('./inputs/input-specs-mdp.dat',mdpfile)
+		mdpdict = mdpfile['mdpdict']		
+
+		#--topkeys is the root node for our parameters in mdpdict
+		topkeys = mdpspecs['top'] if 'top' in mdpspecs else ()
+		#---defspecs set any default paths on the mdpdict tree which we use for all mdp files
+		defspecs = mdpspecs['defaults'] if 'defaults' in mdpspecs else ()
+		for mdpname in [i for i in mdpspecs if re.match('.+\.mdp$',i)]:
+			print 'generating mdp: '+mdpname
+			#---for each mdp file the specs defined in the dictionary help select between redundant options
+			specs = mdpspecs[mdpname]+defspecs
+			routes = list(mapdict(delve(mdpdict,*topkeys)))
+			#---any incomplete routes (partials) imply inclusion of all routes that match
+			partials = [spec for spec in specs if spec not in routes]
+			valids = [r for r in routes if 
+				(any([r[:len(p)]==p for p in partials]) and #---under a partial
+				r[:-1] not in [s[:-1] for s in specs]) or #---no conflicts
+				r in specs] #---explicit route in specs
+			keycollect = [delve(mdpdict,*(topkeys+r)).keys() for r in valids]
+			if redundant([i for j in keycollect for i in j]): raise Exception('repeated mdp keys: '+str(valids))
+			with open(self.rootdir+mdpname,'w') as fp:
+				for v in valids:
+					for key,val in delve(mdpdict,*(topkeys+v)).items():
+						fp.write(str(key)+' = '+str(val)+'\n')
+		
+		if 0:
+			#--topkeys is the root node for our parameters in mdpdict
+			topkeys = mdpspecs['top'] if 'top' in mdpspecs else ()
+			#---defspecs set any default paths on the mdpdict tree which we use for all mdp files
+			defspecs = mdpspecs['defaults'] if 'defaults' in mdpspecs else ()
+			for mdpname in [i for i in mdpspecs if re.match('.+\.mdp$',i)]:
+				print 'generating mdp: '+mdpname
+				#---for each mdp file the specs defined in the dictionary help select between redundant options
+				specs = mdpspecs[mdpname]+defspecs
+				routes = list(mapdict(delve(mdpdict,*topkeys)))
+				valids = [r for r in routes if r in specs or r[:-1] not in [s[:-1] for s in specs]]
+				keycollect = [delve(mdpdict,*(topkeys+r)).keys() for r in valids]
+				if redundant([i for j in keycollect for i in j]): raise Exception('repeated mdp keys: '+str(valids))
+				with open(self.rootdir+mdpname,'w') as fp:
+					for v in valids:
+						for key,val in delve(mdpdict,*(topkeys+v)).items():
+							fp.write(str(key)+' = '+str(val)+'\n')
+	
+		if 0:
+			mdpspecs = {}
+			execfile(os.path.abspath(os.path.expanduser('./inputs/input-specs-mdp.dat')),mdpspecs)
+			mdpdict = mdpspecs['mdpdict']
+			for mdpname,specs in self.params['bilayer_construction_settings'][self.simscale]['mdp'].items():
+				print 'generating MDP: '+mdpname
+				print specs
+				for key in specs:
+					print key
+					print specs[key]
+			bp()
 
 class Multiply(AMXSimulation):
 
-	'''A generic class which continues a larger, periodic replicate of a simulation.'''
+	"""
+	A generic class which continues a larger, periodic replicate of a simulation.
+	"""
 	
 	def __init__(self,rootdir=None,previous_dir=None,nx=1,ny=1,nz=1,**kwargs):
 
@@ -309,7 +390,4 @@ class Multiply(AMXSimulation):
 		call(cmd,logfile='log-editconf-resnr',cwd=self.rootdir)
 		self.grouping(grouptype='bilayer',startstruct='system-input.gro')
 		os.remove(self.rootdir+self.smallstruct)
-		
-		
-		
 

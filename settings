@@ -211,7 +211,7 @@ gmx_suffixes = {
 #---system-specific commands to substitute for standard_gromacs_commands
 #---note some commands require a number of processors NPROCS which is substituted by ./controller make
 gmx_overrides = {
-	'local':{'mdrun':'mdrun -nt 4',},
+	'local':{'mdrun':'mdrun -nt 1',},
 	'tobias':{'mdrun':'mdrun -nt 8',},
 	'compbio_xeons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	'compbio_opterons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},

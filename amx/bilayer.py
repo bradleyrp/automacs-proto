@@ -65,7 +65,8 @@ gmxpaths = dict([[i.split()[0],' '.join(i.split()[1:])]
 #-------------------------------------------------------------------------------------------------------------
 
 class Bilayer(amxsim.AMXSimulation):
-	'''
+
+	"""
 	Class which generates a solvated bilayer with counterions from monolayer configurations.
 	
 	Note that creating an instance of this class will automatically run the construction procedure. You must 
@@ -83,7 +84,8 @@ class Bilayer(amxsim.AMXSimulation):
 		path to the directory containing monolayer configurations in either ``place-grid-start0.gro`` and 
 		``place-grid-start0.gro`` for a bilayer with an asymmetric composition, or 
 		``place-grid-start.gro`` for a symmetric bilayer.
-	'''
+	"""
+	
 	def __init__(self,rootdir=None,previous_dir=None,**kwargs):
 		#---set paths for the previous and current steps
 		self.rootdir = os.path.abspath(os.path.expanduser(rootdir))+'/'
@@ -133,16 +135,19 @@ class Bilayer(amxsim.AMXSimulation):
 				copy(self.prevdir+'place-grid-start.gro',self.rootdir+'place-grid-start1.gro')
 			copy(self.prevdir+'composition.dat',self.rootdir+'composition.dat')
 			#---copy input files from standard sources i.e. the forcefield only if absent
-			if needs_file_transfers:
+			if needs_file_transfers or 1:
 				#---scale-specific copy commands
 				if self.simscale == 'cgmd':			
 					copy(self.sources_dir+'cgmd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
 					copy(self.sources_dir+'martini.ff',self.rootdir+'martini.ff')
-					copy(self.sources_dir+'cgmd-bilayer-construct/*',self.rootdir)
+					#---removed MDP copy commands in favor of automatic generation	
+					if 0: copy(self.sources_dir+'cgmd-bilayer-construct/*',self.rootdir)
+					self.write_mdp(self.rootdir,'myname')
 				elif self.simscale == 'aamd':
 					copy(self.sources_dir+'aamd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
 					copy(self.sources_dir+'charmm36.ff',self.rootdir+'charmm36.ff')
-					copy(self.sources_dir+'aamd-bilayer-construct/*',self.rootdir)
+					#---removed MDP copy commands in favor of automatic generation
+					if 0: copy(self.sources_dir+'aamd-bilayer-construct/*',self.rootdir)
 				else: raise Exception('except: unclear simulation resolution')
 			#---running lists of molecules and compositions
 			self.lnames,self.comps = [],[]
@@ -673,7 +678,8 @@ class BilayerSculpted(Bilayer):
 			if needs_file_transfers:
 				copy(self.sources_dir+'cgmd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
 				copy(self.sources_dir+'martini.ff',self.rootdir+'martini.ff')
-				copy(self.sources_dir+'cgmd-bilayer-sculpt/input-em-*',self.rootdir)
+				#---removed MDP copy commands in favor of automatic generation
+				if 0: copy(self.sources_dir+'cgmd-bilayer-sculpt/input-em-*',self.rootdir)				
 				copy(self.sources_dir+'cgmd-bilayer-sculpt/solvate-water.gro',
 					self.rootdir+'solvate-water.gro')
 				if 0: grofile = os.path.expanduser(self.params['bilayer_construction_settings']

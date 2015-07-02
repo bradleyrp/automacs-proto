@@ -74,6 +74,22 @@ bilayer_construction_settings = {
 			'martini.ff/martini-v2.0-ions.itp',
 			'martini.ff/martini-v2.0-cholesterol.itp',
 			],
+		'mdp':{
+			'top':('cgmd',),
+			'defaults':[('potentials','original')],
+			'input-em-steep-in.mdp':[('minimize',),
+				('minimize','integrator','steep'),('restraints',None)],
+			'input-em-steep-posre-in.mdp':[('minimize',),
+				('minimize','integrator','steep'),('restraints','posre')],
+			'input-em-cg-in.mdp':[('minimize',),
+				('minimize','integrator','cg'),('restraints',None)],
+			'input-em-cg-posre-in.mdp':[('minimize',),
+				('minimize','integrator','cg'),('restraints','posre')],
+			'input-md-vacuum.mdp':[('vacuum_pack','output'),('vacuum_pack',0),('restraints','posre')],
+			'input-md-vacuum2.mdp':[('vacuum_pack','output'),('vacuum_pack',1),('restraints','posre')],
+			'input-md-vacuum2.mdp':[('vacuum_pack','output'),('vacuum_pack',1),('restraints','posre')],
+			'input-md-npt-eq-in.mdp':[('npt'),('restraints','posre')],
+			},
 		},
 	}
-	
+

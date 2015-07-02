@@ -94,7 +94,7 @@ def call(command,logfile=None,cwd=None,silent=False,inpipe=None,suppress_stdout=
 			except: 
 				if logfile[-3:] == '-cg' and re.search('mdrun-em',logfile):
 					print 'warning: failed conjugate gradient descent but will procede'
-				else: raise Exception('except: execution error')
+				else: raise Exception('except: GROMACS execution error!\nsee '+logfile)
 			output.close()
 		else: 
 			if not silent: print 'executing command: "'+str(command)+'"'
@@ -108,7 +108,7 @@ def call(command,logfile=None,cwd=None,silent=False,inpipe=None,suppress_stdout=
 			except:
 				if logfile[-3:] == '-cg' and re.search('mdrun-em',logfile):
 					print 'warning: failed conjugate gradient descent but will procede'
-				else: raise Exception('except: execution error')
+				else: raise Exception('except: GROMACS execution error!\nsee '+logfile)
 
 def checkout(command,cwd=None):
 
@@ -517,3 +517,30 @@ def ultrasweep(hypothesis_default,sweep):
 		hypotheses.append(newhypo)	
 	return hypotheses
 	
+def bp():
+
+	"""
+	Shortcut for a crude breakpoint.
+	"""
+	
+	raw_input('\nbreakpoint!\n')
+	
+#---deep dive into a dictionary of dictionaries ad infinitum
+def delve(o,*k): return delve(o[k[0]],*k[1:]) if len(k)>1 else o[k[0]]
+#---check if there are any redundant elements in a list
+def redundant(x): return len(set(x))!=len(x)
+
+def mapdict(tree,routes=()):
+
+	"""
+	Converts a nested dictionary into a list of all sequences of keys which lead to terminal dictionaries.
+	"""
+
+	if (type(tree)==dict and 
+		all([type(tree[i])!=dict for i in tree])):	
+		yield routes
+	else:
+		for key in tree: 
+			for route in mapdict(tree[key],routes=routes+(key,)):
+				yield route
+
