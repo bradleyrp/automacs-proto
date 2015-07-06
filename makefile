@@ -24,6 +24,6 @@ default: $(checkfile)
 $(TARGETS): $(checkfile)
 
 #---git push
-gitpush:
+push:
 	bash amx/script-gitpush.sh ${RUN_ARGS}
 

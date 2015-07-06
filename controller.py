@@ -580,12 +580,12 @@ def script(single=None,rescript=False,**extras):
 						for f in files: fp.write(f+'\n')
 		
 		#---write the local script
-		print '\twriting script: script-master-'+str(target)
-		fp = open('script-master-'+str(target),'w')
+		print '\twriting script: script-'+str(target)
+		fp = open('script-'+str(target),'w')
 		fp.write('#!/bin/bash\n')
 		fp.write(script_maker(target,script_dict,extras=extras))
 		fp.close()
-		os.system('chmod u+x '+'script-master-'+str(target))
+		os.system('chmod u+x '+'script-'+str(target))
 		
 		#---prepare the files and directories
 		if not rescript: prep_scripts(target,script_dict,extras=extras,extra_settings=sets_pass)
@@ -600,7 +600,7 @@ def script(single=None,rescript=False,**extras):
 			fp.close()
 			os.system('chmod u+x '+oldsteps[-1]+'/script-md-continue')
 
-		print '\texecute locally with ./'+'script-master-'+str(target)
+		print '\texecute locally with ./'+'script-'+str(target)
 		if rescript: print '\tsince this is a rescript you probably want to use the continue script'
 		print '\tsee the documentation for details\n'
 		
@@ -609,7 +609,7 @@ def batch(**extras):
 	"""
 	Function which spawns a particular simulation into many.\n
 	Recommended useage: 
-		make clean sure; make script protein-homology; ./script-master-protein-homology
+		make clean sure; make script protein-homology; ./script-protein-homology
 		make spawn proc=aamd-protein infiles=repo/simulation_targets.txt batchdir=../protein-v1020-batch
 	"""
 

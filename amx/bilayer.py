@@ -140,14 +140,13 @@ class Bilayer(amxsim.AMXSimulation):
 				if self.simscale == 'cgmd':			
 					copy(self.sources_dir+'cgmd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
 					copy(self.sources_dir+'martini.ff',self.rootdir+'martini.ff')
-					#---removed MDP copy commands in favor of automatic generation	
-					if 0: copy(self.sources_dir+'cgmd-bilayer-construct/*',self.rootdir)
-					self.write_mdp(self.rootdir,'myname')
+					#---copy solvent structure
+					copy(self.sources_dir+self.settings['water_conf'],self.rootdir+'solvate-water.gro')
+					self.write_mdp()
 				elif self.simscale == 'aamd':
 					copy(self.sources_dir+'aamd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
 					copy(self.sources_dir+'charmm36.ff',self.rootdir+'charmm36.ff')
 					#---removed MDP copy commands in favor of automatic generation
-					if 0: copy(self.sources_dir+'aamd-bilayer-construct/*',self.rootdir)
 				else: raise Exception('except: unclear simulation resolution')
 			#---running lists of molecules and compositions
 			self.lnames,self.comps = [],[]
@@ -353,7 +352,7 @@ class Bilayer(amxsim.AMXSimulation):
 	
 		#---set the file name of the water box
 		#---note that spc216.gro used for atomistic water is found the GROMACS share directory
-		water_conf = self.settings['water_conf']
+		water_conf = 'solvate-water.gro'
 	
 		print "checking the bilayer dimensions"
 		cmd = [gmxpaths['editconf'],
@@ -367,7 +366,7 @@ class Bilayer(amxsim.AMXSimulation):
 		if self.simscale == 'aamd':
 			print "making a water box with the same footprint as the bilayer"
 			cmd = [gmxpaths['genbox'],
-				'-cs '+self.settings['water_conf'],
+				'-cs '+water_conf,
 				'-o solvate-empty-uncentered.gro',
 				'-box '+str(boxdims[0]-self.settings['lipid_water_buffer'])+\
 				' '+str(boxdims[1]-self.settings['lipid_water_buffer'])+\
@@ -382,7 +381,7 @@ class Bilayer(amxsim.AMXSimulation):
 			print 'target dimensions = '+str(newdims)
 			print 'larger dimensions = '+str([str(int(i/basedim+1)) for i in newdims])
 			cmd = [gmxpaths['genconf'],
-				'-f '+self.settings['water_conf'],
+				'-f '+water_conf,
 				'-o solvate-empty-uncentered-untrimmed.gro',
 				'-nbox '+' '.join([str(int(i/basedim+1)) for i in newdims])]
 			call(cmd,logfile='log-genconf-solvate-empty',cwd=self.rootdir)

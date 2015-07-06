@@ -1,9 +1,5 @@
 #!/usr/bin/python
 
-"""
-continuation?
-"""
-
 mdpdict = {
 	'cgmd':{
 		'potentials':{
@@ -16,7 +12,6 @@ mdpdict = {
 				'coulombtype':'Shift',
 				'rcoulomb_switch':0.0,
 				'rcoulomb':1.2,
-				'epsilon_r':15,
 				'vdw_type':'Shift',
 				'rvdw_switch':0.9,
 				'rvdw':1.2,
@@ -29,10 +24,11 @@ mdpdict = {
 		'constraints':{
 			'constraints':'none',
 			'constraint_algorithm':'Lincs',
-			'continuation':'no',
 			'lincs_order':4,
 			'lincs_warnangle':30,
 			},
+		'continuation':{'continuation':'yes'},
+		'epsilon_r':{'epsilon_r':15},
 		'restraints':{
 			'posre':{'define':'-DPOSRES'},
 			None:{},
@@ -42,8 +38,8 @@ mdpdict = {
 				'tcoupl':'no',
 				'Pcoupl':'no',
 				'gen_vel':'no',
-				'gen_temp':320,
-				'gen_seed':632,
+				'gen_temp':310,
+				'gen_seed':123,
 				},
 			'output':{
 			 	'nstxout':500,
@@ -90,7 +86,7 @@ mdpdict = {
 					'integrator':'md',
 					'tinit':0.0,
 					'dt':0.001,
-					'nsteps':400000,
+					'nsteps':100000,
 					'nstcomm':10,
 					},
 				'couple':{
@@ -104,9 +100,10 @@ mdpdict = {
 					'compressibility':'3e-5 0',
 					'ref_p':'100.0 1.0',
 					'gen_vel':'no',
-					'gen_temp':300,
-					'gen_seed':632123,
+					'gen_temp':310,
+					'gen_seed':123123123,
 					},
+				'epsilon_r':{'epsilon_r':0},
 				},
 			1:{
 				'integrator':{
@@ -127,8 +124,8 @@ mdpdict = {
 					'compressibility':'3e-5 0',
 					'ref_p':'10.0 1.0',
 					'gen_vel':'no',
-					'gen_temp':300,
-					'gen_seed':632123,
+					'gen_temp':310,
+					'gen_seed':123123123,
 					},
 				},
 			2:{
@@ -150,24 +147,25 @@ mdpdict = {
 					'compressibility':'3e-5 0',
 					'ref_p':'1.0 1.0',
 					'gen_vel':'no',
-					'gen_temp':300,
-					'gen_seed':632123,
+					'gen_temp':310,
+					'gen_seed':123123123,
 					},
 				},
 			},
-		'npt':{
+		'nvt':{
+			'continuation':{'continuation':'no'},
 			'integrator':{
 				'integrator':'md',
 				'tinit':0.0,
-				'dt':0.04,
-				'nsteps':100000,
-				'nstcomm':10,
-				'comm-grps':'SYSTEM',
-				'energygrps':'SYSTEM',
+				'dt':0.005,
+				'nsteps':50000,
+				'nstcomm':100,
+				'comm-grps':'LIPIDS SOLV',
+				'energygrps':'LIPIDS SOLV',
 				},		
 			'output':{
-			 	'nstxout':1000,
-				'nstvout':1000,
+			 	'nstxout':10000,
+				'nstvout':10000,
 				'nstfout':0,
 				'nstlog':100,
 				'nstenergy':100,
@@ -177,13 +175,75 @@ mdpdict = {
 			'couple':{
 				'tcoupl':'Berendsen',
 				'tc-grps':'SYSTEM',
-				'tau_t':1.0,
-				'ref_t':310,
+				'tau_t':'1.0 1.0',
+				'ref_t':'310 310',
 				'Pcoupl':'Berendsen',
-				'Pcoupltype':'surface-tension',
+				'Pcoupltype':'semiisotropic',
 				'tau_p':'0.5 0.5',
-				'compressibility':'3e-5 0',
-				'ref_p':'-100.0 1.0',
+				'compressibility':'5e-4 5e-4',
+				'ref_p':'1.0 1.0',
+				},
+			},
+		'npt':{
+			'integrator':{
+				'integrator':'md',
+				'tinit':0.0,
+				'dt':0.02,
+				'nsteps':50000,
+				'nstcomm':100,
+				'comm-grps':'LIPIDS SOLV',
+				'energygrps':'LIPIDS SOLV',
+				},		
+			'output':{
+			 	'nstxout':10000,
+				'nstvout':10000,
+				'nstfout':0,
+				'nstlog':100,
+				'nstenergy':100,
+				'nstxtcout':100,
+				'xtc_precision':100,
+				},
+			'couple':{
+				'tcoupl':'Berendsen',
+				'tc-grps':'SYSTEM',
+				'tau_t':'1.0 1.0',
+				'ref_t':'310 310',
+				'Pcoupl':'Berendsen',
+				'Pcoupltype':'semiisotropic',
+				'tau_p':'2.0 2.0',
+				'compressibility':'3e-4 3e-4',
+				'ref_p':'1.0 1.0',
+				},
+			},
+		'production':{
+			'integrator':{
+				'integrator':'md',
+				'tinit':0.0,
+				'dt':0.04,
+				'nsteps':50000,
+				'nstcomm':100,
+				'comm-grps':'LIPIDS SOLV',
+				'energygrps':'LIPIDS SOLV',
+				},		
+			'output':{
+			 	'nstxout':10000,
+				'nstvout':10000,
+				'nstfout':0,
+				'nstlog':2000,
+				'nstenergy':2000,
+				'nstxtcout':2000,
+				'xtc_precision':100,
+				},
+			'couple':{
+				'tcoupl':'Berendsen',
+				'tc-grps':'SYSTEM',
+				'tau_t':'1.0 1.0',
+				'ref_t':'310 310',
+				'Pcoupl':'Berendsen',
+				'Pcoupltype':'semiisotropic',
+				'tau_p':'4.0 4.0',
+				'compressibility':'3e-4 3e-4',
+				'ref_p':'1.0 1.0',
 				},
 			},
 		},

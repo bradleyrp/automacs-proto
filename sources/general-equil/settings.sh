@@ -25,5 +25,16 @@ cp $SOURCEDIR/composition.dat ./
 cp -r $SOURCEDIR/*.ff ./
 cp -r $SOURCEDIR/lipids-tops ./
 
-#---copy standard input files for minimization
-cp $AMXPATH/cgmd-bilayer-equil/* ./
+#---copy standard input files for minimization (deprecated via input-specs-mdp.dat)
+breadcrumb=$(pwd);cd ../
+python -c "execfile('amx/header');
+try: 
+	sim = AMXSimulation();
+	sim.params = {};
+	execfile('inputs/input-specs-bilayer.dat',sim.params)
+	sim.write_mdp(mdp_section='mdp-equil',rootdir='"$breadcrumb"')
+except Exception,e:
+	print str(e);
+	traceback.print_exc();
+	print 'fail';"
+cd $breadcrumb

@@ -63,9 +63,9 @@ bilayer_construction_settings = {
 			['input-md-vacuum.mdp',
 			'input-md-vacuum2.mdp',
 			'input-md-vacuum3.mdp'],
-		'water_conf':'solvate-water.gro',
 		'ion_residue_names':['NA+','CL-','ION'],
 		'concentration_calc':['simple','lipid_exempt'][0],
+		'water_conf':'structures/martini-water.gro',
 		'top_includes':[
 			'martini.ff/martini-v2.2.itp',
 			'martini.ff/martini-v2.0-lipids.itp',
@@ -87,8 +87,14 @@ bilayer_construction_settings = {
 				('minimize','integrator','cg'),('restraints','posre')],
 			'input-md-vacuum.mdp':[('vacuum_pack','output'),('vacuum_pack',0),('restraints','posre')],
 			'input-md-vacuum2.mdp':[('vacuum_pack','output'),('vacuum_pack',1),('restraints','posre')],
-			'input-md-vacuum2.mdp':[('vacuum_pack','output'),('vacuum_pack',1),('restraints','posre')],
-			'input-md-npt-eq-in.mdp':[('npt'),('restraints','posre')],
+			'input-md-vacuum3.mdp':[('vacuum_pack','output'),('vacuum_pack',1),('restraints','posre')],
+			},
+		'mdp-equil':{
+			'top':('cgmd',),
+			'defaults':[('potentials','original')],
+			'input-md-npt-eq-in.mdp':[('npt',)],
+			'input-md-nvt-eq-in.mdp':[('nvt',)],
+			'input-md-in.mdp':[('production',)],
 			},
 		},
 	}

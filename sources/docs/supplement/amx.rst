@@ -6,8 +6,8 @@ automatically generate molecular dynamics simulations of biophysical lipid bilay
 
 Currently, the ``amx`` package contains only routines to build MARTINI coarse-grained bilayers. 
 
-Building coarse-grained bilayers
---------------------------------
+Constructing CGMD bilayers
+--------------------------
 
 The procedure for building a coarse-grained bilayer has three parts.
 
@@ -40,28 +40,37 @@ as lipid configurations and topologies are stored in the ``sources`` folder. All
 changed according to the class specifications given below.
 
 Equilibration
---------------------------------
+-------------
 
 For compatibility purposes, both equilibration and production simulations are executed via Perl scripts.
 
-amx.lipidgrid module
---------------------
+General codes
+-------------
+
+.. automodule:: amx.amxsim
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Lipid grids
+-----------
 
 .. automodule:: amx.lipidgrid
     :members:
     :undoc-members:
     :show-inheritance:
 
-amx.bilayer module
-------------------
+Bilayers
+--------
 
 .. automodule:: amx.bilayer
     :members:
     :undoc-members:
     :show-inheritance:
 
-amx.tools module
-----------------
+Tools
+-----
 
 .. automodule:: amx.tools
     :members:

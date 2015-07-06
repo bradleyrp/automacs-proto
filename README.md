@@ -5,7 +5,7 @@ The "automacs" codes are designed to efficiently,
 reproducibly generate molecular dynamics simulations 
 of biophysical systems. The code is commented and 
 documentation can be found in the docs folder. This
-software is maintained on the 
+software is maintained on 
 [github](https://github.com/bradleyrp/automacs).
 
 Requires
@@ -25,9 +25,7 @@ Usage
 
     Command                          | Outcome
 	-------------------------------- | -------------
-	./controller                     | Help
-	./controller reset               | Clear all simulation data
-	./controller make (operation)    | Prepare scripts for "operation"
-	./controller make_docs           | Rebuild documentation
-
+	make                             | Help
+	make script <type>               | Prepare automatic scripts for a simulation
+	make docs                        | Regenerate documentation
 

@@ -1,5 +1,9 @@
 #!/usr/bin/python
 
+"""
+This module contains the parent class which is generalized across almost all GROMACS procedures in automacs.
+"""
+
 from tools import call,checkout,tee,copy,chain_steps,latestcheck,lastframe,bp,delve,mapdict,redundant
 import os,sys,re
 
@@ -15,11 +19,12 @@ gmxpaths = dict([[i.split()[0],' '.join(i.split()[1:])]
 #---CLASS
 #-------------------------------------------------------------------------------------------------------------
 
-"""
-Parent class for any GROMACS simulation. Comprised of common functions necessary for building most systems.
-"""
-
 class AMXSimulation:
+
+	"""
+	Parent class for many different types of GROMACS simulations. 
+	Comprised of common functions necessary for building most systems.
+	"""
 
 	def get_box_vectors(self,logfile,new=True):
 
@@ -253,13 +258,36 @@ class AMXSimulation:
 			'-pbc nojump']
 		call(cmd,logfile='log-trjconv-nojump-'+basename,cwd=self.rootdir,inpipe="0\n")				
 		
-	def write_mdp(self,name,sigs):
+	def write_mdp(self,mdp_section='mdp',rootdir=None):
 	
 		"""
 		Universal MDP file writer which creates input files based on a unified dictionary.
+		All MDP parameters should be stored in *mdpdict* within ``inputs/input-specs-mdp.dat``. 
+		We assemble MDP files according to rules that can be found in the *mdp* entry for the specs 
+		dictionary contained in the ``input-specs-PROCEDURE.dat`` file.
+		
+		The *mdpdict* variable is a nested dictionary which contains individual chunks of an MDP file. 
+		This function parses *mdpdict* and writes the terminal dictionaries (the leaves in a large tree) in
+		the standard GROMACS format according to a set of rules which are designed to make it easy to specify
+		a sequence of parameters with minimal redundancy. We describe the rules according to the *route*,
+		a list of dictionary keys, necessary to navigate from the top of *mdpdict* to a terminal dictionary 
+		(a leaf).
+		
+		1. The *mdp* entry in ``input-specs-PROCEDURE.dat`` contains three types of entries.
+
+			a. The ``top`` entry whittles *mdpdict* according to a list of keywords.
+			b. The ``defaults`` entry specifies the route to parameters which should be included in all MDP files.
+			c. Any entries that contain the name of an MDP file should point to a list of tuples, where each tuple provides a list of routes necessary to construct the file according to the remaining rules in this list.
+
+		2. A tuple which contains an incomplete route (that is, one that ends in a sub-tree instead of a leaf forces the writer to include all of the entries in that sub-tree and exclude other entries with routes that end in the same key.
+		3. If there are any routes that are identical except for the last key, the user must specify the route to the option that they prefer, otherwise an exception will be raised.
+		4. Otherwise, the entire (whittled) *mdpdict* is included in the MDP file. This allows the writer to infer default values. These default values can be overridden by placing a leaf with the same name at a lower level of the tree, specifically inside of a sub-tree.
+		
+		The author welcomes any advice to make these rules more clear.
 		"""
 	
-		mdpspecs = self.params['bilayer_construction_settings']['cgmd']['mdp']
+		target_directory = self.rootdir if rootdir == None else rootdir
+		mdpspecs = self.params['bilayer_construction_settings']['cgmd'][mdp_section]
 		mdpfile = {}
 		execfile('./inputs/input-specs-mdp.dat',mdpfile)
 		mdpdict = mdpfile['mdpdict']		
@@ -273,18 +301,96 @@ class AMXSimulation:
 			#---for each mdp file the specs defined in the dictionary help select between redundant options
 			specs = mdpspecs[mdpname]+defspecs
 			routes = list(mapdict(delve(mdpdict,*topkeys)))
-			#---any incomplete routes (partials) imply inclusion of all routes that match
+			#---divide specs into fulls and partials
 			partials = [spec for spec in specs if spec not in routes]
-			valids = [r for r in routes if 
-				(any([r[:len(p)]==p for p in partials]) and #---under a partial
-				r[:-1] not in [s[:-1] for s in specs]) or #---no conflicts
-				r in specs] #---explicit route in specs
+			fulls = [spec for spec in specs if spec in routes]
+			#---for each partial we get all of the downstream dictionaries
+			downs = [r for r in routes if any([r[:len(p)]==p for p in partials])]
+			#---whittle all routes so that they don't include any keyword overlap with downs
+			distincts = [r for r in routes if not any([any([i in r for i in d]) for d in downs])]
+			#---resolve conflicts with any fully-specified routes
+			resolve = [r for r in distincts+downs if not any([r[:-1]==f[:-1] for f in fulls])]
+			possibles = resolve+fulls
+			#---finally we override all short routes with longer ones
+			finals = list(set([v[-1] for v in possibles]))
+			check_redundant = [sum([w==f for w in [v[-1] for v in possibles]]) for f in finals]
+			dups = [ii for ii,i in enumerate(check_redundant) if i>1]
+			valids = [a[0] if len(a)==1 else 
+				[b for b in a if len(b)==max([len(c) for c in a])][0] 
+				for a in [[v for v in possibles if v[-1]==f] 
+				for f in finals]]
 			keycollect = [delve(mdpdict,*(topkeys+r)).keys() for r in valids]
-			if redundant([i for j in keycollect for i in j]): raise Exception('repeated mdp keys: '+str(valids))
-			with open(self.rootdir+mdpname,'w') as fp:
+			if redundant([i for j in keycollect for i in j]): 
+				raise Exception('repeated mdp keys for '+mdpname+': '+str(valids))
+			with open(target_directory+'/'+mdpname,'w') as fp:
 				for v in valids:
 					for key,val in delve(mdpdict,*(topkeys+v)).items():
 						fp.write(str(key)+' = '+str(val)+'\n')
+
+		if 0: 
+			#--topkeys is the root node for our parameters in mdpdict
+			topkeys = mdpspecs['top'] if 'top' in mdpspecs else ()
+			#---defspecs set any default paths on the mdpdict tree which we use for all mdp files
+			defspecs = mdpspecs['defaults'] if 'defaults' in mdpspecs else ()
+			for mdpname in [i for i in mdpspecs if re.match('.+\.mdp$',i)]:
+				print 'generating mdp: '+mdpname
+				#---for each mdp file the specs defined in the dictionary help select between redundant options
+				specs = mdpspecs[mdpname]+defspecs
+				routes = list(mapdict(delve(mdpdict,*topkeys)))
+				#---any incomplete routes (partials) imply inclusion of all routes that match
+				partials = [spec for spec in specs if spec not in routes]
+				fulls = [spec for spec in specs if spec in routes]
+				"""
+				rules for selecting routes
+					1. Include all full routes
+					2. If a route ends before the terminus of the mdpdict tree keep all the rules below it.
+					3. Then discard any rules that are identical to rules in specs except in the final item.
+					4. Include any other terminal dictionaries in mdpdict as long as they have no overlapping 
+						keys with the rules that lie beneath the partial rules.
+				This minimal rule set means that you can exclude large portions of the dictionary by providing a 
+				partial rule and making sure that you use common keywords in the sub-rules so that they will 
+				exclude each other. This also means that you can override defaults by burying new 
+				sub-dictionaries inside of these partial paths.
+				"""
+				valids_partials = [r for r in routes if 
+					(any([r[:len(p)]==p for p in partials]) and
+					r[:-1] not in [s[:-1] for s in specs])
+					]
+				valids = valids_partials + fulls + [r for r in routes if 
+					not any([r[:-1]==f[:-1] for f in fulls]) and
+					not any([any([v in r for v in vp]) for vp in valids_partials])
+					]
+				keycollect = [delve(mdpdict,*(topkeys+r)).keys() for r in valids]
+				if redundant([i for j in keycollect for i in j]): 
+					raise Exception('repeated mdp keys: '+str(valids))
+				with open(mdpname,'w') as fp:
+					for v in valids:
+						for key,val in delve(mdpdict,*(topkeys+v)).items():
+							fp.write(str(key)+' = '+str(val)+'\n')
+
+		if 0:
+			#--topkeys is the root node for our parameters in mdpdict
+			topkeys = mdpspecs['top'] if 'top' in mdpspecs else ()
+			#---defspecs set any default paths on the mdpdict tree which we use for all mdp files
+			defspecs = mdpspecs['defaults'] if 'defaults' in mdpspecs else ()
+			for mdpname in [i for i in mdpspecs if re.match('.+\.mdp$',i)]:
+				print 'generating mdp: '+mdpname
+				#---for each mdp file the specs defined in the dictionary help select between redundant options
+				specs = mdpspecs[mdpname]+defspecs
+				routes = list(mapdict(delve(mdpdict,*topkeys)))
+				#---any incomplete routes (partials) imply inclusion of all routes that match
+				partials = [spec for spec in specs if spec not in routes]
+				valids = [r for r in routes if 
+					(any([r[:len(p)]==p for p in partials]) and #---under a partial
+					r[:-1] not in [s[:-1] for s in specs]) or #---no conflicts
+					r in specs] #---explicit route in specs
+				keycollect = [delve(mdpdict,*(topkeys+r)).keys() for r in valids]
+				if redundant([i for j in keycollect for i in j]): 
+					raise Exception('repeated mdp keys: '+str(valids))
+				with open(self.rootdir+mdpname,'w') as fp:
+					for v in valids:
+						for key,val in delve(mdpdict,*(topkeys+v)).items():
+							fp.write(str(key)+' = '+str(val)+'\n')
 		
 		if 0:
 			#--topkeys is the root node for our parameters in mdpdict
