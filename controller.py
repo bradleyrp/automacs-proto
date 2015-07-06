@@ -432,6 +432,8 @@ def docs(extras=None):
 	Regenerate the documentation using sphinx-apidoc and code in amx/gendoc.sh
 	"""
 
+	if not os.path.isfile('gmxpaths.conf'): 
+		with open('gmxpaths.conf','w') as fp: fp.write('# placeholder')
 	os.system('./amx/script-make-docs.sh '+os.path.abspath('.'))
 	
 def upload(step=None,extras=None,silent=False):
