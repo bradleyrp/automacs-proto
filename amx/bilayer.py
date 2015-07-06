@@ -155,7 +155,8 @@ class Bilayer(amxsim.AMXSimulation):
 			self.construction()
 	
 	def construction(self):
-		'''
+
+		"""
 		Execute construction steps in sequence and skip ahead if they are already completed. Infer whether 
 		construction steps are complete by checking for their final output files. The procedure executes in
 		the following order.
@@ -176,7 +177,8 @@ class Bilayer(amxsim.AMXSimulation):
 		
 		If the system.gro file is absent, the script will regenerate the topology and group files. You may 
 		delete any of these key files to repeat a process when you re-run the script.
-		'''
+		"""
+		
 		if not os.path.isfile(self.rootdir+'vacuum-minimized.gro'): self.vacuum()
 		else: 
 			print 'skipping vacuum construction because vacuum-minimized.gro exists'
@@ -235,7 +237,7 @@ class Bilayer(amxsim.AMXSimulation):
 		call(cmd,logfile='log-trjconv-system-shift-center',cwd=self.rootdir,inpipe='1\n0\n')
 	
 	def vacuum(self):	
-		'''Assemble monolayers into a bilayer and minimize.'''
+		"""Assemble monolayers into a bilayer and minimize."""
 		startconfs = ['place-grid-start0.gro','place-grid-start1.gro']
 		for si in range(len(startconfs)):
 			startconf = startconfs[si]
@@ -313,14 +315,16 @@ class Bilayer(amxsim.AMXSimulation):
 		self.minimization_method('vacuum',posre=True)
 		
 	def packing(self):
-		'''
+
+		"""
 		Pack the lipids into a natural configuration by simulating in vacuum with restraints.
 		
 		This function runs vacuum simulation in stages according to available input files specified in the
 		``inputs/input-specs-bilayer.dat`` file. These inputs are sequenced to ensure that the bilayer is 
 		contiguous and the lipids are aligned. Position restraints written into the lipid topologies prevent
 		the lipids from escaping.
-		'''
+		"""
+
 		#---find the list of mdp files used for the stagewise simulation	
 		packing_mdps = self.settings['vacuum_packing_sequence']
 			
@@ -344,11 +348,11 @@ class Bilayer(amxsim.AMXSimulation):
 		call('cp md-vacuum-p'+str(mi)+'.gro vacuum-packed.gro',cwd=self.rootdir)
 
 	def solvate(self):
-		'''
+		"""
 		Add a slab of water next to the bilayer. ``inputs/input-specs-bilayer.dat`` sets some of the geometric
 		parameters, namely the solvent_thickness, which determines the total amount of water in the system 
 		before any relaxation steps.
-		'''
+		"""
 	
 		#---set the file name of the water box
 		#---note that spc216.gro used for atomistic water is found the GROMACS share directory
@@ -486,7 +490,11 @@ class Bilayer(amxsim.AMXSimulation):
 		call(cmd,logfile='log-trjconv-solvate-shift-center',cwd=self.rootdir,inpipe='0\n')
 
 	def counterionize(self,water_check=False):
-		'''Add counterions to the water slab.'''
+		
+		"""
+		Add counterions to the water slab.
+		"""
+		
 		if self.settings['concentration_calc'] == 'exempt_lipids':
 			print "running genion on the water only"
 			self.write_topology_bilayer('solvate-water.top',water_only=True)
@@ -629,6 +637,10 @@ class Bilayer(amxsim.AMXSimulation):
 		self.minimization_method('counterions')
 
 class BilayerSculpted(Bilayer):
+
+	"""
+	Build a bilayer with a particular shape.
+	"""
 
 	def __init__(self,rootdir=None,**kwargs):
 
@@ -826,6 +838,11 @@ class BilayerSculpted(Bilayer):
 		call(cmd,logfile='log-trjconv-system-shift-center',cwd=self.rootdir,inpipe='1\n0\n')
 
 class BilayerSculptedFixed(Bilayer):
+
+	"""
+	Build a bilayer with a particular shape along with position restraints to generate artificial structures,
+	namely a saddle.
+	"""
 
 	def __init__(self,rootdir=None,previous_dir=None,**kwargs):
 
