@@ -70,14 +70,13 @@ class ProteinWater(amxsim.AMXSimulation):
 			#---copy input files from standard sources i.e. the forcefield only if absent
 			if needs_file_transfers:
 				#---scale-specific copy commands
-				if self.simscale == 'aamd': 
+				self.write_mdp(mdp_route=['protein_construction_settings',self.simscale])
+				if self.simscale == 'cgmd':
 					self.write_mdp(mdp_route=['protein_construction_settings',self.simscale])
-				elif self.simscale == 'cgmd':
-					copy(self.sources_dir+'cgmd-protein-construct/*',self.rootdir)
+					copy(self.sources_dir+self.settings['water_conf'],self.rootdir+'solvate-water.gro')
 					copy(self.sources_dir+'martini.ff',self.rootdir+'martini.ff')
-				else: raise Exception('except: unclear simulation resolution')
 				#---transfer local force field if necessary
-				if self.settings['force_field_local'] != None:
+				if 'force_field_local' in self.settings and self.settings['force_field_local'] != None:
 					print os.getcwd()
 					print self.settings['force_field_local']
 					if not os.path.isdir(self.settings['force_field_local']):
@@ -138,12 +137,14 @@ class ProteinWater(amxsim.AMXSimulation):
 		exstring_dssp = 'except: cannot find dssp at '+gmxpaths['dssp']+\
 			'\nconsider using the following syntax to download for 64-bit linux:'+\
 			'\n\twget ftp://ftp.cmbi.ru.nl/pub/software/dssp/dssp-2.0.4-linux-amd64'+\
-			'\n\tor navigate to ftp://ftp.cmbi.ru.nl/pub/software/dssp/'
+			'\n\tor navigate to ftp://ftp.cmbi.ru.nl/pub/software/dssp/'+\
+			'\n\tand make sure you add execute permissions'
 			
 		exstring_martinize = 'except: cannot find martinize at '+gmxpaths['martinize']+\
 			'\nconsider using the following syntax to download:'+\
 			'\n\twget http://md.chem.rug.nl/cgmartini/images/tools/martinize/martinize-2.4/martinize.py'+\
-			'\n\tor navigate to http://md.chem.rug.nl/cgmartini/index.php/tools2/proteins-and-bilayers'
+			'\n\tor navigate to http://md.chem.rug.nl/cgmartini/index.php/tools2/proteins-and-bilayers'+\
+			'\n\tand make sure you add execute permissions'
 	
 		#---first test to see if executables are available
 		if not os.path.isfile(os.path.expanduser(gmxpaths['dssp'])): raise Exception(exstring_dssp)

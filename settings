@@ -5,7 +5,7 @@
 
 #---defaults for running the script locally
 local_nprocs = 4
-local_processor_type = ['standard','gpu'][1]
+local_processor_type = ['standard','gpu'][0]
 
 #---here the hostname is a single word excluding punctuation which can be matched to the true hostname
 #---note that the first element in the corresponding list is the default architecture
@@ -516,7 +516,7 @@ script_dict = {
 			'input_files':'aamd-protein-equil',
 			'detect_previous_step':None,
 			'mdp_look_string':'protein_construction_settings,aamd',
-			'specs_file':r'inputs\\/input_specs_protein.dat',
+			'specs_file':r'inputs\\/input_specs_protein.py',
 			},
 		'continue':True,
 		'sequence':[
@@ -530,13 +530,15 @@ script_dict = {
 		},
 	'cgmd-protein':{
 		'prep':[prepare_equil_sim[0]+\
-			"sed -i 's/STEPSTRING.*/STEPSTRING=\"nvt-short nvt npt\"/g' $step_equilibration/settings.sh"]+\
+			"sed -i 's/STEPSTRING.*/STEPSTRING=\"nvt npt\"/g' $step_equilibration/settings.sh"]+\
 			prepare_equil_sim[1:],
 		'steps':{
 			'step_build':'s01-build-protein-water',
 			'step_equilibration':'s02-equil',
 			'step_simulation':'s03-sim',
 			'input_files':'cgmd-protein-equil',
+			'mdp_look_string':'protein_construction_settings,cgmd',
+			'specs_file':r'inputs\\/input_specs_protein.py',
 			},
 		'continue':True,
 		'sequence':[

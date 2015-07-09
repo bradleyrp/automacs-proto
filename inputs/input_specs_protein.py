@@ -1,7 +1,7 @@
 #!/usr/bin/python -B
 
 #---starting structure
-input_filename = 'sources/aamd-protein-structs/3ala.pdb'
+input_filename = 'sources/structures/3ala.pdb'
 
 #---controller sets the scale automatically
 simscale = 'cgmd'
@@ -48,11 +48,25 @@ protein_construction_settings = {
 		'negative_counterion_name':'CL-',
 		'sol_name':'W',
 		'wbuffer':3,
+		'water_conf':'structures/martini-water.gro',
 		'top_includes':[
 			'martini.ff/martini-v2.2.itp',
 			'martini.ff/martini-v2.0-lipids.itp',
 			'martini.ff/martini-v2.2-aminoacids.itp',
 			'martini.ff/martini-v2.0-ions.itp'
-			]
+			],
+		'mdp':{
+			'group':'cgmd-protein',
+			'input-em-steep-in.mdp':['minimize'],
+			'input-em-cg-in.mdp':['minimize',{'integrator':'cg'}],
+			'input-em-steep-posre-in.mdp':['minimize',{'restrain':'posre'}],
+			'input-em-cg-posre-in.mdp':['minimize',{'integrator':'cg'},{'restrain':'posre'}],
+			},
+		'mdp-equil':{
+			'group':'cgmd-protein',
+			'input-md-in.mdp':None,
+			'input-md-nvt-eq-in.mdp':['nvt'],
+			'input-md-npt-eq-in.mdp':['npt'],
+			},
 		}
 	}
