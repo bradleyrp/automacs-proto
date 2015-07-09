@@ -2,6 +2,7 @@
 
 #---automatically push current code to github
 make docs clean
+rm -r repo
 timestamp=$(date +%Y.%m.%d.%H%M)
 du -h --max-depth=1
 echo "pushing code to github via"

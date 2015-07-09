@@ -1,3 +1,0 @@
-/home/rpb/amxdev2/s01-homology/model-v0003-2GS7A_E710A/mutation0.B99990001.pdb
-/home/rpb/amxdev2/s01-homology/model-v0001-2GS7A_K690R/mutation0.B99990001.pdb
-/home/rpb/amxdev2/s01-homology/model-v0002-2GS7A_E710R/mutation0.B99990001.pdb
