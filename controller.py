@@ -18,363 +18,6 @@ from amx.tools import checkout,multiresub,confirm
 from amx.tools import script_maker,prep_scripts,niceblock,argsort,chain_steps,latestcheck
 from amx.tools import get_proc_settings,ultrasweep
 
-helpstring = """\n
-    Automacs (AMX) CONTROLLER.\n
-    make script <simulation> : prepare a simulation and associated scripts 
-                               see simulation types below for more details
-    make script restart      : generates a CPT or GRO restart from an 
-                               input-md-in.mdp in repo folder
-    make upload              : prepare an upload list and rsync command for 
-                               a continuation if the last step was "sim"
-    make upload step=<dir>   : prepare an upload list for any step 
-                               including the whole directory
-    make rescript            : generate continue scripts for a simulation 
-                               moved to a cluster  
-    make clean               : reset the folder by deleting simulation data
-                               note that the repo folder is exempt 
-
-    simulations:
-    -----------
-    cgmd-bilayer         : coarse-grained bilayer under MARTINI force field
-    cgmd-protein         : coarse-grained protein under MARTINI force field 
-                           with structure options
-    cgmd-protein-sculpt  : coarse-grained protein under MARTINI force field 
-                           with a custom shape
-    aamd-bilayer         : bilayer under CHARMM36 force field
-    aamd-protein         : protein in a water box using CHARMM27 force field
-    protein-homology     : single- or muliple-template homology models with 
-                           options for batches of mutations
-    multiply nx=N ny=M   : replicate a simulation box
-    restart              : generic restart which auto-detects CPT/GRO
-    """
-
-document_string = \
-	"""
-	Documentation is provided via python-Sphinx/sphinx-apidoc but is not 
-	generally updated with each git push so you may	want to regenerate it.\n
-	"""+str('file://'+os.path.abspath(os.path.curdir)+'/docs/_build/html/index.html')+"\n\n"
-
-#---BASH SCRIPT CONSTANTS
-#-------------------------------------------------------------------------------------------------------------
-
-#---bash commands referenced in script_dict are recorded here
-#---note that "preps" lists contain bash commands to copy general steps and connect the steps
-#---note that "scripts" lists contain bash commands to run the steps in sequence
-
-prepare_equil_sim = [
-"""
-#---copy equilibration files
-if ! [ -d "$step_equilibration" ]; then cp -r ./sources/general-equil ./$step_equilibration
-else cp -r ./sources/general-equil/* ./$step_equilibration;fi\n
-#---connect equilibration settings to the previous step
-sed -i 's/^SOURCEDIR.*/SOURCEDIR=\.\.\/'$step_build'/g' $step_equilibration/settings.sh
-sed -i 's/cp $AMXPATH\/.*/cp $AMXPATH\/'$input_files'\/\* \.\//g' $step_equilibration/settings.sh
-""",
-"""
-#---copy simulation continuation files
-if ! [ -d "$step_simulation" ]; then cp -r ./sources/general-sim ./$step_simulation
-else cp -r ./sources/general-sim/* ./$step_simulation;fi\n
-#---connect simulation settings to the previous step
-sed -i 's/^SOURCEDIR.*/SOURCEDIR=\.\.\/'$step_equilibration'/g' $step_simulation/settings.sh
-sed -i 's/cp $AMXPATH\/.*/cp $AMXPATH\/'$input_files'\/\* \.\//g' $step_simulation/settings.sh
-""",
-]
-
-prepare_restart = [
-"""
-#---copy simulation continuation files
-mkdir ./$step_simulation
-cp -r ./sources/general-sim-restart/* ./$step_simulation;
-cp -r ./repo/* ./$step_simulation;
-#---if detect_previous_step is set in the header then copy checkpoint files
-#---...note that we use the prep scripts in a self-contained way, to avoid excessive python code
-if ! [ -z "${detect_previous_step+xxx}" ]; then 
-#---locate the latest checkpoint from the equilibrate folder
-THISDIR=$(pwd)
-cd $detect_previous_step
-PRUN=0
-for file in md.part*.cpt
-do
-	if [ $(echo ${file:7:4} | sed 's/^0*//') -gt $PRUN ]; then 
-		PRUN=$(echo ${file:7:4} | sed 's/^0*//')
-	fi
-done
-cd $THISDIR
-#---copy checkpoint and input files
-cp $detect_previous_step/$(printf md.part%04d.tpr $PRUN) ./$step_simulation/
-cp $detect_previous_step/$(printf md.part%04d.cpt $PRUN) ./$step_simulation/
-fi
-"""
-]
-
-prepare_rescript = [
-"""
-sed -i 's/^STOPHOURS.*/STOPHOURS=\"'$walltime'\"/g' $detect_previous_step/settings.sh
-"""
-]
-
-prepare_multiply = [
-"""
-#---copy simulation continuation files
-mkdir ./$step_simulation
-cp -r ./sources/general-sim-restart/* ./$step_simulation;
-"""
-]
-
-call_equil = """#---execute equilibration step
-cd $step_equilibration
-./script-equilibrate.pl
-if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
-cd ..
-\n"""
-
-call_sim = """#---execute simulation (continuation) step
-cd $step_simulation
-./script-sim.pl
-if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
-cd ..
-\n"""
-
-call_sim_restart = """#---execute simulation restart step
-cd $step_simulation
-./script-sim-restart.pl
-./script-sim.pl
-if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
-cd ..
-\n"""
-
-call_sim_rescript = """#---execute simulation restart step
-cd $detect_previous_step
-./script-sim.pl
-if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
-cd ..
-\n"""
-
-call_sim_multiply = """#---execute simulation restart step
-cd $step_simulation
-./script-sim-restart.pl
-if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
-cd ..
-\n"""
-
-python_from_bash = """#---execute python step
-python -c "execfile('./amx/header');
-try: COMMAND;
-except Exception,e:
-	print str(e);
-	traceback.print_exc();
-	print 'fail';"
-go=$(tail ROOTDIR/log-script-master)
-if [[ "$go" =~ fail$ ]];then exit;fi
-\n"""
-
-#---BASH SCRIPT GENERATOR
-#-------------------------------------------------------------------------------------------------------------
-
-#---amx procedure details
-script_dict = {
-	'cgmd-bilayer':{
-		'prep':[prepare_equil_sim[0]+\
-			"sed -i 's/STEPSTRING.*/STEPSTRING=\"nvt npt\"/g' $step_equilibration/settings.sh"]+\
-			prepare_equil_sim[1:],
-		'steps':{
-			'step_monolayer':'s01-build-lipidgrid',
-			'step_build':'s02-build-bilayer',
-			'step_equilibration':'s03-equil',
-			'step_simulation':'s04-sim',
-			'input_files':'cgmd-bilayer-equil',
-			},
-		'continue':True,
-		'sequence':[
-			multiresub(dict({
-				'ROOTDIR':'s01-build-lipidgrid',
-				'COMMAND':'MonolayerGrids(rootdir=\'s01-build-lipidgrid\')',
-				}),python_from_bash),
-			multiresub(dict({
-				'ROOTDIR':'s02-build-bilayer',
-				'COMMAND':'Bilayer(rootdir=\'s02-build-bilayer\',previous_dir=\'s01-build-lipidgrid\')',
-				}),python_from_bash),
-			call_equil,
-			call_sim,
-			],
-		},
-	'cgmd-bilayer-sculpt':{
-		'prep':[multiresub(dict({
-			'general-equil':'flexible-equil',
-			'general-sim':'flexible-sim',
-			'equilibration':'equilibration_static'}),
-			'\n'.join(prepare_equil_sim[:1]))]+\
-			[multiresub(dict({
-			'general-equil':'flexible-equil',
-			'general-sim':'flexible-sim',
-			'input_files':'input_files2',
-			'step_build':'step_restrain'}),
-			'\n'.join(prepare_equil_sim))],
-		'steps':{
-			'step_build':'s01-build-bilayer',
-			'step_equilibration_static':'s02-equil',
-			'step_equilibration':'s04-equil',
-			'step_restrain':'s03-restrain',
-			'step_simulation':'s05-sim',
-			'input_files':'cgmd-bilayer-sculpt',
-			'input_files2':'cgmd-bilayer-sculpt-equil',
-			},
-		'continue':True,
-		'sequence':[
-			multiresub(dict({
-				'ROOTDIR':'s01-build-bilayer',
-				'COMMAND':'BilayerSculpted(rootdir=\'s01-build-bilayer\')',
-				}),python_from_bash),
-			multiresub(dict({
-				'step_equilibration':'step_equilibration_static'}),
-				call_equil),
-			multiresub(dict({
-				'ROOTDIR':'s03-restrain',
-				'COMMAND':'BilayerSculptedFixed(rootdir=\'s03-restrain\',previous_dir=\'s02-equil\')',
-				}),python_from_bash),
-			call_equil,
-			call_sim,
-			],
-		},
-	'aamd-bilayer':{
-		'prep':prepare_equil_sim,
-		'steps':{
-			'step_monolayer':'s1-build-lipidgrid',
-			'step_build':'s02-build-bilayer',
-			'step_equilibration':'s03-equil',
-			'step_simulation':'s04-sim',
-			'input_files':'aamd-bilayer-equil',
-			},
-		'continue':True,
-		'sequence':[
-			multiresub(dict({
-				'ROOTDIR':'s01-build-lipidgrid',
-				'COMMAND':'MonolayerGrids(rootdir=\'s01-build-lipidgrid\')',
-				}),python_from_bash),
-			multiresub(dict({
-				'ROOTDIR':'s02-build-bilayer',
-				'COMMAND':'Bilayer(rootdir=\'s02-build-bilayer\',previous_dir=\'s01-build-lipidgrid\')',
-				}),python_from_bash),
-			call_equil,
-			call_sim,
-			],
-		},
-	'aamd-protein':{
-		'prep':[prepare_equil_sim[0]+\
-			"sed -i 's/STEPSTRING.*/STEPSTRING=\"nvt npt\"/g' $step_equilibration/settings.sh"]+\
-			prepare_equil_sim[1:],
-		'steps':{
-			'step_build':'s01-build-protein-water',
-			'step_equilibration':'s02-equil',
-			'step_simulation':'s03-sim',
-			'input_files':'aamd-protein-equil',
-			'detect_previous_step':None,
-			},
-		'continue':True,
-		'sequence':[
-			multiresub(dict({
-				'ROOTDIR':'$step_build',
-				'COMMAND':'ProteinWater(rootdir=\'$step_build\')',
-				}),python_from_bash),
-			call_equil,
-			call_sim,		
-			],
-		},
-	'cgmd-protein':{
-		'prep':[prepare_equil_sim[0]+\
-			"sed -i 's/STEPSTRING.*/STEPSTRING=\"nvt-short nvt npt\"/g' $step_equilibration/settings.sh"]+\
-			prepare_equil_sim[1:],
-		'steps':{
-			'step_build':'s01-build-protein-water',
-			'step_equilibration':'s02-equil',
-			'step_simulation':'s03-sim',
-			'input_files':'cgmd-protein-equil',
-			},
-		'continue':True,
-		'sequence':[
-			multiresub(dict({
-				'ROOTDIR':'s01-build-protein-water',
-				'COMMAND':'ProteinWater(rootdir=\'$step_build\')',
-				}),python_from_bash),
-			call_equil,
-			call_sim,		
-			],
-		},
-	'protein-homology':{
-		'prep':[],
-		'steps':{
-			'step_homology':'s01-homology',
-			'input_files':'aamd-protein-homology',
-			},
-		'sequence':[
-			multiresub(dict({
-				'ROOTDIR':'s01-homology',
-				'COMMAND':'ProteinHomology(rootdir=\'s01-homology\')',
-				}),python_from_bash),
-			],
-		},
-	'restart':{
-		'prep':prepare_restart+\
-			["sed -i 's/use_gpu.*/use_gpu=\"gpu\"/g' $step_simulation/settings.sh"],
-		'steps':{
-			'step_simulation':'s01-restart',
-			'detect_previous_step':None,
-			'gpu_flag':'cpu',
-			},
-		'continue':True,
-		'sequence':[
-			call_sim_restart,
-			],
-		},
-	'rescript':{
-		'prep':prepare_rescript,
-		'steps':{
-			'detect_previous_step':None,
-			'step_simulation':'s01-restart',
-			'gpu_flag':'cpu',
-			},
-		'sequence':[
-			call_sim_rescript,
-			],
-		},
-	'multiply':{
-		'prep':prepare_multiply,
-		'steps':{
-			'step_simulation':'s01-multiply',
-			'detect_previous_step':None,
-			},
-		'continue':True,
-		'sequence':[
-			multiresub(dict({
-				'ROOTDIR':'$step_simulation',
-				'COMMAND':'Multiply(rootdir=\'$step_simulation\',previous_dir=\'$previus_step\','+\
-					'nx=\'$nx\',ny=\'$ny\',nz=\'$nz\')',
-				}),python_from_bash),
-			call_sim_restart,
-			call_sim,
-			],
-		},
-	'cgmd-protein-bilayer':{
-		'prep':[prepare_equil_sim[0]+\
-			"sed -i 's/STEPSTRING.*/STEPSTRING=\"npt\"/g' $step_equilibration/settings.sh"]+\
-			prepare_equil_sim[1:],
-		'steps':{
-			'step_build':'s01-protein-bilayer',
-			'input_files':'cgmd-protein-bilayer',
-			'step_equilibration':'s02-equil',
-			'step_simulation':'s03-sim',
-			},
-		'sequence':[
-			multiresub(dict({
-				'ROOTDIR':'$step_build',
-				'COMMAND':'ProteinBilayer(rootdir=\'$step_build\')',
-				}),python_from_bash),
-			call_equil,
-			call_sim,
-			],
-		},
-	}
-
 #---FUNCTIONS
 #-------------------------------------------------------------------------------------------------------------
 
@@ -426,17 +69,20 @@ def clean(sure=True,protected=False,extras=None):
 			else: os.system('rmdir '+f[0]+'/'+f[1])
 		for f in deldirs_protect: os.system('rm -rf '+f[0]+'/'+f[1])
 					
-def docs(extras=None):
+def docs(clean=False):
 
 	"""
 	Regenerate the documentation using sphinx-apidoc and code in amx/gendoc.sh
 	"""
 
-	if not os.path.isfile('gmxpaths.conf'): 
-		with open('gmxpaths.conf','w') as fp: fp.write('# placeholder')
-	os.system('./amx/script-make-docs.sh '+os.path.abspath('.'))
+	import shutil
+	if clean: shutil.rmtree('./docs')
+	else:
+		if not os.path.isfile('gmxpaths.conf'): 
+			with open('gmxpaths.conf','w') as fp: fp.write('# placeholder')
+		os.system('./amx/script-make-docs.sh '+os.path.abspath('.'))
 	
-def upload(step=None,extras=None,silent=False):
+def upload(step=None,extras=None,silent=False,scriptfile=None):
 
 	"""
 	Provides a file list and rsync syntax to upload this to a cluster without extra baggage.
@@ -462,9 +108,15 @@ def upload(step=None,extras=None,silent=False):
 	cwd = os.path.basename(os.path.abspath(os.getcwd()))
 	with open('upload-rsync-list.txt','w') as fp: 
 		for i in gofiles: fp.write(i+'\n')
-	if not silent: print 'upload list written to upload-rsync-list.txt\nrun '+\
-		'the following rsync to your destination'
-	if not silent: print 'rsync -avi --files-from=upload-rsync-list.txt ../'+cwd+' DEST/'+cwd
+	#---custom functionality only used by batch (so be careful with relative paths)
+	if scriptfile != None:
+		print "TRYING TO OPEN "+scriptfile
+		with open(scriptfile,'a') as fp:
+			fp.write('rsync -avi --files-from='+cwd+'/upload-rsync-list.txt '+cwd+' DEST/'+cwd+'\n')
+	else:
+		if not silent: print 'upload list written to upload-rsync-list.txt\nrun '+\
+			'the following rsync to your destination'
+		if not silent: print 'rsync -avi --files-from=upload-rsync-list.txt ../'+cwd+' DEST/'+cwd
 	
 def copycode():
 
@@ -555,7 +207,7 @@ def script(single=None,rescript=False,**extras):
 		elif any([j=='aamd' for j in target.split('-')]): simscale = 'aamd'
 		else: simscale = None
 		if simscale != None:
-			for fn in glob.glob('./inputs/input-specs*'):
+			for fn in glob.glob('./inputs/input_specs*'):
 				sub = subprocess.call(['sed','-i',"s/^.*simscale.*$/simscale = \'"+simscale+"\'/",fn])
 	
 		proc_settings,header_source_mod,hs_footer = get_proc_settings()
@@ -616,18 +268,18 @@ def batch(**extras):
 	"""
 
 	batchspecs = {}
-	execfile('inputs/input-specs-batch.dat',batchspecs)
+	execfile('inputs/input_specs_batch.py',batchspecs)
 	batchdir = os.path.abspath(batchspecs['batchdir'])+'/'
 	if os.path.isdir(batchdir): raise Exception('except: batch directory already exists')
 	else: os.mkdir(batchdir)
 		
 	#---get the default specs file
 	specsfile = {
-		'aamd-protein':'inputs/input-specs-protein.dat',
-		'cgmd-protein':'inputs/input-specs-protein.dat',
-		'aamd-bilayer':'inputs/input-specs-bilayer.dat',
-		'cgmd-protein':'inputs/input-specs-bilayer.dat',
-		'cgmd-bilayer':'inputs/input-specs-bilayer.dat',
+		'aamd-protein':'inputs/input_specs_protein.py',
+		'cgmd-protein':'inputs/input_specs_protein.py',
+		'aamd-bilayer':'inputs/input_specs_bilayer.py',
+		'cgmd-protein':'inputs/input_specs_bilayer.py',
+		'cgmd-bilayer':'inputs/input_specs_bilayer.py',
 		}[batchspecs['procedure']]
 	defaults = {}
 	execfile(specsfile,defaults)
@@ -637,12 +289,12 @@ def batch(**extras):
 	overrides = batchspecs['overrides']
 	for key in overrides:
 		if key in defaults.keys(): defaults[key] = overrides[key]
-		else: raise Exception('except: overrides key not found in default input-specs')
+		else: raise Exception('except: overrides key not found in default input_specs')
 	
 	#---create the sweep
 	hypotheses = ultrasweep(defaults,batchspecs['sweep'])
 	
-	#---for each simulation copy automacs, input_filename, and input-specs
+	#---for each simulation copy automacs, input_filename, and input_specs
 	loclist = []
 	for hi,hypo in enumerate(hypotheses):
 		newdir = batchdir+'sim-v'+batchspecs['callsign']+'-v'+('%03d'%(hi+1))+'/'
@@ -664,9 +316,12 @@ def batch(**extras):
 		with open(newdir+specsfile,'w') as fp:
 			fp.write('#!/usr/bin/python\n#---autogenerated specs file\n')
 			for key in hypo:
-				keystring = json.dumps(hypo[key],indent=4).replace('false','False').replace('true','True')
+				keystring = json.dumps(hypo[key],indent=4).\
+					replace('false','False').\
+					replace('true','True').\
+					replace('null','None')
 				fp.write(key+' = '+keystring+'\n')
-		raw_input(newdir)
+		copy('./inputs/input_specs_mdp.py',newdir+'inputs/input_specs_mdp.py')
 		call('python controller.py script aamd-protein',cwd=os.path.abspath(newdir),
 			silent=True,suppress_stdout=True)
 		loclist.append(newdir)
@@ -680,6 +335,22 @@ def batch(**extras):
 		fp.write('batch_toc = '+keystring+'\n')
 	print 'Completed batch generation in '+batchspecs['batchdir']
 	print 'Wrote a dictionary of all simulations to '+batchspecs['batchdir']+'/batchdict.py'
+	with open(batchspecs['batchdir']+'script-batch-serial.sh','w') as fp:
+		fp.write('#!/bin/bash\n#---batch serial execution\n')
+		for key in hypodict:
+			fp.write(key+'/script-aamd-protein\n')
+	print 'Wrote a serial execution script to script-batch-serial.sh'
+	with open(batchspecs['batchdir']+'script-batch-upload.sh','w') as fp:
+		fp.write('#!/bin/bash\n#---batch uploads\n')
+	for key in hypodict:
+		call('make upload step=s04-sim scriptfile='+
+			os.path.abspath(batchspecs['batchdir']+'script-batch-upload.sh'),
+			cwd=key,logfile='derp')
+	print 'Wrote a serial upload script to script-batch-serial.sh\n'+\
+		'To use the uploader, you have to find-replace DEST with your target system\n'+\
+		'from '+batchspecs['batchdir']+' run:\n'+\
+		'sed -i \'s/DEST/compbio:~/g\' script-batch-upload.sh'+\
+		'Wait until step four is complete before uploading.'
 
 #---INTERFACE
 #-------------------------------------------------------------------------------------------------------------
@@ -708,6 +379,9 @@ def makeface(arglist):
 	
 	#---always get the function name from the first argument
 	func = arglist.pop(0)
+	for stray in ['--','w','i']:
+		if stray in arglist: arglist.remove(stray)
+	
 	#---define the arguments expected for each function
 	#---note that 'functionname':{'args':[],'module_name':None} is the default empty interface to a python
 	#---...function however you must remember to add keywords to args if you expect them to be standalone
@@ -730,6 +404,7 @@ def makeface(arglist):
 		'upload':{'args':[],'module_name':None},
 		'batch':{'args':[],'module_name':None},
 		'batchscript':{'args':[],'module_name':None},
+		'docs':{'args':['clean'],'module_name':None},
 		}
 	#---rescript is an alias for script for only doing the continue scripts
 	argdict['rescript'] = deepcopy(argdict['script'])

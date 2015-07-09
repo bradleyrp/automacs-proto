@@ -49,7 +49,7 @@ class ProteinHomology:
 		self.sources_dir = os.path.abspath(os.path.expanduser('./sources/'))+'/'
 		
 		#---use default inputs file
-		self.inputs_file = os.path.abspath(os.path.expanduser('./inputs/input-specs-homology.dat'))
+		self.inputs_file = os.path.abspath(os.path.expanduser('./inputs/input_specs_homology.py'))
 		
 		#---use default path to store structure files
 		self.struct_dir = os.path.abspath(os.path.expanduser(self.sources_dir+'aamd-protein-structs'))+'/'

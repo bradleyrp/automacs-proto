@@ -22,13 +22,13 @@ cp -r $SOURCEDIR/*.ff ./
 cp -r $SOURCEDIR/lipids-tops ./
 
 #---needs copied from general-equil
-#---copy standard input files for minimization (deprecated via input-specs-mdp.dat)
+#---copy standard input files for minimization (deprecated via input_specs_mdp.py)
 #---execute python step
 python -c "execfile('../amx/header');
 try: 
 	sim = AMXSimulation();
 	sim.params = {};
-	execfile('inputs/input-specs-bilayer.dat',sim.params)
+	execfile('inputs/input_specs_bilayer.py',sim.params)
 	sim.write_mdp(mdp_section='mdp-equil',rootdir='"$SOURCEDIR"')
 except Exception,e:
 	print str(e);

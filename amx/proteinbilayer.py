@@ -63,7 +63,7 @@ class ProteinBilayer(amxsim.AMXSimulation):
 			self.inputs_file = os.path.abspath(os.path.expanduser(kwargs['inputs_file']))+'/'
 		else: 
 			self.inputs_file = os.path.abspath(
-				os.path.expanduser('./inputs/input-specs-protein-bilayer.dat'))
+				os.path.expanduser('./inputs/input_specs_protein_bilayer.py'))
 
 		#---skip everything if the procedure is final configuration is already available
 		#---note that this takes the place of an exception and hence expects the user to remove old files

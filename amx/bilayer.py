@@ -71,7 +71,7 @@ class Bilayer(amxsim.AMXSimulation):
 	
 	Note that creating an instance of this class will automatically run the construction procedure. You must 
 	provide locations to the monolayer configurations when the object is created. Otherwise, all parameters
-	are specified in ``inputs/input-specs-bilayer.dat``. Note that this file handles inputs for both the 
+	are specified in ``inputs/input_specs_bilayer.py``. Note that this file handles inputs for both the 
 	atomistic and coarse-grained bilayer construction, both of which are handled by this class. The 
 	construction process procedes automatically, but will skip ahead if the process is interrupted and 
 	then restarted.
@@ -97,7 +97,7 @@ class Bilayer(amxsim.AMXSimulation):
 		else: self.sources_dir = os.path.abspath(os.path.expanduser('./sources/'))+'/'
 		if 'inputs_file' in kwargs.keys(): 
 			self.inputs_file = os.path.abspath(os.path.expanduser(kwargs['inputs_file']))+'/'
-		else: self.inputs_file = os.path.abspath(os.path.expanduser('./inputs/input-specs-bilayer.dat'))
+		else: self.inputs_file = os.path.abspath(os.path.expanduser('./inputs/input_specs_bilayer.py'))
 
 		#---skip everything if the procedure is final configuration is already available
 		#---note that this takes the place of an exception and hence expects the user to remove old files
@@ -109,9 +109,12 @@ class Bilayer(amxsim.AMXSimulation):
 		else:
 			#---make root directory
 			if not os.path.isdir(self.rootdir): 
+				print 666
 				os.mkdir(rootdir)
 				needs_file_transfers = True
-			else: needs_file_transfers = False
+			else: 
+				print 777
+				needs_file_transfers = False
 			#---start the logger
 			sys.stdout = tee(open(self.rootdir+'log-script-master','a',1))
 			sys.stderr = tee(open(self.rootdir+'log-script-master','a',1),error=True)
@@ -135,10 +138,10 @@ class Bilayer(amxsim.AMXSimulation):
 				copy(self.prevdir+'place-grid-start.gro',self.rootdir+'place-grid-start1.gro')
 			copy(self.prevdir+'composition.dat',self.rootdir+'composition.dat')
 			#---copy input files from standard sources i.e. the forcefield only if absent
-			if needs_file_transfers or 1:
+			if needs_file_transfers:
 				#---scale-specific copy commands
 				if self.simscale == 'cgmd':			
-					copy(self.sources_dir+'cgmd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
+					copy(self.sources_dir+'topology/cgmd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
 					copy(self.sources_dir+'martini.ff',self.rootdir+'martini.ff')
 					#---copy solvent structure
 					copy(self.sources_dir+self.settings['water_conf'],self.rootdir+'solvate-water.gro')
@@ -237,7 +240,11 @@ class Bilayer(amxsim.AMXSimulation):
 		call(cmd,logfile='log-trjconv-system-shift-center',cwd=self.rootdir,inpipe='1\n0\n')
 	
 	def vacuum(self):	
-		"""Assemble monolayers into a bilayer and minimize."""
+		
+		"""
+		Assemble monolayers into a bilayer and minimize.
+		"""
+
 		startconfs = ['place-grid-start0.gro','place-grid-start1.gro']
 		for si in range(len(startconfs)):
 			startconf = startconfs[si]
@@ -320,7 +327,7 @@ class Bilayer(amxsim.AMXSimulation):
 		Pack the lipids into a natural configuration by simulating in vacuum with restraints.
 		
 		This function runs vacuum simulation in stages according to available input files specified in the
-		``inputs/input-specs-bilayer.dat`` file. These inputs are sequenced to ensure that the bilayer is 
+		``inputs/input_specs_bilayer.py`` file. These inputs are sequenced to ensure that the bilayer is 
 		contiguous and the lipids are aligned. Position restraints written into the lipid topologies prevent
 		the lipids from escaping.
 		"""
@@ -348,8 +355,9 @@ class Bilayer(amxsim.AMXSimulation):
 		call('cp md-vacuum-p'+str(mi)+'.gro vacuum-packed.gro',cwd=self.rootdir)
 
 	def solvate(self):
+		
 		"""
-		Add a slab of water next to the bilayer. ``inputs/input-specs-bilayer.dat`` sets some of the geometric
+		Add a slab of water next to the bilayer. ``inputs/input_specs_bilayer.py`` sets some of the geometric
 		parameters, namely the solvent_thickness, which determines the total amount of water in the system 
 		before any relaxation steps.
 		"""
@@ -475,16 +483,18 @@ class Bilayer(amxsim.AMXSimulation):
 		self.comps.append([self.settings['sol_name'],str(nwaters)])
 
 		self.write_topology_bilayer('solvate.top')
-		self.minimization_method('solvate')
+		self.minimization_method('solvate',posre=True)
 		
 		print "translating so the bilayer is in the middle"
-		#---note that this step uses a heuristic to partly center the bilayer in the normal direction
-		#---...as long as the bilayer doesn't span the PBC boundary then a follow-up will center it
 		call('mv solvate-minimized.gro solvate-minimized-unshifted.gro',cwd=self.rootdir)
+		#---we move the bilayer by the difference between half of the box (gleaned from the step in which
+		#---...we set the box size above) and the bilayer position according to boxdims2 from above
+		shift_distance = (boxdims[2]+self.settings['solvent_thickness'])/2.-\
+			boxdims2[2]/2-self.settings['lipid_water_buffer']
 		cmd = [gmxpaths['trjconv'],
 			'-f solvate-minimized-unshifted.gro',
 			'-o solvate-minimized.gro',
-			'-trans 0 0 '+str(-1*self.settings['solvent_thickness']/2.-self.settings['lipid_water_buffer']),
+			'-trans 0 0 '+str(shift_distance),
 			'-s em-solvate-steep.tpr',
 			'-pbc mol']
 		call(cmd,logfile='log-trjconv-solvate-shift-center',cwd=self.rootdir,inpipe='0\n')
@@ -634,7 +644,7 @@ class Bilayer(amxsim.AMXSimulation):
 		self.comps[self.lnames.index(self.settings['sol_name'])][1] = str(actual_waters)
 
 		self.write_topology_bilayer('counterions.top')
-		self.minimization_method('counterions')
+		self.minimization_method('counterions',posre=True)
 
 class BilayerSculpted(Bilayer):
 
@@ -654,7 +664,7 @@ class BilayerSculpted(Bilayer):
 		if 'inputs_file' in kwargs.keys(): 
 			self.inputs_file = os.path.abspath(os.path.expanduser(kwargs['inputs_file']))+'/'
 		else: self.inputs_file = os.path.abspath(os.path.expanduser(
-			'./inputs/input-specs-bilayer-sculpt.dat'))
+			'./inputs/input_specs_bilayer_sculpt.py'))
 
 		#---skip everything if the procedure is final configuration is already available
 		#---note that this takes the place of an exception and hence expects the user to remove old files
@@ -687,7 +697,7 @@ class BilayerSculpted(Bilayer):
 
 			#---copy input files from standard sources i.e. the forcefield only if absent
 			if needs_file_transfers:
-				copy(self.sources_dir+'cgmd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
+				copy(self.sources_dir+'topology/cgmd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
 				copy(self.sources_dir+'martini.ff',self.rootdir+'martini.ff')
 				#---removed MDP copy commands in favor of automatic generation
 				if 0: copy(self.sources_dir+'cgmd-bilayer-sculpt/input-em-*',self.rootdir)				
@@ -861,7 +871,7 @@ class BilayerSculptedFixed(Bilayer):
 		if 'inputs_file' in kwargs.keys(): 
 			self.inputs_file = os.path.abspath(os.path.expanduser(kwargs['inputs_file']))+'/'
 		else: self.inputs_file = os.path.abspath(os.path.expanduser(
-			'./inputs/input-specs-bilayer-sculpt.dat'))
+			'./inputs/input_specs_bilayer_sculpt.py'))
 
 		#---bilayer construction settings are pulled from the inputs_file
 		self.params = dict()
@@ -889,7 +899,7 @@ class BilayerSculptedFixed(Bilayer):
 				copy(self.prevdir+'md.part0001.gro',self.rootdir+'prep-equilibrated.gro')
 				copy(self.prevdir+'md.part0001.tpr',self.rootdir+'prep-equilibrated.tpr')
 				copy(self.sources_dir+'martini.ff',self.rootdir+'martini.ff')
-				copy(self.sources_dir+'cgmd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
+				copy(self.sources_dir+'topology/cgmd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
 				
 			self.construct()
 
@@ -939,4 +949,4 @@ class BilayerSculptedFixed(Bilayer):
 		self.comps,self.lnames = comps,lnames
 		self.write_topology_bilayer('system.top')
 		self.grouping(grouptype='bilayer',startstruct='system.gro')
-		
+

@@ -27,3 +27,7 @@ $(TARGETS): $(checkfile)
 push:
 	bash amx/script-gitpush.sh ${RUN_ARGS}
 
+#---quickly view simulations in VMD
+view:
+	touch $(checkfile)
+	python amx/script-vmd-viewer.py ${RUN_ARGS} ${MAKEFLAGS}

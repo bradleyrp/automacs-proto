@@ -105,10 +105,7 @@ def call(command,logfile=None,cwd=None,silent=False,inpipe=None,suppress_stdout=
 					devnull = open('/dev/null','w')
 					subprocess.check_call(command,shell=True,stderr=devnull,cwd=cwd,stdout=devnull)
 				else: subprocess.check_call(command,shell=True,stderr=None,cwd=cwd)
-			except:
-				if logfile[-3:] == '-cg' and re.search('mdrun-em',logfile):
-					print 'warning: failed conjugate gradient descent but will procede'
-				else: raise Exception('except: GROMACS execution error!\nsee '+cwd+logfile)
+			except: raise Exception('except: GROMACS execution error!\ncommand: '+command+'\ncwd: '+cwd)
 
 def checkout(command,cwd=None):
 

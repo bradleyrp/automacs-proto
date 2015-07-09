@@ -3,10 +3,14 @@
 #---CLUSTER HEADERS
 #-------------------------------------------------------------------------------------------------------------
 
+#---defaults for running the script locally
+local_nprocs = 4
+local_processor_type = ['standard','gpu'][0]
+
 #---here the hostname is a single word excluding punctuation which can be matched to the true hostname
 #---note that the first element in the corresponding list is the default architecture
 valid_hostnames = {
-	'compbio':['opterons','opterons_gpu','xeons'][1],
+	'compbio':['opterons','opterons_gpu','xeons'][0],
 	'walnut':None,
 	'tobias':None,
 	}
@@ -211,7 +215,10 @@ gmx_suffixes = {
 #---system-specific commands to substitute for standard_gromacs_commands
 #---note some commands require a number of processors NPROCS which is substituted by ./controller make
 gmx_overrides = {
-	'local':{'mdrun':'mdrun -nt 2',},
+	'local':{
+		'standard':{'mdrun':'mdrun -nt '+str(local_nprocs),},
+		'gpu':{'mdrun':'mdrun -nb gpu_cpu -nt '+str(local_nprocs),},
+		}[local_processor_type],
 	'tobias':{'mdrun':'mdrun -nt 8',},
 	'compbio_xeons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	'compbio_opterons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
@@ -228,7 +235,392 @@ for key in special_keys5: gmx_syntax5[key] = special_keys5[key]
 tool_paths = {
 	'dssp':'~/libs/dssp-2.0.4-linux-amd64',
 	'martinize':'~/libs/martinize.py',
-	'modeller':'mod9.14',
+	'modeller':'mod9.15',
 	'vmd':'vmd',
+	}
+	
+#---DOCUMENTATION
+#-------------------------------------------------------------------------------------------------------------
+
+helpstring = """\n
+    Automacs (AMX) CONTROLLER.\n
+    make script <simulation> : prepare a simulation and associated scripts 
+                               see simulation types below for more details
+    make script restart      : generates a CPT or GRO restart from an 
+                               input-md-in.mdp in repo folder
+    make upload              : prepare an upload list and rsync command for 
+                               a continuation if the last step was "sim"
+    make upload step=<dir>   : prepare an upload list for any step 
+                               including the whole directory
+    make rescript            : generate continue scripts for a simulation 
+                               moved to a cluster  
+    make clean               : reset the folder by deleting simulation data
+                               note that the repo folder is exempt 
+    make view cgmd <files>   : quick look at a CGMD simulation with GRO and 
+                               XTC files in VMD using an ad hoc script
+    make batch               : parameter sweep over simulations
+                               
+    clean docs???
+
+    simulations:
+    -----------
+    cgmd-bilayer         : coarse-grained bilayer under MARTINI force field
+    aamd-protein         : protein in a water box using CHARMM27 force field    
+    protein-homology     : structure prediction via MODELLER with either 
+                           multiple templates or large batches of mutations
+
+    simulations (re-development):
+    ----------------------------
+    cgmd-protein         : coarse-grained protein under MARTINI force field 
+                           with structure options
+    cgmd-protein-sculpt  : coarse-grained protein under MARTINI force field 
+                           with a custom shape
+    aamd-bilayer         : bilayer under CHARMM36 force field
+    protein-homology     : single- or muliple-template homology models with 
+                           options for batches of mutations
+    multiply nx=N ny=M   : replicate a simulation box
+    restart              : generic restart which auto-detects CPT/GRO
+    """
+
+document_string = \
+	"""
+	Documentation is provided via python-Sphinx/sphinx-apidoc but is not 
+	generally updated with each git push so you may	want to regenerate it.\n
+	"""+str('file://'+os.path.abspath(os.path.curdir)+'/docs/_build/html/index.html')+"\n\n"
+
+#---BASH SCRIPT CONSTANTS
+#-------------------------------------------------------------------------------------------------------------
+
+#---bash commands referenced in script_dict are recorded here
+#---note that "preps" lists contain bash commands to copy general steps and connect the steps
+#---note that "scripts" lists contain bash commands to run the steps in sequence
+
+prepare_equil_sim = [
+"""
+#---copy equilibration files
+if ! [ -d "$step_equilibration" ]; then cp -r ./sources/general-equil ./$step_equilibration
+else cp -r ./sources/general-equil/* ./$step_equilibration;fi\n
+#---connect equilibration settings to the previous step
+sed -i 's/^SOURCEDIR.*/SOURCEDIR=\.\.\/'$step_build'/g' $step_equilibration/settings.sh
+sed -i 's/^MDPLOOK.*/MDPLOOK='$mdp_look_string'/g' $step_equilibration/settings.sh
+sed -i 's/^SPECSFILE.*/SPECSFILE='$specs_file'/g' $step_equilibration/settings.sh
+sed -i 's/cp $AMXPATH\/.*/cp $AMXPATH\/'$input_files'\/\* \.\//g' $step_equilibration/settings.sh
+""",
+"""
+#---copy simulation continuation files
+if ! [ -d "$step_simulation" ]; then cp -r ./sources/general-sim ./$step_simulation
+else cp -r ./sources/general-sim/* ./$step_simulation;fi\n
+#---connect simulation settings to the previous step
+sed -i 's/^SOURCEDIR.*/SOURCEDIR=\.\.\/'$step_equilibration'/g' $step_simulation/settings.sh
+sed -i 's/^MDPLOOK.*/MDPLOOK='$mdp_look_string'/g' $step_simulation/settings.sh
+sed -i 's/^SPECSFILE.*/SPECSFILE='$specs_file'/g' $step_simulation/settings.sh
+sed -i 's/cp $AMXPATH\/.*/cp $AMXPATH\/'$input_files'\/\* \.\//g' $step_simulation/settings.sh
+""",
+]
+
+prepare_restart = [
+"""
+#---copy simulation continuation files
+mkdir ./$step_simulation
+cp -r ./sources/general-sim-restart/* ./$step_simulation;
+cp -r ./repo/* ./$step_simulation;
+#---if detect_previous_step is set in the header then copy checkpoint files
+#---...note that we use the prep scripts in a self-contained way, to avoid excessive python code
+if ! [ -z "${detect_previous_step+xxx}" ]; then 
+#---locate the latest checkpoint from the equilibrate folder
+THISDIR=$(pwd)
+cd $detect_previous_step
+PRUN=0
+for file in md.part*.cpt
+do
+	if [ $(echo ${file:7:4} | sed 's/^0*//') -gt $PRUN ]; then 
+		PRUN=$(echo ${file:7:4} | sed 's/^0*//')
+	fi
+done
+cd $THISDIR
+#---copy checkpoint and input files
+cp $detect_previous_step/$(printf md.part%04d.tpr $PRUN) ./$step_simulation/
+cp $detect_previous_step/$(printf md.part%04d.cpt $PRUN) ./$step_simulation/
+fi
+"""
+]
+
+prepare_rescript = [
+"""
+sed -i 's/^STOPHOURS.*/STOPHOURS=\"'$walltime'\"/g' $detect_previous_step/settings.sh
+"""
+]
+
+prepare_multiply = [
+"""
+#---copy simulation continuation files
+mkdir ./$step_simulation
+cp -r ./sources/general-sim-restart/* ./$step_simulation;
+"""
+]
+
+call_equil = """#---execute equilibration step
+cd $step_equilibration
+echo "moved to "$step_equilibration", "$(pwd)
+./script-equilibrate.pl
+if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
+cd ..
+\n"""
+
+call_sim = """#---execute simulation (continuation) step
+cd $step_simulation
+./script-sim.pl
+if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
+cd ..
+\n"""
+
+call_sim_restart = """#---execute simulation restart step
+cd $step_simulation
+./script-sim-restart.pl
+./script-sim.pl
+if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
+cd ..
+\n"""
+
+call_sim_rescript = """#---execute simulation restart step
+cd $detect_previous_step
+./script-sim.pl
+if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
+cd ..
+\n"""
+
+call_sim_multiply = """#---execute simulation restart step
+cd $step_simulation
+./script-sim-restart.pl
+if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
+cd ..
+\n"""
+
+python_from_bash = """#---execute python step
+python -c "execfile('./amx/header');
+try: COMMAND;
+except Exception,e:
+	print str(e);
+	traceback.print_exc();
+	print 'fail';"
+go=$(tail ROOTDIR/log-script-master)
+if [[ "$go" =~ fail$ ]];then exit;fi
+\n"""
+
+
+#---BASH SCRIPT GENERATOR
+#-------------------------------------------------------------------------------------------------------------
+
+#---wrapper for regex substitutions below
+def multiresub(switches,text):
+	return re.compile("(%s)" % "|".join(map(re.escape,switches.keys()))).sub(
+		lambda mo: switches[mo.string[mo.start():mo.end()]],text) 
+
+#---amx procedure details
+script_dict = {
+	'cgmd-bilayer':{
+		'prep':[prepare_equil_sim[0]+\
+			"sed -i 's/STEPSTRING.*/STEPSTRING=\"npt\"/g' $step_equilibration/settings.sh"]+\
+			prepare_equil_sim[1:],
+		'steps':{
+			'step_monolayer':'s01-build-lipidgrid',
+			'step_build':'s02-build-bilayer',
+			'step_equilibration':'s03-equil',
+			'step_simulation':'s04-sim',
+			'input_files':'cgmd-bilayer-equil',
+			'gpu_flag':'gpu',
+			},
+		'continue':True,
+		'sequence':[
+			multiresub(dict({
+				'ROOTDIR':'s01-build-lipidgrid',
+				'COMMAND':'MonolayerGrids(rootdir=\'s01-build-lipidgrid\')',
+				}),python_from_bash),
+			multiresub(dict({
+				'ROOTDIR':'s02-build-bilayer',
+				'COMMAND':'Bilayer(rootdir=\'s02-build-bilayer\',previous_dir=\'s01-build-lipidgrid\')',
+				}),python_from_bash),
+			call_equil,
+			call_sim,
+			],
+		},
+	'cgmd-bilayer-sculpt':{
+		'prep':[multiresub(dict({
+			'general-equil':'flexible-equil',
+			'general-sim':'flexible-sim',
+			'equilibration':'equilibration_static'}),
+			'\n'.join(prepare_equil_sim[:1]))]+\
+			[multiresub(dict({
+			'general-equil':'flexible-equil',
+			'general-sim':'flexible-sim',
+			'input_files':'input_files2',
+			'step_build':'step_restrain'}),
+			'\n'.join(prepare_equil_sim))],
+		'steps':{
+			'step_build':'s01-build-bilayer',
+			'step_equilibration_static':'s02-equil',
+			'step_equilibration':'s04-equil',
+			'step_restrain':'s03-restrain',
+			'step_simulation':'s05-sim',
+			'input_files':'cgmd-bilayer-sculpt',
+			'input_files2':'cgmd-bilayer-sculpt-equil',
+			},
+		'continue':True,
+		'sequence':[
+			multiresub(dict({
+				'ROOTDIR':'s01-build-bilayer',
+				'COMMAND':'BilayerSculpted(rootdir=\'s01-build-bilayer\')',
+				}),python_from_bash),
+			multiresub(dict({
+				'step_equilibration':'step_equilibration_static'}),
+				call_equil),
+			multiresub(dict({
+				'ROOTDIR':'s03-restrain',
+				'COMMAND':'BilayerSculptedFixed(rootdir=\'s03-restrain\',previous_dir=\'s02-equil\')',
+				}),python_from_bash),
+			call_equil,
+			call_sim,
+			],
+		},
+	'aamd-bilayer':{
+		'prep':prepare_equil_sim,
+		'steps':{
+			'step_monolayer':'s1-build-lipidgrid',
+			'step_build':'s02-build-bilayer',
+			'step_equilibration':'s03-equil',
+			'step_simulation':'s04-sim',
+			'input_files':'aamd-bilayer-equil',
+			},
+		'continue':True,
+		'sequence':[
+			multiresub(dict({
+				'ROOTDIR':'s01-build-lipidgrid',
+				'COMMAND':'MonolayerGrids(rootdir=\'s01-build-lipidgrid\')',
+				}),python_from_bash),
+			multiresub(dict({
+				'ROOTDIR':'s02-build-bilayer',
+				'COMMAND':'Bilayer(rootdir=\'s02-build-bilayer\',previous_dir=\'s01-build-lipidgrid\')',
+				}),python_from_bash),
+			call_equil,
+			call_sim,
+			],
+		},
+	'aamd-protein':{
+		'prep':[prepare_equil_sim[0]+\
+			"sed -i 's/STEPSTRING.*/STEPSTRING=\"nvt npt\"/g' $step_equilibration/settings.sh"]+\
+			prepare_equil_sim[1:],
+		'steps':{
+			'step_build':'s01-build-protein-water',
+			'step_equilibration':'s02-equil',
+			'step_simulation':'s03-sim',
+			'input_files':'aamd-protein-equil',
+			'detect_previous_step':None,
+			'mdp_look_string':'protein_construction_settings,aamd',
+			'specs_file':r'inputs\\/input_specs_protein.dat',
+			},
+		'continue':True,
+		'sequence':[
+			multiresub(dict({
+				'ROOTDIR':'$step_build',
+				'COMMAND':'ProteinWater(rootdir=\'$step_build\')',
+				}),python_from_bash),
+			call_equil,
+			call_sim,		
+			],
+		},
+	'cgmd-protein':{
+		'prep':[prepare_equil_sim[0]+\
+			"sed -i 's/STEPSTRING.*/STEPSTRING=\"nvt-short nvt npt\"/g' $step_equilibration/settings.sh"]+\
+			prepare_equil_sim[1:],
+		'steps':{
+			'step_build':'s01-build-protein-water',
+			'step_equilibration':'s02-equil',
+			'step_simulation':'s03-sim',
+			'input_files':'cgmd-protein-equil',
+			},
+		'continue':True,
+		'sequence':[
+			multiresub(dict({
+				'ROOTDIR':'s01-build-protein-water',
+				'COMMAND':'ProteinWater(rootdir=\'$step_build\')',
+				}),python_from_bash),
+			call_equil,
+			call_sim,		
+			],
+		},
+	'protein-homology':{
+		'prep':[],
+		'steps':{
+			'step_homology':'s01-homology',
+			'input_files':'aamd-protein-homology',
+			},
+		'sequence':[
+			multiresub(dict({
+				'ROOTDIR':'s01-homology',
+				'COMMAND':'ProteinHomology(rootdir=\'s01-homology\')',
+				}),python_from_bash),
+			'cd $step_homology;./script-best-models.py;cd ..',
+			],
+		},
+	'restart':{
+		'prep':prepare_restart+\
+			["sed -i 's/use_gpu.*/use_gpu=\"gpu\"/g' $step_simulation/settings.sh"],
+		'steps':{
+			'step_simulation':'s01-restart',
+			'detect_previous_step':None,
+			'gpu_flag':'cpu',
+			},
+		'continue':True,
+		'sequence':[
+			call_sim_restart,
+			],
+		},
+	'rescript':{
+		'prep':prepare_rescript,
+		'steps':{
+			'detect_previous_step':None,
+			'step_simulation':'s01-restart',
+			'gpu_flag':'cpu',
+			},
+		'sequence':[
+			call_sim_rescript,
+			],
+		},
+	'multiply':{
+		'prep':prepare_multiply,
+		'steps':{
+			'step_simulation':'s01-multiply',
+			'detect_previous_step':None,
+			},
+		'continue':True,
+		'sequence':[
+			multiresub(dict({
+				'ROOTDIR':'$step_simulation',
+				'COMMAND':'Multiply(rootdir=\'$step_simulation\',previous_dir=\'$previus_step\','+\
+					'nx=\'$nx\',ny=\'$ny\',nz=\'$nz\')',
+				}),python_from_bash),
+			call_sim_restart,
+			call_sim,
+			],
+		},
+	'cgmd-protein-bilayer':{
+		'prep':[prepare_equil_sim[0]+\
+			"sed -i 's/STEPSTRING.*/STEPSTRING=\"npt\"/g' $step_equilibration/settings.sh"]+\
+			prepare_equil_sim[1:],
+		'steps':{
+			'step_build':'s01-protein-bilayer',
+			'input_files':'cgmd-protein-bilayer',
+			'step_equilibration':'s02-equil',
+			'step_simulation':'s03-sim',
+			},
+		'sequence':[
+			multiresub(dict({
+				'ROOTDIR':'$step_build',
+				'COMMAND':'ProteinBilayer(rootdir=\'$step_build\')',
+				}),python_from_bash),
+			call_equil,
+			call_sim,
+			],
+		},
 	}
 

@@ -58,4 +58,18 @@
   4  5  6  7
   5  6  7
   6  7
+  
+#ifdef POSRES
+[ position_restraints ]
+; ai  funct  fcx    fcy    fcz
+   1    1       0      0   1000
+   2    1       0      0      0
+   3    1       0      0      0
+   4    1       0      0      0
+   5    1       0      0      0
+   6    1       0      0      0
+   7    1       0      0      0
+   8    1       0      0   1000
+#endif
+
 

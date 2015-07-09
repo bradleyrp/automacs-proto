@@ -22,7 +22,7 @@ so we won't see the bonds until we use the ``amx.bilayer`` submodule to construc
 Settings
 ********
 
-Input settings are imported from the python-style file called ``inputs/input-specs-bilayer.dat`` by default.
+Input settings are imported from the python-style file called ``inputs/input_specs_bilayer.py`` by default.
 For a bilayer with different compositions for each monolayer, we use the following defintions. ::
 
 	#---COMPOSITIONS
@@ -35,7 +35,7 @@ For a bilayer with different compositions for each monolayer, we use the followi
 	complist1 = [4,1]
 	lipidnames1 = ['DOPC','DOPS']
 	
-Elsewhere in the ``inputs/input-specs-bilayer.dat`` we find the geometric settings for assembling the
+Elsewhere in the ``inputs/input_specs_bilayer.py`` we find the geometric settings for assembling the
 monolayers. The key parameter here is the ``solvent_thickness`` which sets the size of the water slab in 
 nanometers. ::
 
@@ -96,7 +96,7 @@ class MonolayerGrids:
 	Class which generates a lipid monolayer configurations according to desired compositions.
 	
 	Creating a single instance of this class will automatically run the construction procedure in the root 
-	directory (a required keyword argument). Compositions are specified in ``inputs/input-specs-bilayer.dat``
+	directory (a required keyword argument). Compositions are specified in ``inputs/input_specs_bilayer.py``
 	and the user can choose to make the bilayer symmetric by only defining one composition there.
 
 	Parameters
@@ -110,8 +110,8 @@ class MonolayerGrids:
 		'''
 		#---default parameters
 		self.params = {
-			'structs_dir':'sources/cgmd-bilayer-lipids-structs',
-			'input_specs':'inputs/input-specs-bilayer.dat',
+			'structs_dir':'sources/structures/cgmd-bilayer-lipids-structs',
+			'input_specs':'inputs/input_specs_bilayer.py',
 			}
 		#---override defaults with kwargs
 		for key in ['structs_dir','input_specs']:

@@ -34,7 +34,7 @@ class ProteinWater(amxsim.AMXSimulation):
 		else: self.sources_dir = os.path.abspath(os.path.expanduser('./sources/'))+'/'
 		if 'inputs_file' in kwargs.keys(): 
 			self.inputs_file = os.path.abspath(os.path.expanduser(kwargs['inputs_file']))+'/'
-		else: self.inputs_file = os.path.abspath(os.path.expanduser('./inputs/input-specs-protein.dat'))
+		else: self.inputs_file = os.path.abspath(os.path.expanduser('./inputs/input_specs_protein.py'))
 
 		#---skip everything if the procedure is final configuration is already available
 		#---note that this takes the place of an exception and hence expects the user to remove old files
@@ -70,8 +70,8 @@ class ProteinWater(amxsim.AMXSimulation):
 			#---copy input files from standard sources i.e. the forcefield only if absent
 			if needs_file_transfers:
 				#---scale-specific copy commands
-				if self.simscale == 'aamd':
-					copy(self.sources_dir+'aamd-protein-construct/*',self.rootdir)
+				if self.simscale == 'aamd': 
+					self.write_mdp(mdp_route=['protein_construction_settings',self.simscale])
 				elif self.simscale == 'cgmd':
 					copy(self.sources_dir+'cgmd-protein-construct/*',self.rootdir)
 					copy(self.sources_dir+'martini.ff',self.rootdir+'martini.ff')

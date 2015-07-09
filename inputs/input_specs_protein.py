@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python -B
 
 #---starting structure
 input_filename = 'sources/aamd-protein-structs/3ala.pdb'
@@ -20,14 +20,24 @@ protein_construction_settings = {
 		'sol_name':'SOL',
 		'wbuffer':1.5,
 		'force_field':'charmm27',
-		'force_field_local':['repo/amber99sb-ildn-mod.ff',None][0],
+		'force_field_local':None,
 		'top_includes':[
-			['charmm27.ff/forcefield.itp',
-				'protein.itp',
-				'charmm27.ff/tip3p.itp',
-				'charmm27.ff/ions.itp'],
-			'default',
-			][1],
+			'charmm27.ff/forcefield.itp',
+			'protein.itp',
+			'charmm27.ff/tip3p.itp',
+			'charmm27.ff/ions.itp',
+			],
+		'mdp':{
+			'group':'aamd',
+			'input-em-steep-in.mdp':['minimize'],
+			'input-em-cg-in.mdp':['minimize',{'integrator':'cg'}],
+			},
+		'mdp-equil':{
+			'group':'aamd',
+			'input-md-in.mdp':None,
+			'input-md-nvt-eq-in.mdp':['nvt-protein'],
+			'input-md-npt-eq-in.mdp':['npt-protein'],
+			},
 		},
 	'cgmd':{
 		'positive_counterion_name':'NA+',
@@ -37,7 +47,7 @@ protein_construction_settings = {
 		'solvent_structure':'solvate-water.gro',
 		'negative_counterion_name':'CL-',
 		'sol_name':'W',
-		'wbuffer':5,
+		'wbuffer':3,
 		'top_includes':[
 			'martini.ff/martini-v2.2.itp',
 			'martini.ff/martini-v2.0-lipids.itp',

@@ -4,6 +4,7 @@
 This module contains the parent class which is generalized across almost all GROMACS procedures in automacs.
 """
 
+from copy import deepcopy
 from tools import call,checkout,tee,copy,chain_steps,latestcheck,lastframe,bp,delve,mapdict,redundant
 import os,sys,re
 
@@ -258,73 +259,94 @@ class AMXSimulation:
 			'-pbc nojump']
 		call(cmd,logfile='log-trjconv-nojump-'+basename,cwd=self.rootdir,inpipe="0\n")				
 		
-	def write_mdp(self,mdp_section='mdp',rootdir=None):
+	def write_mdp(self,mdp_route=[],mdp_section='mdp',rootdir=None):
 	
 		"""
 		Universal MDP file writer which creates input files based on a unified dictionary.
-		All MDP parameters should be stored in *mdpdict* within ``inputs/input-specs-mdp.dat``. 
+		All MDP parameters should be stored in *mdpdefs* within ``inputs/input_specs_mdp.py``. 
 		We assemble MDP files according to rules that can be found in the *mdp* entry for the specs 
-		dictionary contained in the ``input-specs-PROCEDURE.dat`` file.
-		
-		The *mdpdict* variable is a nested dictionary which contains individual chunks of an MDP file. 
-		This function parses *mdpdict* and writes the terminal dictionaries (the leaves in a large tree) in
-		the standard GROMACS format according to a set of rules which are designed to make it easy to specify
-		a sequence of parameters with minimal redundancy. We describe the rules according to the *route*,
-		a list of dictionary keys, necessary to navigate from the top of *mdpdict* to a terminal dictionary 
-		(a leaf).
-		
-		1. The *mdp* entry in ``input-specs-PROCEDURE.dat`` contains three types of entries.
+		dictionary contained in the ``input_specs_PROCEDURE.py`` file. Other simulation steps may 
+		use this function to access the mdp_section entry from the same specs dictionary in order 
+		to write more MDP files for e.g. equilibration steps.
 
-			a. The ``top`` entry whittles *mdpdict* according to a list of keywords.
-			b. The ``defaults`` entry specifies the route to parameters which should be included in all MDP files.
-			c. Any entries that contain the name of an MDP file should point to a list of tuples, where each tuple provides a list of routes necessary to construct the file according to the remaining rules in this list.
-
-		2. A tuple which contains an incomplete route (that is, one that ends in a sub-tree instead of a leaf forces the writer to include all of the entries in that sub-tree and exclude other entries with routes that end in the same key.
-		3. If there are any routes that are identical except for the last key, the user must specify the route to the option that they prefer, otherwise an exception will be raised.
-		4. Otherwise, the entire (whittled) *mdpdict* is included in the MDP file. This allows the writer to infer default values. These default values can be overridden by placing a leaf with the same name at a lower level of the tree, specifically inside of a sub-tree.
+		In the ``inputs/input_specs_mdp.py`` file we define the "mdpdefs" (read: Molecular Dynamics 
+		Parameter DEFinitionS) dictionary, which is a customizable description of how to run the GROMACS 
+		integrator. The mdpdefs variable has a few specific kinds of entries denoted by comments and
+		and described here.
 		
-		The author welcomes any advice to make these rules more clear.
+		The top level of mdpdefs is a "group" set in the *mdp* entry of the specs dictionary. This allows us
+		to organize our parameters into distinct groups depending on the task. For example, we might have 
+		different groups of parameters for coarse-grained and atomistic simulations. We whittle the full
+		mdpspecs dictionary by the group name below.
+		
+		Our whittled dictionary then contains three kinds of entries.
+		
+		1. The entry called ``defaults`` is a dictionary which tells you which dictionaries to use if no extra information is provided. Each key in the defaults dictionary describes a type of parameters (e.g. "output" refers to the parameters that specify how to write files). If the associated value is "None" then we assume that the key is found at the top level of mdpdefs. Otherwise the value allows us to descend one more level and choose between competing sets of parameters.
+		2. Other entries with keys defined in ``defaults`` contain either a single dictionary for that default (recall that we just use None to refer to these) or multiple dictionaries with names referred to by the defaults. These entries are usually grouped by type e.g. output or coupling parameters.
+		3. Override keys at the top level of mdpdefs which do not appear in defaults contain dictionaries which are designed to override the default ones wholesale. They can be used by including their names in the list associated with a particular mdp file name in specs. If they contain a dictionary, then this dictionary will override the default dictionary with that key. Otherwise, they should contain key-value pairs that can lookup a default in the same way that the defaults section does.
+		
+		Except for the "group" entry, the specs[mdp_section] (remember that this is defined in 
+		``input_specs_PROCEDURE.py``should include keys with desired MDP file names pointing to lists that 
+		contain override keys and dictionaries. If you include a dictionary in the value for a particular MDP 
+		file then its key-value pairs will either override an MDP setting directly or override a key-value
+		pair in the defaults.
 		"""
 	
 		target_directory = self.rootdir if rootdir == None else rootdir
-		mdpspecs = self.params['bilayer_construction_settings']['cgmd'][mdp_section]
+		mdp_route = mdp_route if type(mdp_route)==list else mdp_route.split(',')
+		mdpspecs = delve(self.params,*(mdp_route+[mdp_section]))
 		mdpfile = {}
-		execfile('./inputs/input-specs-mdp.dat',mdpfile)
-		mdpdict = mdpfile['mdpdict']		
+		execfile('./inputs/input_specs_mdp.py',mdpfile)
+		mdpdefs = mdpfile['mdpdefs']		
 
 		#--topkeys is the root node for our parameters in mdpdict
-		topkeys = mdpspecs['top'] if 'top' in mdpspecs else ()
-		#---defspecs set any default paths on the mdpdict tree which we use for all mdp files
-		defspecs = mdpspecs['defaults'] if 'defaults' in mdpspecs else ()
+		mdpdefs = mdpdefs[mdpspecs['group']] if 'group' in mdpspecs else mdpdefs
+		#---loop over each requested MDP file
 		for mdpname in [i for i in mdpspecs if re.match('.+\.mdp$',i)]:
 			print 'generating mdp: '+mdpname
-			#---for each mdp file the specs defined in the dictionary help select between redundant options
-			specs = mdpspecs[mdpname]+defspecs
-			routes = list(mapdict(delve(mdpdict,*topkeys)))
-			#---divide specs into fulls and partials
-			partials = [spec for spec in specs if spec not in routes]
-			fulls = [spec for spec in specs if spec in routes]
-			#---for each partial we get all of the downstream dictionaries
-			downs = [r for r in routes if any([r[:len(p)]==p for p in partials])]
-			#---whittle all routes so that they don't include any keyword overlap with downs
-			distincts = [r for r in routes if not any([any([i in r for i in d]) for d in downs])]
-			#---resolve conflicts with any fully-specified routes
-			resolve = [r for r in distincts+downs if not any([r[:-1]==f[:-1] for f in fulls])]
-			possibles = resolve+fulls
-			#---finally we override all short routes with longer ones
-			finals = list(set([v[-1] for v in possibles]))
-			check_redundant = [sum([w==f for w in [v[-1] for v in possibles]]) for f in finals]
-			dups = [ii for ii,i in enumerate(check_redundant) if i>1]
-			valids = [a[0] if len(a)==1 else 
-				[b for b in a if len(b)==max([len(c) for c in a])][0] 
-				for a in [[v for v in possibles if v[-1]==f] 
-				for f in finals]]
-			keycollect = [delve(mdpdict,*(topkeys+r)).keys() for r in valids]
-			if redundant([i for j in keycollect for i in j]): 
-				raise Exception('repeated mdp keys for '+mdpname+': '+str(valids))
+			settings = {}
+			#---run through defaults and add them to our MDP file dictionary
+			#---the defaults list contains keys that name essential sections of every MDP file
+			for key,val in mdpdefs['defaults'].items():
+				#---if default says None then we get the parameters for that from the top level
+				if val==None: settings[key] = deepcopy(mdpdefs[key])
+				else: settings[key] = deepcopy(mdpdefs[key][val])
+			#---refinements are given in the mdpspecs dictionary
+			if mdpspecs[mdpname] != None:
+				for refinecode in mdpspecs[mdpname]:
+					#---if the refinement code in the list given at mdpspecs[mdpname] is a string then we
+					#---...navigate to mdpdefs[refinecode] and use its children to override settings[key] 
+					if type(refinecode)==str:
+						for key,val in mdpdefs[refinecode].items():
+							#---if the value for an object in mdpdefs[refinecode] is a dictionary, we 
+							#---...replace settings[key] with that dictionary
+							if type(val)==dict: settings[key] = deepcopy(val)
+							#---otherwise the value is really a lookup code and we search for a default value
+							#---...at the top level of mdpdefs where we expect mdpdefs[key][val] to be 
+							#---...a particular default value for the MDP heading given by key
+							elif type(val)==str: settings[key] = deepcopy(mdpdefs[key][val])				
+							else: raise Exception('unclear refinecode = '+refinecode+', '+key+', '+str(val))
+					#---if the refinement code is a dictionary, we iterate over each rule
+					else:
+						for key2,val2 in refinecode.items():
+							#---if the rule is in the top level of mdpdefs then it selects groups of settings
+							if key2 in mdpdefs.keys(): 
+								print 'using MDP override collection: '+key2+': '+str(val2)
+								settings[key2] = deepcopy(mdpdefs[key2][val2])
+							#---if not, then we assume the rule is meant to override a native MDP parameter
+							#---...so we check to make sure it's already in settings and then we override
+							elif key2 in [j for k in [settings[i].keys() for i in settings] for j in k]:
+								print 'overriding MDP parameter: '+key2+': '+str(val2)
+								for sub in settings:
+									if key2 in settings[sub]: settings[sub][key2] = deepcopy(val2)
+							else: 
+								raise Exception(
+									'cannot comprehend one of your overrides: '+
+									str(key)+' '+str(val))
 			with open(target_directory+'/'+mdpname,'w') as fp:
-				for v in valids:
-					for key,val in delve(mdpdict,*(topkeys+v)).items():
+				for heading,subset in settings.items():
+					fp.write('\n;---'+heading+'\n')
+					for key,val in subset.items():
 						fp.write(str(key)+' = '+str(val)+'\n')
 
 class Multiply(AMXSimulation):
