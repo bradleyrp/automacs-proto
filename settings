@@ -429,6 +429,8 @@ script_dict = {
 			'step_simulation':'s04-sim',
 			'input_files':'cgmd-bilayer-equil',
 			'gpu_flag':'gpu',
+			'mdp_look_string':'bilayer_construction_settings,cgmd',
+			'specs_file':r'inputs\\/input_specs_bilayer.py',
 			},
 		'continue':True,
 		'sequence':[
