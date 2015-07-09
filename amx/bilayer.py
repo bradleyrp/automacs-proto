@@ -109,11 +109,9 @@ class Bilayer(amxsim.AMXSimulation):
 		else:
 			#---make root directory
 			if not os.path.isdir(self.rootdir): 
-				print 666
 				os.mkdir(rootdir)
 				needs_file_transfers = True
 			else: 
-				print 777
 				needs_file_transfers = False
 			#---start the logger
 			sys.stdout = tee(open(self.rootdir+'log-script-master','a',1))
@@ -145,7 +143,7 @@ class Bilayer(amxsim.AMXSimulation):
 					copy(self.sources_dir+'martini.ff',self.rootdir+'martini.ff')
 					#---copy solvent structure
 					copy(self.sources_dir+self.settings['water_conf'],self.rootdir+'solvate-water.gro')
-					self.write_mdp()
+					self.write_mdp(mdp_route=['bilayer_construction_settings',self.simscale])
 				elif self.simscale == 'aamd':
 					copy(self.sources_dir+'aamd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
 					copy(self.sources_dir+'charmm36.ff',self.rootdir+'charmm36.ff')
