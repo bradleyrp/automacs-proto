@@ -52,7 +52,8 @@ class ProteinHomology:
 		self.inputs_file = os.path.abspath(os.path.expanduser('./inputs/input_specs_homology.py'))
 		
 		#---use default path to store structure files
-		self.struct_dir = os.path.abspath(os.path.expanduser(self.sources_dir+'aamd-protein-structs'))+'/'
+		self.struct_dir = os.path.abspath(os.path.expanduser(
+			self.sources_dir+'scripts/aamd-protein-structs'))+'/'
 		
 		#---protein construction settings are pulled from the inputs_file
 		self.params = dict()
@@ -68,7 +69,7 @@ class ProteinHomology:
 		sys.stderr = tee(open(self.rootdir+'log-script-master','a',1),error=True)
 		
 		#---copy modeller scripts
-		copy(self.sources_dir+'aamd-protein-homology/*',self.rootdir)
+		copy(self.sources_dir+'scripts/aamd-protein-homology/*',self.rootdir)
 
 		#---run the homology building procedure
 		self.build()
@@ -166,13 +167,13 @@ class ProteinHomology:
 				batchdir = self.rootdir+'model-v'+('%04d'%(targi+1))+'-'+self.target[targi][0]+'/'
 				batchdirrel = self.rootdirrel+'model-v'+('%04d'%(targi+1))+'-'+self.target[targi][0]+'/'
 				os.mkdir(batchdir)
-				copy(self.sources_dir+'aamd-protein-homology/*',batchdir)
+				copy(self.sources_dir+'scripts/aamd-protein-homology/*',batchdir)
 				copy(self.rootdir+'*.pdb',batchdir)
 			elif batchdir_override != None:
 				batchdir = self.rootdir+batchdir_override+'/'
 				batchdirrel = self.rootdirrel+batchdir_override+'/'
 				os.mkdir(batchdir)
-				copy(self.sources_dir+'aamd-protein-homology/*',batchdir)
+				copy(self.sources_dir+'scripts/aamd-protein-homology/*',batchdir)
 				copy(self.rootdir+'*.pdb',batchdir)
 			else: batchdir,batchdirrel = self.rootdir,self.rootdirrel
 		

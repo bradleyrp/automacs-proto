@@ -904,6 +904,10 @@ class BilayerSculptedFixed(Bilayer):
 			self.construct()
 
 	def construct(self):
+	
+		"""
+		Construction routine for a "sculpted" bilayer.
+		"""
 		
 		cmd = [gmxpaths['trjconv'],
 			'-f prep-equilibrated.gro',

@@ -338,7 +338,9 @@ def batch(**extras):
 	with open(batchspecs['batchdir']+'script-batch-serial.sh','w') as fp:
 		fp.write('#!/bin/bash\n#---batch serial execution\n')
 		for key in hypodict:
-			fp.write(key+'/script-aamd-protein\n')
+			fp.write('cd '+key+'\n')
+			fp.write('./script-aamd-protein\n')
+			fp.write('cd ..'+'\n')
 	print 'Wrote a serial execution script to script-batch-serial.sh'
 	with open(batchspecs['batchdir']+'script-batch-upload.sh','w') as fp:
 		fp.write('#!/bin/bash\n#---batch uploads\n')

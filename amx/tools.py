@@ -94,7 +94,7 @@ def call(command,logfile=None,cwd=None,silent=False,inpipe=None,suppress_stdout=
 			except: 
 				if logfile[-3:] == '-cg' and re.search('mdrun-em',logfile):
 					print 'warning: failed conjugate gradient descent but will procede'
-				else: raise Exception('except: GROMACS execution error!\nsee '+cwd+logfile)
+				else: raise Exception('except: BASH execution error (probably GROMACS)!\nsee '+cwd+logfile)
 			output.close()
 		else: 
 			if not silent: print 'executing command: "'+str(command)+'"'
@@ -105,7 +105,9 @@ def call(command,logfile=None,cwd=None,silent=False,inpipe=None,suppress_stdout=
 					devnull = open('/dev/null','w')
 					subprocess.check_call(command,shell=True,stderr=devnull,cwd=cwd,stdout=devnull)
 				else: subprocess.check_call(command,shell=True,stderr=None,cwd=cwd)
-			except: raise Exception('except: GROMACS execution error!\ncommand: '+command+'\ncwd: '+cwd)
+			except: 
+				raise Exception('except: BASH execution error (probably GROMACS)!\ncommand: '+\
+					command+'\ncwd: '+cwd)
 
 def checkout(command,cwd=None):
 
