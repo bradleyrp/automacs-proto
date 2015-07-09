@@ -5,7 +5,7 @@
 
 #---defaults for running the script locally
 local_nprocs = 4
-local_processor_type = ['standard','gpu'][0]
+local_processor_type = ['standard','gpu'][1]
 
 #---here the hostname is a single word excluding punctuation which can be matched to the true hostname
 #---note that the first element in the corresponding list is the default architecture

@@ -1,0 +1,12 @@
+2015.07.09.1121 START BILAYER
+2015.07.09.1121 'mdp'
+ Traceback (most recent call last):
+   File "<string>", line 2, in <module>
+   File "amx/bilayer.py", line 148, in __init__
+     self.write_mdp()
+   File "amx/amxsim.py", line 297, in write_mdp
+     mdpspecs = delve(self.params,*(mdp_route+[mdp_section]))
+   File "amx/tools.py", line 528, in delve
+     def delve(o,*k): return delve(o[k[0]],*k[1:]) if len(k)>1 else o[k[0]]
+ KeyError: 'mdp'
+2015.07.09.1121 fail

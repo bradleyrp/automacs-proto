@@ -1,0 +1,15 @@
+#!/bin/bash
+
+#---definitions
+gpu_flag=gpu
+step_monolayer=s05-build-lipidgrid
+step_simulation=s08-sim
+step_build=s06-build-bilayer
+step_equilibration=s07-equil
+input_files=cgmd-bilayer-equil
+
+#---execute simulation (continuation) step
+./script-sim.pl
+if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
+
+

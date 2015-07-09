@@ -346,8 +346,7 @@ def batch(**extras):
 		fp.write('#!/bin/bash\n#---batch uploads\n')
 	for key in hypodict:
 		call('make upload step=s04-sim scriptfile='+
-			os.path.abspath(batchspecs['batchdir']+'script-batch-upload.sh'),
-			cwd=key,logfile='derp')
+			os.path.abspath(batchspecs['batchdir']+'script-batch-upload.sh'),cwd=key)
 	print 'Wrote a serial upload script to script-batch-serial.sh\n'+\
 		'To use the uploader, you have to find-replace DEST with your target system\n'+\
 		'from '+batchspecs['batchdir']+' run:\n'+\
