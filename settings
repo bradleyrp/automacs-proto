@@ -253,6 +253,7 @@ gmx_overrides = {
 	'compbio_xeons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	'compbio_opterons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	'walnut':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
+	'kahlo':{'mdrun':'mdrun':'mdrun -nt NPROCS'},
 	}
 	
 #---convert gromacs 4 commands to gromacs 5
@@ -292,8 +293,8 @@ helpstring = """\n
     make view cgmd <files>   : quick look at a CGMD simulation with GRO and 
                                XTC files in VMD using an ad hoc script
     make batch               : parameter sweep over simulations
-	make docs <clean>        : generate docs if python-Sphinx is available
-	                           or remove them with clean
+    make docs <clean>        : generate docs if python-Sphinx is available
+                               or remove them with clean
 
     simulations:
     -----------
