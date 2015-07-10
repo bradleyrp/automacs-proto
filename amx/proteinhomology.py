@@ -276,16 +276,19 @@ class ProteinHomology:
 			with open(self.rootdir+template[0]+'.pdb','r') as fp: lines = fp.readlines()
 			startres = int([l for l in lines if re.match('^ATOM',l)][0].split()[5])
 		with open(self.rootdir+self.template[0][0]+'.pdb','r') as fp: lines = fp.readlines()
-		seqresli = [li for li,l in enumerate(lines) if re.match('^SEQRES\s+',l)]
-		seqraw = [re.findall('^SEQRES\s+[0-9]+\s+([A-Z])\s+[0-9]+\s+(.+)',lines[li])[0] for li in seqresli]
+		seqresli = [li for li,l in enumerate(lines) if re.match('^(SEQRES|REMARK\s300)\s+',l)]
+		seqraw = [re.findall('^(SEQRES|REMARK\s300)\s+[0-9]+\s+([A-Z])\s+[0-9]+\s+(.+)',lines[li])[0] 
+			for li in seqresli]
 		sequence = ''.join([''.join([aacodemap[j] for j in i[1].split()]) 
 			for i in seqraw if i[0] == self.template[0][1]])
 		#---handle missing residues
 		missingli = [re.findall('^REMARK\s+([0-9]+)\sMISSING RESIDUES',l)[0] for li,l in enumerate(lines) 
-			if re.match('^REMARK\s+([0-9]+)\sMISSING RESIDUES',l)][0]
-		startres = int([re.findall('^REMARK\s+'+missingli+'\s+[A-Z]{3}\s+[A-Z]\s+([0-9]+)',l)[0]
-			for li,l in enumerate(lines) 
-			if re.match('^REMARK\s+'+missingli+'\s+[A-Z]{3}\s+[A-Z]\s+[0-9]+',l)][0])
+			if re.match('^REMARK\s+([0-9]+)\sMISSING RESIDUES',l)]
+		if missingli == []:
+			startres = int([re.findall('^REMARK\s+'+missingli+'\s+[A-Z]{3}\s+[A-Z]\s+([0-9]+)',l)[0]
+				for li,l in enumerate(lines) 
+				if re.match('^REMARK\s+'+missingli+'\s+[A-Z]{3}\s+[A-Z]\s+[0-9]+',l)][0])
+		else: startres = 0
 		self.target = []
 		for mi,mut in enumerate(self.settings['mutations']):
 			sequence_mut = list(sequence)
