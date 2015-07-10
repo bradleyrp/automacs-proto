@@ -13,6 +13,7 @@ valid_hostnames = {
 	'compbio':['opterons','opterons_gpu','xeons'][0],
 	'walnut':None,
 	'tobias':None,
+	'SEASNet':None,
 	}
 
 #---hostname-to-architecture dictionary
@@ -94,6 +95,16 @@ echo "Job started on `hostname` at `date`"
 cd $PBS_O_WORKDIR
 """
 
+cluster_header_SEASNet = \
+"""#!/bin/bash
+#PBS -l nodes=1:ppn=4,walltime=24:00:00
+#PBS -j eo
+#PBS -q batch
+#PBS -N gmxjob
+echo "Job started on `hostname` at `date`"
+cd $PBS_O_WORKDIR
+"""
+
 cluster_header_walnut = \
 """#!/bin/bash
 #PBS -l nodes=1:ppn=32,walltime=24:00:00,pmem=1500mb
@@ -137,6 +148,7 @@ script_repo = {
 	'cluster_header_compbio_xeons':cluster_header_compbio_xeons,
 	'cluster_header_compbio_xeons_scratch':cluster_header_compbio_xeons_scratch,
 	'cluster_header_tobias':cluster_header_tobias,
+	'cluster_header_SEASNet':cluster_header_SEASNet,
 	'cluster_header_walnut':cluster_header_walnut,
 	'cluster_header_walnut_scratch':cluster_header_walnut_scratch,
 	}
@@ -196,6 +208,9 @@ default_proc_specs = {
 	'tobias':
 		{'nodes':1,'ppn':8,'walltime':24,'scratch':False,
 		'module':'export PATH=$PATH:/usr/local/gromacs/bin/:/usr/local/bin/'},
+	'SEASNet':
+		{'nodes':1,'ppn':4,'walltime':24,'scratch':False,
+		'module':'module load gromacs/gromacs-4.6.3'},
 	}
 	
 #---gromacs paths
@@ -242,6 +257,9 @@ tool_paths = {
 #---DOCUMENTATION
 #-------------------------------------------------------------------------------------------------------------
 
+#---DOCUMENTATION
+#-------------------------------------------------------------------------------------------------------------
+
 helpstring = """\n
     Automacs (AMX) CONTROLLER.\n
     make script <simulation> : prepare a simulation and associated scripts 
@@ -259,8 +277,8 @@ helpstring = """\n
     make view cgmd <files>   : quick look at a CGMD simulation with GRO and 
                                XTC files in VMD using an ad hoc script
     make batch               : parameter sweep over simulations
-                               
-    clean docs???
+	make docs <clean>        : generate docs if python-Sphinx is available
+	                           or remove them with clean
 
     simulations:
     -----------
@@ -268,18 +286,13 @@ helpstring = """\n
     aamd-protein         : protein in a water box using CHARMM27 force field    
     protein-homology     : structure prediction via MODELLER with either 
                            multiple templates or large batches of mutations
-
-    simulations (re-development):
-    ----------------------------
     cgmd-protein         : coarse-grained protein under MARTINI force field 
-                           with structure options
-    cgmd-protein-sculpt  : coarse-grained protein under MARTINI force field 
-                           with a custom shape
-    aamd-bilayer         : bilayer under CHARMM36 force field
-    protein-homology     : single- or muliple-template homology models with 
-                           options for batches of mutations
-    multiply nx=N ny=M   : replicate a simulation box
-    restart              : generic restart which auto-detects CPT/GRO
+                           with assorted structure options via MARTINIZE
+    restart              : generic restart which auto-detects CPT/GRO and
+                           continues a simulation with repo/input-md-in.mdp
+
+    *note that cgmd-protein, cgmd-protein-sculpt, aamd-bilayer, and multiply
+    functions are under re-development and have been temporarily removed
     """
 
 document_string = \
