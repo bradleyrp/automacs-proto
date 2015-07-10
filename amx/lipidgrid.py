@@ -241,7 +241,7 @@ class MonolayerGrids:
 		call('rm 2.2.gro',cwd=rootdir,silent=True)
 		call('rm 3.1.gro',cwd=rootdir,silent=True)
 
-	def build_monolayers(self):
+	def build_monolayers(self,view_config=False):
 
 		'''
 		Generate a random arrangement of lipids and iteratively construct a grid of lipid structures according
@@ -321,33 +321,35 @@ class MonolayerGrids:
 			print 'proposed configuration = \n'+'\n'.join([str(i) for i in arrangement])
 
 			#---vizualization feature is disabled to prevent errors
-			try: 
-				import numpy
-				import matplotlib as mpl
-				import matplotlib.pylab as plt
-				cmap = mpl.cm.jet
-				fig = plt.figure()
-				ax = fig.add_subplot(111)
-				ax.set_title('lipid configuration')
-				afill = list(arrangement)
-				if len(afill[-1]) < len(afill[0]):
-					afill[-1] = afill[-1]+[float(len(complist)) 
-						for i in range(len(afill[0])-len(afill[-1]))]
-					print 'note that fill values of '+str(len(complist))+' are empty'
-					bounds = range(len(complist)+1+1)
-				else: bounds = range(len(complist)+1)
-				afill = numpy.array(afill)
-				print bounds
-				print afill
-				norm = mpl.colors.BoundaryNorm(bounds,cmap.N)
-				im = plt.imshow(afill.T,interpolation='nearest',
-					origin='lower',cmap=cmap,norm=norm)
-				cbar = plt.colorbar(im,orientation="vertical")
-				print 'found matplotlib and saving figure to fig-arrangement'+str(ci)+'.png'
-				plt.savefig(self.rootdir+'fig-arrangement'+str(ci)+'.png',dpi=100)
-				plt.clf()
+			if view_config:
+			
+				try: 
+					import numpy
+					import matplotlib as mpl
+					import matplotlib.pylab as plt
+					cmap = mpl.cm.jet
+					fig = plt.figure()
+					ax = fig.add_subplot(111)
+					ax.set_title('lipid configuration')
+					afill = list(arrangement)
+					if len(afill[-1]) < len(afill[0]):
+						afill[-1] = afill[-1]+[float(len(complist)) 
+							for i in range(len(afill[0])-len(afill[-1]))]
+						print 'note that fill values of '+str(len(complist))+' are empty'
+						bounds = range(len(complist)+1+1)
+					else: bounds = range(len(complist)+1)
+					afill = numpy.array(afill)
+					print bounds
+					print afill
+					norm = mpl.colors.BoundaryNorm(bounds,cmap.N)
+					im = plt.imshow(afill.T,interpolation='nearest',
+						origin='lower',cmap=cmap,norm=norm)
+					cbar = plt.colorbar(im,orientation="vertical")
+					print 'found matplotlib and saving figure to fig-arrangement'+str(ci)+'.png'
+					plt.savefig(self.rootdir+'fig-arrangement'+str(ci)+'.png',dpi=100)
+					plt.clf()
 
-			except ImportError: print 'no numpy or matplotlib so the text arrangement will have to do'
+				except ImportError: print 'no numpy or matplotlib so the text arrangement will have to do'
 
 			#---write the configuration
 			fp = open(rootdir+'config.dat','w')
