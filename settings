@@ -253,7 +253,7 @@ gmx_overrides = {
 	'compbio_xeons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	'compbio_opterons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	'walnut':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
-	'kahlo':{'mdrun':'mdrun':'mdrun -nt NPROCS'},
+	'kahlo':{'mdrun':'mdrun -nt NPROCS'},
 	}
 	
 #---convert gromacs 4 commands to gromacs 5
