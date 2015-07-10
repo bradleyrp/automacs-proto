@@ -213,7 +213,7 @@ def script(single=None,rescript=False,**extras):
 		proc_settings,header_source_mod,hs_footer = get_proc_settings()
 		#---if possible write the cluster script
 		if header_source_mod != None or rescript:
-			with open('./cluster-master-'+target,'w') as fp:
+			with open('./cluster-'+target,'w') as fp:
 				fp.write(header_source_mod)
 				fp.write(script_maker(target,script_dict,module_commands=proc_settings['module'],
 					sim_only=None,extras=extras))

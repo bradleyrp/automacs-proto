@@ -1,0 +1,31 @@
+#!/bin/bash
+
+#---definitions
+step_equilibration=s02-equil
+step_simulation=s03-sim
+step_build=s01-protein-bilayer
+input_files=cgmd-protein-bilayer
+
+#---execute python step
+python -c "execfile('./amx/header');
+try: ProteinBilayer(rootdir='$step_build');
+except Exception,e:
+	print str(e);
+	traceback.print_exc();
+	print 'fail';"
+go=$(tail $step_build/log-script-master)
+if [[ "$go" =~ fail$ ]];then exit;fi
+
+#---execute equilibration step
+cd $step_equilibration
+echo "moved to "$step_equilibration", "$(pwd)
+./script-equilibrate.pl
+if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
+cd ..
+
+#---execute simulation (continuation) step
+cd $step_simulation
+./script-sim.pl
+if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
+cd ..
+

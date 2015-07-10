@@ -58,7 +58,7 @@ class ProteinBilayer(amxsim.AMXSimulation):
 		#---manually specify the sources directory and the inputs file
 		if 'sources_dir' in kwargs.keys(): 
 			self.sources_dir = os.path.abspath(os.path.expanduser(kwargs['sources_dir']))+'/'
-		else: self.sources_dir = os.path.abspath(os.path.expanduser('./sources/'))+'/'
+		else: self.sources_dir = os.path.abspath(os.path.expanduser('./sources/topology/'))+'/'
 		if 'inputs_file' in kwargs.keys(): 
 			self.inputs_file = os.path.abspath(os.path.expanduser(kwargs['inputs_file']))+'/'
 		else: 
@@ -91,9 +91,9 @@ class ProteinBilayer(amxsim.AMXSimulation):
 			self.settings = self.params['construction_settings'][self.simscale]
 			print self.rootdir
 			#---copy files from the repo
-			copy('sources/cgmd-bilayer-construct/input-em-*-in.mdp',self.rootdir)
+			copy('sources/topology/cgmd-bilayer-construct/input-em-*-in.mdp',self.rootdir)
 			copy('sources/martini.ff',self.rootdir+'martini.ff')
-			copy('sources/cgmd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
+			copy('sources/topology/cgmd-bilayer-lipids-tops',self.rootdir+'lipids-tops')
 			for fn in [self.settings[i] for i in 
 				['struct_protein','struct_lipid','struct_membrane','top_protein']]:
 				copy(fn,self.rootdir+os.path.basename(fn))

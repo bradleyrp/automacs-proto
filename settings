@@ -97,7 +97,7 @@ cd $PBS_O_WORKDIR
 
 cluster_header_SEASNet = \
 """#!/bin/bash
-#PBS -l nodes=1:ppn=4,walltime=24:00:00
+#PBS -l nodes=1:ppn=2,walltime=4:00:00
 #PBS -j eo
 #PBS -q batch
 #PBS -N gmxjob
@@ -640,4 +640,3 @@ script_dict = {
 			],
 		},
 	}
-

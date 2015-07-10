@@ -8,7 +8,7 @@ simscale = 'cgmd'
 construction_settings = {
 	'cgmd':{
 		#---structures
-		'struct_protein':'repo/snx9/snx9.gro',
+		'struct_protein':'repo/1ZWW.pdb',
 		'top_protein':'repo/snx9/Protein_A.itp',
 		'struct_membrane':'repo/membrane-v630/md.part0003.gro',
 		'top_membrane':'repo/membrane-v630/system.top',
@@ -23,7 +23,7 @@ construction_settings = {
 		#---adhesion method type
 		'method_adhesion':['ready','contact','partner'][1],
 		#---contact specs
-		'struct_lipid':'sources/cgmd-protein-bilayer/orient-PIP2.gro',
+		'struct_lipid':['sources/cgmd-protein-bilayer/orient-PIP2.gro',None][-1],
 		'struct_lipid_head_atoms':[1,2,3,4],
 		'protein_binding_pocket_residues':[48,91,423,458],
 		#---solvent specifications
