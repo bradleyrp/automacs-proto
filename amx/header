@@ -2,6 +2,8 @@
 
 #---if imports fail it is because you are running from automacs root directory
 import sys,traceback
+#---disable pyc files
+sys.dont_write_bytecode = True
 
 try:
 
