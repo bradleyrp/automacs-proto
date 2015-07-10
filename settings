@@ -209,7 +209,7 @@ default_proc_specs = {
 		{'nodes':1,'ppn':8,'walltime':24,'scratch':False,
 		'module':'export PATH=$PATH:/usr/local/gromacs/bin/:/usr/local/bin/'},
 	'SEASNet':
-		{'nodes':1,'ppn':4,'walltime':24,'scratch':False,
+		{'nodes':1,'ppn':2,'walltime':4,'scratch':False,
 		'module':'module load gromacs/gromacs-4.6.3'},
 	}
 	
