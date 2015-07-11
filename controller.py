@@ -209,7 +209,6 @@ def script(single=None,rescript=False,**extras):
 		if simscale != None:
 			for fn in glob.glob('./inputs/input_specs*'):
 				sub = subprocess.call(['sed','-i',"s/^.*simscale.*$/simscale = \'"+simscale+"\'/",fn])
-	
 		proc_settings,header_source_mod,hs_footer = get_proc_settings()
 		#---if possible write the cluster script
 		if header_source_mod != None or rescript:

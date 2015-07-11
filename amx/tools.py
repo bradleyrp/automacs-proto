@@ -402,7 +402,7 @@ def get_proc_settings():
 	print '\thostname = '+str(hostname)
 	#---if no hostname matches use the local steps
 	if hostname == None: system_id = 'local'
-	#---check for gromacs version and update the overrides if necessary
+	#---check for local gromacs version and update the overrides if necessary
 	gmxversion = 5
 	try: call('gmx',suppress_stdout=True,silent=True)
 	except: gmxversion = 4
@@ -420,14 +420,17 @@ def get_proc_settings():
 			print '\t\t'+key+' = '+str(default_proc_specs[system_id][key])
 		proc_settings = default_proc_specs[system_id]
 	else: proc_settings = None
-	
+	#---in case gromacs 5 is not loaded before the check above we check for modules that match gromacs-5
+	if 'module' in proc_settings and re.match('.+gromacs-5',proc_settings['module']): gmxversion = 5
+
 	#---write gmxpaths.conf
 	#---note that you can only change the NPROCS commands passed downstream here
 	#---...this means that ./controller make must be rerun to switch processor counts
 	fp = open('gmxpaths.conf','w')
 	for key in standard_gromacs_commands:
 		if gmxversion==5 or (system_id in gmx_overrides.keys() and key in gmx_overrides[system_id].keys()):
-			if key in gmx_overrides[system_id]: command_syntax = gmx_overrides[system_id][key]
+			if system_id in gmx_overrides and key in gmx_overrides[system_id]: 
+				command_syntax = gmx_overrides[system_id][key]
 			else: command_syntax = key
 			if proc_settings != None:
 				command_syntax = re.sub('NPROCS',
