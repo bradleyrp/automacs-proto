@@ -421,8 +421,10 @@ def get_proc_settings():
 		proc_settings = default_proc_specs[system_id]
 	else: proc_settings = None
 	#---in case gromacs 5 is not loaded before the check above we check for modules that match gromacs-5
-	if 'module' in proc_settings and re.match('.+gromacs-5',proc_settings['module']): gmxversion = 5
-
+	if 'module' in proc_settings and \
+		proc_settings['module'] != None and \
+		re.match('.+gromacs-5',proc_settings['module']): 
+		gmxversion = 5
 	#---write gmxpaths.conf
 	#---note that you can only change the NPROCS commands passed downstream here
 	#---...this means that ./controller make must be rerun to switch processor counts
