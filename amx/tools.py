@@ -421,7 +421,8 @@ def get_proc_settings():
 		proc_settings = default_proc_specs[system_id]
 	else: proc_settings = None
 	#---in case gromacs 5 is not loaded before the check above we check for modules that match gromacs-5
-	if 'module' in proc_settings and \
+	if proc_settings != None and \
+		'module' in proc_settings and \
 		proc_settings['module'] != None and \
 		re.match('.+gromacs-5',proc_settings['module']): 
 		gmxversion = 5
