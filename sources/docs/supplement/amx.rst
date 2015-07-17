@@ -82,20 +82,36 @@ The latter can be combined with the :ref:`sec-batchmaker` to run large numbers o
 
 Here is an example procedure in which the user creates a homology model of a known structure, adds a point mutation, and then runs a protein-in-water simulation.
 
-1. Choose a PDB structure.
-	a. Enter its 4-character code in the *mutator, template* entry in ``homology_construction_settings`` in ``inputs/input_specs_homology.py``. 
-	b. If you have a custom PDB file already, move it to the ``repo`` folder (create it if necessary) and add the file name (without suffix) to *mutator, template*.
-2. Enter your mutations in *mutator, mutations* which is a list of tuples. Each tuple contains three items: the original residue (we check that this matches), the position, and the mutated residue.
+1. Choose a structure. Locate the tuple in the *mutator, template* section of ``homology_construction_settings`` in the ``inputs/input_specs_homology.py``. This tuple has two items: a the "name" of the protein and its chain. The chain is always a single letter which you must specify.  You can name your protein in one of two ways.
+	a. If you provide a PDB code (always a 4-character string), the program will download that PDB for you automatically.
+	b. If you have a custom structure, add it to the ``repo`` folder, and use the file prefix (i.e. without ".pdb" suffix) as its name.
+2. Enter your mutations in *mutator, mutations* which is a list of tuples. Each tuple contains three items: the original residue (we check that this matches), the position, and the mutated residue. We use single-letter amino acid codes.
 3. MODELLER will make many models so that you can pick the best one. We recommend setting ``nmodels`` in *mutator* to at least 20.
 4. Run ``make script protein-homology``. This runs MODELLER and creates the starting structure.
 5. The file ``repo/batch_file_list.txt`` contains the paths to the top model for your mutation(s). Choose one carefully. 
 6. Replace ``input_filename`` in ``inputs/input_specs_protein.py`` with your chosen path. This will tell the simulator where to find the starting structure.
-7. Run ``make script aamd-protein`` to prepare the simulator scripts.
-8. Run ``./script-aamd-protein`` to run the simulation.
-9. ???
-10. Profit.
+7. Procede with an atomistic protein simulation as per the instructions in :ref:`sec-aamd-protein` (see step 3, since you've already set ``input_filename``). 
 
 .. automodule:: amx.proteinhomology
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. _sec-aamd-protein:
+
+Atomistic protein simulation
+----------------------------
+
+Creating a simulation of an atomistic protein in water is one of the most common modeling tasks. All of the tunable parameters for this procedure are located in ``inputs/input_specs_protein.py``, however they are set to industry-standard defaults and require little intervention. The user must only supply a protein structure to get started. Here is a simple use case.
+
+1. Choose a structure. Save it to the ``repo`` folder (create this folder if it doesn't exist already).
+2. Set the ``input_filename`` variable in ``inputs/input_specs_protein.py`` to the path for your structure. This path is relative to the automacs root directory so you should include the folder name (e.g. ``repo/my_structure.pdb``). The ``repo`` directory is safe from deletion when you reset the code via ``make clean``.
+3. Run ``make script aamd-protein`` to prepare the simulator scripts.
+4. Run ``./script-aamd-protein`` to run the simulation.
+
+This will produce a standard atomistic simulation. To increase the duration of the simulation, you can run ``./script-md-continue`` in the ``sN-sim`` folder, which contains the production run trajectories. You can continue the simulation as many times as you want.
+
+.. automodule:: amx.protein
     :members:
     :undoc-members:
     :show-inheritance:
