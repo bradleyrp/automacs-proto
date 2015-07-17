@@ -158,7 +158,7 @@ class ProteinHomology:
 				copy(self.rootdir+t[0]+'.pdb','./repo/'+t[0]+'.pdb')
 			self.template.append(t)
 			
-	def build_model_single(self,batchdir_override=None):
+	def build_model_single(self,batchdir_override=None,startres=1):
 
 		"""
 		Build a homology model from a single template using the standard MODELLER procedure. 
@@ -253,8 +253,20 @@ class ProteinHomology:
 				fp.write('\tset transformation_mat [measure fit $comparison_sel $reference_sel]\n')
 				fp.write('\tset move_sel [atomselect $i "all"]\n')
 				fp.write('\t$move_sel move $transformation_mat\n}\n')
-		
-		#---write comparison script here
+			
+		#---add a remark to convey the correct starting residue
+		for root,dirnames,filenames in os.walk(batchdir): break
+		structures_out = [fn for fn in filenames if re.match('^'+self.target[targi][0]+'.+\.pdb',fn)]
+		for fn in structures_out:
+			print "adding remark 999 to %s, starting residue = %s"%(fn,startres)
+			with open(batchdir+fn,'r') as fp: lines = fp.readlines()
+			with open(batchdir+fn,'w') as fp:
+				written_remark = False
+				for line in lines:
+					if re.match('^ATOM',line) and not written_remark: 
+						fp.write('REMARK 999 starting residue = %d\n'%startres)
+						written_remark = True
+					fp.write(line)
 				
 	def build_model_multi(self):
 
@@ -358,5 +370,5 @@ class ProteinHomology:
 			#---...particularly in ???
 			batchdir = 'model-v'+('%05d'%(mi))+'-'+self.template[0][0]+'_chain'+self.template[0][1]+\
 				'_mut'+''.join([str(j) for j in mut])+'/'
-			self.build_model_single(batchdir_override=batchdir)
+			self.build_model_single(batchdir_override=batchdir,startres=startres)
 

@@ -118,6 +118,13 @@ class ProteinWater(amxsim.AMXSimulation):
 			self.construction()
 			
 	def construction(self):
+	
+		"""
+		Supervises the construction of a protein-solvent simulation. This function checks for the presence
+		of ``<step>-minimized.gro`` files in order to skip steps which have already been completed (this is 
+		useful for development).
+		"""
+	
 		if self.simscale == 'aamd':
 			if not os.path.isfile(self.rootdir+'vacuum-minimized.gro'): self.vacuum()
 			else: print 'skipping vacuum construction because vacuum-minimized.gro exists'
@@ -133,6 +140,10 @@ class ProteinWater(amxsim.AMXSimulation):
 		else: print 'skipping the grouping step because system.gro exists'
 	
 	def vacuum_cgmd(self):
+	
+		"""
+		Prepare a coarse-grained model of a protein.
+		"""
 
 		exstring_dssp = 'except: cannot find dssp at '+gmxpaths['dssp']+\
 			'\nconsider using the following syntax to download for 64-bit linux:'+\
@@ -183,6 +194,17 @@ class ProteinWater(amxsim.AMXSimulation):
 		self.minimization_method('vacuum')
 
 	def vacuum(self):
+		
+		"""
+		Prepare a protein for vacuum minimization (atomistic). Deal with histidine charge.
+		"""
+		
+		start_resnr = 1
+		#---check for remark 999 to see if we have a starting residue not 1
+		with open(self.rootdir+'system-input.pdb','r') as fp: lines = fp.readlines()
+		regex = 'REMARK 999 starting residue = ([0-9]+)'
+		trawl = [re.findall(regex,line) for line in lines if re.match(regex,line)]
+		if trawl != []: start_resnr = int(trawl[0][0])
 
 		#---fix histidine naming according to the convention set by the force field
 		if self.settings['force_field'] == 'charmm27':
@@ -210,7 +232,8 @@ class ProteinWater(amxsim.AMXSimulation):
 		cmd = [gmxpaths['editconf'],
 			'-f prep-protein-start.pdb',
 			'-o prep-protein-start-stripped.pdb',
-			'-n prep-index-protein-only.ndx']
+			'-n prep-index-protein-only.ndx',
+			'-resnr '+str(start_resnr)]
 		call(cmd,logfile='log-editconf-prep-protein-strip',cwd=self.rootdir)
 
 		print "running pdb2gmx"
@@ -226,8 +249,7 @@ class ProteinWater(amxsim.AMXSimulation):
 		
 		cmd = [gmxpaths['editconf'],
 			'-f vacuum-alone-number1.gro',
-			'-o vacuum-alone.gro',
-			'-resnr 669']
+			'-o vacuum-alone.gro']
 		call(cmd,logfile='log-editconf-renumber',cwd=self.rootdir)
 		
 		#---intervening step will isolate the ITP data from the TOP file to use standardized TOP
@@ -274,6 +296,10 @@ class ProteinWater(amxsim.AMXSimulation):
 		self.minimization_method('vacuum')
 
 	def solvate(self):
+	
+		"""
+		Solvate a protein in a box of water with particular dimensions.
+		"""
 
 		print "checking the size of the protein"
 		cmd = [gmxpaths['editconf'],
@@ -293,7 +319,6 @@ class ProteinWater(amxsim.AMXSimulation):
 		center = [i/2. for i in boxvecs]
 		cmd = [gmxpaths['editconf'],
 			'-f vacuum-minimized.gro',
-			'-resnr 669',
 			'-o solvate-protein.gro',
 			'-center '+str(center[0])+' '+str(center[1])+' '+str(center[2]),
 			'-box '+str(boxvecs[0])+' '+str(boxvecs[1])+' '+str(boxvecs[2])]
@@ -363,6 +388,10 @@ class ProteinWater(amxsim.AMXSimulation):
 		self.minimization_method('solvate')
 
 	def counterions(self):
+	
+		"""
+		Add counterions to a simulation without them.
+		"""
 
 		print "adding counterions"
 		copy(self.rootdir+'solvate.top',self.rootdir+'counterions.top')
@@ -396,13 +425,21 @@ class ProteinWater(amxsim.AMXSimulation):
 		self.minimization_method('counterions')
 		
 		print "writing structure with correct residue numbers to structure.pdb"
+		with open(self.rootdir+'system-input.pdb','r') as fp: lines = fp.readlines()
+		startres = int([line for line in lines if re.match('^ATOM',line)][0][23:26+1])		
+		print "according to the input_filename, the starting residue is %d"%startres
+		print "[WARNING] use struture.pdb for post-processing for the right residue numbers"
 		cmd = [gmxpaths['editconf'],
 			'-f counterions.gro',
 			'-o structure.pdb',
-			'-resnr 669']
+			'-resnr %d'%startres]
 		call(cmd,logfile='log-editconf-structure-pdb',cwd=self.rootdir)
 		
 	def groups(self):
+	
+		"""
+		Write a system-groups.ndx file with commonly-used groups that GROMACS doesn't usually define.
+		"""
 
 		print "completed minimization"
 		copy(self.rootdir+'counterions-minimized.gro',self.rootdir+'system.gro')

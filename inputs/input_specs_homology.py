@@ -63,7 +63,8 @@ homology_construction_settings = {
 				('braf_inactive','B'),
 				],
 			'mutations':[
-				][:5],			
+				('B',468+1,'J'),
+				][:],			
 			},
 		'example_from_pdb':{
 			'n_models':2,
@@ -74,6 +75,6 @@ homology_construction_settings = {
 				('E',710,'A'),
 				],
 			},
-		}['example_from_custom'],
+		}['example_from_pdb'],
 	}
 
