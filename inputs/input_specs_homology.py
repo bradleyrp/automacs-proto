@@ -57,24 +57,13 @@ homology_construction_settings = {
 
 	#---mutate a protein from the PDB
 	'mutator':{
-		'example_from_custom':{
-			'n_models':4,
-			'template':[
-				('braf_inactive','B'),
-				],
-			'mutations':[
-				('B',468+1,'J'),
-				][:],			
-			},
-		'example_from_pdb':{
-			'n_models':2,
-			'template':('2GS7','A'),
-			'mutations':[
-				('K',690,'R'),
-				('E',710,'R'),
-				('E',710,'A'),
-				],
-			},
-		}['example_from_pdb'],
+		'n_models':2,
+		'template':('2GS7','A'),
+		'mutations':[
+			('K',690,'R'),
+			('E',710,'R'),
+			('E',710,'A'),
+			],
+		},
 	}
 

@@ -13,7 +13,7 @@ each of which uses a different starting structure.
 2. Run ``make script protein-homology`` to generate many homology models using a ``sequence.txt`` file in repo or use the mutator to do likewise. If you have a large batch of artisanal protein structures from another source, you can just add them somewhere in the (safe) repo directory and write a list of their pathnames to repo/batch_file_list.txt (referenced below in the sweep).
 3. If you use the homology routine, it will write PDB files in subdirectories of s01-homology.
 4. Running script-protein-homology will also generate repo/batch_file_list.txt via script-best-models.py, however you may wish to choose the best models yourself and change batch_file_list.txt.
-5. Set the sweep variable below so that it sweeps over the 'input_filename' variable. 
+5. Set the sweep variable in ``inputs/input_specs_batch.py`` so that it sweeps over the 'input_filename' variable. 
 6. Run ``make batch``
 7. This creates a batch directory with subfolders of the form *runN*, numbered over the homology models in ``s01-homology``. The code automatically runs ``make script aamd-protein`` in these folders in order to generate the scripts. 
 8. Having automatically generated the code and the necessary script, you must execute the scripts yourself. Note that if you move the data to the cluster you will probably have to run "make rescript" to prepare a cluster script.

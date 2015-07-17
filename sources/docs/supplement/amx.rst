@@ -80,6 +80,21 @@ The code has two main uses. You can create a model from one or more templates, o
 batch of mutations from either a stock PDB structure or a custom structure that you drop in ``repo``.
 The latter can be combined with the :ref:`sec-batchmaker` to run large numbers of protein simulations.
 
+Here is an example procedure in which the user creates a homology model of a known structure, adds a point mutation, and then runs a protein-in-water simulation.
+
+1. Choose a PDB structure.
+	a. Enter its 4-character code in the *mutator, template* entry in ``homology_construction_settings`` in ``inputs/input_specs_homology.py``. 
+	b. If you have a custom PDB file already, move it to the ``repo`` folder (create it if necessary) and add the file name (without suffix) to *mutator, template*.
+2. Enter your mutations in *mutator, mutations* which is a list of tuples. Each tuple contains three items: the original residue (we check that this matches), the position, and the mutated residue.
+3. MODELLER will make many models so that you can pick the best one. We recommend setting ``nmodels`` in *mutator* to at least 20.
+4. Run ``make script protein-homology``. This runs MODELLER and creates the starting structure.
+5. The file ``repo/batch_file_list.txt`` contains the paths to the top model for your mutation(s). Choose one carefully. 
+6. Replace ``input_filename`` in ``inputs/input_specs_protein.py`` with your chosen path. This will tell the simulator where to find the starting structure.
+7. Run ``make script aamd-protein`` to prepare the simulator scripts.
+8. Run ``./script-aamd-protein`` to run the simulation.
+9. ???
+10. Profit.
+
 .. automodule:: amx.proteinhomology
     :members:
     :undoc-members:
