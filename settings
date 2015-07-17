@@ -436,6 +436,10 @@ go=$(tail ROOTDIR/log-script-master)
 if [[ "$go" =~ fail$ ]];then exit;fi
 \n"""
 
+script_rename_rundirs = """
+if re.match('^(y|Y)',raw_input('%s (y/N)'%msg)) != None:
+	for key,val in rundir_names.items(): shutil.move(key,val)
+"""
 
 #---BASH SCRIPT GENERATOR
 #-------------------------------------------------------------------------------------------------------------

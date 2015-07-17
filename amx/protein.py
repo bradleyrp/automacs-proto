@@ -216,13 +216,19 @@ class ProteinWater(amxsim.AMXSimulation):
 		print "running pdb2gmx"
 		cmd = [gmxpaths['pdb2gmx'],
 			'-f prep-protein-start-stripped.pdb',
-			'-o vacuum-alone.gro',
+			'-o vacuum-alone-number1.gro',
 			'-p vacuum-standard.top',
 			'-ignh',
 			'-i system-posre.itp',
 			'-ff '+self.settings['force_field'],
 			'-water '+self.settings['water_model']]
 		call(cmd,logfile='log-pdb2gmx',cwd=self.rootdir)
+		
+		cmd = [gmxpaths['editconf'],
+			'-f vacuum-alone-number1.gro',
+			'-o vacuum-alone.gro',
+			'-resnr 669']
+		call(cmd,logfile='log-editconf-renumber',cwd=self.rootdir)
 		
 		#---intervening step will isolate the ITP data from the TOP file to use standardized TOP
 		with open(self.rootdir+'vacuum-standard.top','r') as f: topfile = f.read()
@@ -287,6 +293,7 @@ class ProteinWater(amxsim.AMXSimulation):
 		center = [i/2. for i in boxvecs]
 		cmd = [gmxpaths['editconf'],
 			'-f vacuum-minimized.gro',
+			'-resnr 669',
 			'-o solvate-protein.gro',
 			'-center '+str(center[0])+' '+str(center[1])+' '+str(center[2]),
 			'-box '+str(boxvecs[0])+' '+str(boxvecs[1])+' '+str(boxvecs[2])]
@@ -387,7 +394,14 @@ class ProteinWater(amxsim.AMXSimulation):
 		
 		print "minimizing with solvent"
 		self.minimization_method('counterions')
-
+		
+		print "writing structure with correct residue numbers to structure.pdb"
+		cmd = [gmxpaths['editconf'],
+			'-f counterions.gro',
+			'-o structure.pdb',
+			'-resnr 669']
+		call(cmd,logfile='log-editconf-structure-pdb',cwd=self.rootdir)
+		
 	def groups(self):
 
 		print "completed minimization"

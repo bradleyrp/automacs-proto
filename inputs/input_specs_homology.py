@@ -37,7 +37,9 @@ homology_construction_settings = {
 
 	#---predict protein structure from a single PDB template
 	'single':{
-		'target':{'raw':('plcdPH','GLQDDPDLQALLKGSQLLKVKSSSWRRERFYKLQEDCKTIWQESRKVMRSPESQLFSIEDIQEVRMGHRTEGLEKFARDIPEDRCFSIVFKDQRNTLDLIAPSPADAQHWVQGLRKIIH')},
+		'target':{'raw':('plcdPH',
+			'GLQDDPDLQALLKGSQLLKVKSSSWRRERFYKLQEDCKTIWQESRKVMRSPESQLFSIED'+
+			'IQEVRMGHRTEGLEKFARDIPEDRCFSIVFKDQRNTLDLIAPSPADAQHWVQGLRKIIH')},
 		'regex_subs':[('tttatttagagcctg','tttattagcctg')],
 		'template':[('1MAI','A')],
 		'n_models':10,
@@ -55,13 +57,23 @@ homology_construction_settings = {
 
 	#---mutate a protein from the PDB
 	'mutator':{
-		'n_models':2,
-		'template':('2GS7','A'),
-		'mutations':[
-			('K',690,'R'),
-			('E',710,'R'),
-			('E',710,'A'),
-			],			
-		},
+		'example_from_custom':{
+			'n_models':4,
+			'template':[
+				('braf_inactive','B'),
+				],
+			'mutations':[
+				][:5],			
+			},
+		'example_from_pdb':{
+			'n_models':2,
+			'template':('2GS7','A'),
+			'mutations':[
+				('K',690,'R'),
+				('E',710,'R'),
+				('E',710,'A'),
+				],
+			},
+		}['example_from_custom'],
 	}
 

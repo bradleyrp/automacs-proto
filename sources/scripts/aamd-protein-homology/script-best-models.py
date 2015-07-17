@@ -1,11 +1,10 @@
 #!/usr/bin/python
-
 import os,re
 
 bests = []
 cwd = os.path.abspath(os.getcwd())
 for root,modeldirs,filenames in os.walk('./',followlinks=True): break
-for md in modeldirs:
+for md in sorted(modeldirs):
 	sign = re.findall('^model\-v[0-9]+\-(.+)',md)[0]
 	with open(md+'/script-single.log','r') as fp: lines = fp.readlines()
 	#---assume summary is found after "Summary of..." line and before "Total CPU time"

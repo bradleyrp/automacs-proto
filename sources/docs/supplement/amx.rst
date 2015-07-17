@@ -75,7 +75,17 @@ Bilayers
 Homology modeling
 -----------------
 
-Rudimentary homology modeling is implemented via [MODELLER](https://salilab.org/modeller/). The code has two main uses. You can create a model from one or more templates, or you can make a large batch of mutations from a stock PDB structure. The latter can be combined with the [batchmaker]() to run large numbers of protein simulations.
+Rudimentary homology modeling is implemented via `MODELLER <https://salilab.org/modeller/>`_. 
+The code has two main uses. You can create a model from one or more templates, or you can make a large 
+batch of mutations from either a stock PDB structure or a custom structure that you drop in ``repo``.
+The latter can be combined with the :ref:`sec-batchmaker` to run large numbers of protein simulations.
+
+.. automodule:: amx.proteinhomology
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. _sec-batchmaker:
 
 Batchmaker
 ----------

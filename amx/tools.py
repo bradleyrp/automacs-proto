@@ -75,7 +75,8 @@ def call(command,logfile=None,cwd=None,silent=False,inpipe=None,suppress_stdout=
 	"""
 
 	if inpipe != None:
-		output = open(('' if cwd == None else cwd)+logfile,'wb')
+		if logfile == None: output=None
+		else: output = open(('' if cwd == None else cwd)+logfile,'wb')
 		if type(command) == list: command = ' '.join(command)
 		p = subprocess.Popen(command,stdout=output,stdin=subprocess.PIPE,stderr=output,cwd=cwd,shell=True)
 		catch = p.communicate(input=inpipe)[0]
@@ -207,7 +208,7 @@ def chain_steps():
 	"""
 	Check for previous steps to enable chaining.
 	"""
-
+	
 	#---intervene here to check if this is an add-on singleton script
 	#---...for example, if you want a restart of a previous procedure
 	#---...this section allos you to chain procedures together
@@ -225,7 +226,7 @@ def chain_steps():
 	return startstep,oldsteps
 	
 def write_steps_to_bash(steps,startstep,oldsteps,extras=None):
-
+	
 	"""
 	Given a file pointer and a list of steps from the script_dict, this function will write the relevant 
 	variables to bash variables. Note that we use this function in script_maker and prep_scripts (which
@@ -234,11 +235,29 @@ def write_steps_to_bash(steps,startstep,oldsteps,extras=None):
 	e.g. looking for previous step names.
 	"""
 
+	#---???
+	#---only rescripts are in here !!!
+
+	"""
+	regex='([a-z,A-Z,0-9_]+)=(.+)';ans = [re.findall(regex,l)[0] for l in lines if re.match(regex,l)];print '\n'.join([str(i) for i in ans])
+	"""
+
+	overrides = {}
+	regex = '([a-z,A-Z,0-9_]+)=([^$]+)'
+	if 'rescript_variables_from' in extras:
+		with open('script-'+extras['rescript_variables_from'],'r') as fp: lines = fp.readlines()
+		overrides = dict([[i.strip('\n') for i in re.findall(regex,l)[0]]
+			for l in lines if re.match(regex,l)])
+
 	bashheader = ''
 	#---write variables in the steps entry in the simulation dictionary so bash can see them
 	for step in steps.keys(): 
+		if step in overrides.keys():
+			bashheader += step+'='+overrides[step]+'\n'
+			print "OVERRIDING"
+			print overrides[step]
 		#---intervene to see if this is a step or not
-		if steps[step] != None and re.match('^[a-z]([0-9]{1,2})-(.+)',steps[step]) \
+		elif steps[step] != None and re.match('^[a-z]([0-9]{1,2})-(.+)',steps[step]) \
 			and ('rescript' not in extras.keys() or not extras['rescript']):
 			si,stepname = re.findall('^[a-z]([0-9]{1,2})-(.+)',steps[step])[0]
 			#---maintain first letter and advance the step number to append the new step
@@ -260,7 +279,6 @@ def script_maker(target,script_dict,module_commands=None,sim_only=False,stepcoun
 	"""
 	Prepare the master script for a particular procedure.
 	"""
-
 	if target not in script_dict.keys(): raise Exception('except: unclear make target')
 	steps = script_dict[target]['steps']
 	script = '\n#---definitions\n'
@@ -286,7 +304,7 @@ def script_maker(target,script_dict,module_commands=None,sim_only=False,stepcoun
 		else: script += segment
 	return script
 	
-def prep_scripts(target,script_dict,extras=None,extra_settings=None):
+def prep_scripts(target,script_dict,extras=None,extra_settings=None,single=None):
 
 	"""
 	Execute temporary bash scripts to setup the directories.
@@ -324,13 +342,51 @@ def prep_scripts(target,script_dict,extras=None,extra_settings=None):
 						for ex in exset: fp.write(ex+'='+exset[ex]+'\n')
 		os.system('rm script-temporary-prep.sh')
 
-def niceblock(text,newlines=False):
+def niceblock(text):
 	
 	"""
 	Remove tabs so that large multiline text doesn't awkwardly wrap in the code.
 	"""
 	
-	return re.sub('\n([\t])+',(' ' if not newlines else '\n'),re.sub('^\n([\t])+','',text))
+	r"""
+	note the previous version of this function returned only the following:
+	re.sub('\n([\t])+',(' ' if not newlines else '\n'),re.sub('^\n([\t])+','',text))
+	where newlines==True allowed you to keep any explicit newlines
+	this function basically just removed all indents so that you could embed blocks 
+	of text at a nice tab level and have them print without tabs
+	the updated code below removes as many tabs as the first non-newline 
+	which makes it suitable for storing code nuggets for printing and execution
+	"""
+	
+	leading_tabs = len(re.findall('\t+(?![\t])',text.strip('\n'))[0])
+	tabchop = '\t{%d}(?![\t])'%leading_tabs
+	return '\n'.join([(
+		re.findall('\t{%d}(.+)'%leading_tabs,line)[0]
+		if leading_tabs > 0 and re.match('\t{%d}(.+)'%leading_tabs,line)
+		else line
+		) for line in text.split('\n')])
+		
+	
+def wordwrap(text,width=60,uniform=False):
+
+	"""
+	Basic word wrapper that preserves newlines. Try it with niceblock.
+	"""
+
+	#---uniform allows the user to ignore newlines in the text
+	if uniform: text = re.sub('\n',' ',text.strip('\n'))
+	return reduce(lambda line,word,width=40: '%s%s%s'%(line,
+		' \n'[(len(line)-line.rfind('\n')-1+len(word.split('\n',1)[0])>=width)],
+		word),text.split(' '))
+
+def noteblock(msg,category='NOTE'):
+
+	"""
+	Standard method for printing notes.
+	"""
+
+	return '\n'+'\n'.join(['['+category+'] %s'%s for s in 
+		wordwrap(niceblock(msg),width=50,uniform=True).split('\n')])+'\n'
 	
 def latestcheck(last):
 	
@@ -480,7 +536,7 @@ def ultrasweep(hypothesis_default,sweep):
 	Code for sweeping an arbitrarily deep dictionary over many dimensions in combinations.
 	"""
 
-	#---extract a list of lists of parameters to sweep over
+	#---extract a list of lists ('t') of parameters to sweep over in combinations
 	t = [i['values'] for i in sweep]
 	for si,sweepset in enumerate(t):
 		if type(sweepset) == dict:
@@ -490,8 +546,10 @@ def ultrasweep(hypothesis_default,sweep):
 						os.path.isfile(os.path.abspath(i.strip('\n')))]
 				t[si] = files
 			else: raise Exception('except: unclear sweep substitution '+str(sweepset))
+
 	#---note that this non-numpythonic way of doing this has not been rigorously tested
 	#---note that the previous meshgrid method did not work on all types
+	#---we take all combinations by starting with the first list and adding all others to it
 	allcombos = list([[i] for i in t[0]])
 	for s in t[1:]:
 		for bi in range(len(allcombos)):

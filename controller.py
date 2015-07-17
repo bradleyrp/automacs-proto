@@ -16,7 +16,7 @@ from amx.tools import call
 execfile('settings')
 from amx.tools import checkout,multiresub,confirm
 from amx.tools import script_maker,prep_scripts,niceblock,argsort,chain_steps,latestcheck
-from amx.tools import get_proc_settings,ultrasweep
+from amx.tools import get_proc_settings,ultrasweep,wordwrap,noteblock
 
 #---FUNCTIONS
 #-------------------------------------------------------------------------------------------------------------
@@ -110,7 +110,6 @@ def upload(step=None,extras=None,silent=False,scriptfile=None):
 		for i in gofiles: fp.write(i+'\n')
 	#---custom functionality only used by batch (so be careful with relative paths)
 	if scriptfile != None:
-		print "TRYING TO OPEN "+scriptfile
 		with open(scriptfile,'a') as fp:
 			fp.write('rsync -avi --files-from='+cwd+'/upload-rsync-list.txt '+cwd+' DEST/'+cwd+'\n')
 	else:
@@ -151,6 +150,14 @@ def script(single=None,rescript=False,**extras):
 
 	"""
 	Deposit PBS scripts in each step folder for the corresponding step and make master scripts.
+
+	This function behaves differently depending on the options. 
+
+	options described below
+	1. make script aamd-homology
+		makes a local script for the procedure and cluster script if possible.
+	2. make script rescript
+		with no options this adds a restart step ???
 	"""
 	
 	#---flags which are passed to settings.sh files if necessary
@@ -159,14 +166,17 @@ def script(single=None,rescript=False,**extras):
 
 	#---check for sensible script target
 	if single == None and rescript == False: raise Exception('except: unclear target')
-	#---a rescript on the cluster will find the most recent step and add a continue script to it
+
+	#---a "bare" or "lone" rescript with no modifier will only produce a continue script
+	#---? needs checked to be sure it doesn't do a restart
 	elif single == None and rescript == True:
+
 		startstep,oldsteps = chain_steps()
 		proc_settings,header_source_mod,hs_footer = get_proc_settings()
 		if header_source_mod == None: raise Exception('except: lone rescript only works on clusters')
 		#---run prep scripts
-		#---note that we add a 2% buffer here combined with 1% on the maxh flag so enough time to copy
-		#---...files back from scratch
+		#---note that we add a 2% buffer here combined with 1% on the maxh flag so that there
+		#---...is enough time to copy files back from scratch
 		extras['walltime'] = proc_settings['walltime']*0.98
 		prep_scripts('rescript',script_dict,extras=extras,extra_settings=sets_pass)
 		#---write a list of files to move to scratch
@@ -191,11 +201,10 @@ def script(single=None,rescript=False,**extras):
 		if hs_footer != None: fp.write(hs_footer)
 		fp.close()		
 		
-	#---single procedure script maker
-	#---note that supplying rescript=True will skip the preparation scripts and remake cluster scripts
+	#---single procedure script maker or re-scripter
 	else:
+
 		target = single
-		print helpstring
 		print "\tGenerating singleton script.\n"
 		if rescript: 
 			if extras == None: extras = {'rescript':True}
@@ -209,7 +218,22 @@ def script(single=None,rescript=False,**extras):
 		if simscale != None:
 			for fn in glob.glob('./inputs/input_specs*'):
 				sub = subprocess.call(['sed','-i',"s/^.*simscale.*$/simscale = \'"+simscale+"\'/",fn])
+
+		#---get processor details
 		proc_settings,header_source_mod,hs_footer = get_proc_settings()
+
+		#---write the local script if this is not a rescript 
+		if not rescript:
+			print '\twriting script: script-'+str(target)
+			fp = open('script-'+str(target),'w')
+			fp.write('#!/bin/bash\n')
+			fp.write(script_maker(target,script_dict,extras=extras))
+			fp.close()
+			os.system('chmod u+x '+'script-'+str(target))
+		#---if this is a rescript with a particular target we override bash header variables 
+		#---...with a preexisting script which is given by the original target name which the user supplies
+		else: extras['rescript_variables_from'] = target
+		
 		#---if possible write the cluster script
 		if header_source_mod != None or rescript:
 			with open('./cluster-'+target,'w') as fp:
@@ -232,17 +256,9 @@ def script(single=None,rescript=False,**extras):
 					with open('upload-rsync-list.txt','w') as fp:
 						for f in files: fp.write(f+'\n')
 		
-		#---write the local script
-		print '\twriting script: script-'+str(target)
-		fp = open('script-'+str(target),'w')
-		fp.write('#!/bin/bash\n')
-		fp.write(script_maker(target,script_dict,extras=extras))
-		fp.close()
-		os.system('chmod u+x '+'script-'+str(target))
-		
-		#---prepare the files and directories
+		#---no need to prepare directories if this is a rescript
 		if not rescript: prep_scripts(target,script_dict,extras=extras,extra_settings=sets_pass)
-		
+
 		#---for simulations that can be continued we write a script for only the final step in the sequence
 		if 'continue' in script_dict[target].keys() and script_dict[target]['continue']:
 			#---use chain_steps to find the final folder to deposit a continuation script if necessary
@@ -265,10 +281,11 @@ def batch(**extras):
 		make clean sure; make script protein-homology; ./script-protein-homology
 		make spawn proc=aamd-protein infiles=repo/simulation_targets.txt batchdir=../protein-v1020-batch
 	"""
-
+	
 	batchspecs = {}
 	execfile('inputs/input_specs_batch.py',batchspecs)
 	batchdir = os.path.abspath(batchspecs['batchdir'])+'/'
+	print '[STATUS] starting batch preparation in '+batchspecs['batchdir']
 	if os.path.isdir(batchdir): raise Exception('except: batch directory already exists')
 	else: os.mkdir(batchdir)
 		
@@ -296,7 +313,9 @@ def batch(**extras):
 	#---for each simulation copy automacs, input_filename, and input_specs
 	loclist = []
 	for hi,hypo in enumerate(hypotheses):
-		newdir = batchdir+'sim-v'+batchspecs['callsign']+'-v'+('%03d'%(hi+1))+'/'
+		newdir = batchdir+'run'+\
+			('-v'+batchspecs['callsign'] if batchspecs['callsign']!='' else '')+\
+			('%05d'%(hi+1))+'/'
 		os.mkdir(newdir)
 		os.mkdir(newdir+'/inputs')
 		if 'input_filename' in hypo.keys():
@@ -328,30 +347,75 @@ def batch(**extras):
 	#---write a summary dictionary
 	hypodict = {}
 	for hi,hypo in enumerate(hypotheses): hypodict[loclist[hi]] = deepcopy(hypotheses[hi])
-	with open(batchspecs['batchdir']+'/batchdict.py','w') as fp:
+	with open(batchspecs['batchdir']+'/batch_details.py','w') as fp:
 		fp.write('#!/usr/bin/python\n#---batch simulation table of contents\n')
-		keystring = json.dumps(hypodict,indent=4).replace('false','False').replace('true','True')
+		keystring = json.dumps(hypodict,indent=4).\
+			replace('false','False').\
+			replace('true','True').\
+			replace('null','None')
 		fp.write('batch_toc = '+keystring+'\n')
-	print 'Completed batch generation in '+batchspecs['batchdir']
-	print 'Wrote a dictionary of all simulations to '+batchspecs['batchdir']+'/batchdict.py'
+
+	#---if the batch was used to do protein mutation we infer the name and mutation from the input_filename
+	#---...parameter in the batch_details dictionary and then write these to batch_names for the user
+	#---...who can run the batch_names.py if they want to rename the directories
+	explain_rundirs = []
+	regex_mutation = '^model-v[0-9]+-(.+)_chain(.+)_mut(.+)'
+	for hi,hypo in enumerate(hypotheses): 
+		key = loclist[hi]
+		dirname = os.path.dirname(hypo['input_filename']).split('/')[-1]
+		if re.match(regex_mutation,dirname):
+			renamer = "'"+os.path.dirname(key).split('/')[-1]+"':'"+\
+				str(re.findall(regex_mutation,dirname)[0][-1])+"',"
+			explain_rundirs.append(renamer)
+	if explain_rundirs != []:
+		with open(batchspecs['batchdir']+'batch_names.py','w') as fp:
+			fp.write('#!/usr/bin/python\nimport re,shutil,sys\n')
+			fp.write('msg = "rename the rundirs by mutation name"\n')
+			fp.write('rundir_names = {\n')
+			for line in explain_rundirs: fp.write('\t'+line+'\n')
+			fp.write('\t}\n')
+			script_rename_rundirs = r"""
+				if 'sure' in sys.argv or re.match('^(y|Y)',raw_input('%s (y/N)\n'%msg)) != None:
+					for key,val in rundir_names.items(): shutil.move(key,val)
+				"""
+			fp.write(niceblock(script_rename_rundirs)+'\n')
+		if len(batchspecs['sweep'])==1 and batchspecs['sweep'][0]['route'] == ['input_filename']:
+			msg = r"""
+				it looks like you are running a batch of protein mutations so we are renaming 
+				the run directories by mutation
+				"""
+			print noteblock(msg)
+			call('python batch_names.py sure',cwd=batchspecs['batchdir'],logfile=None)
+			
+	#---write a batch serial script if the user wants to equilibrate the systems locally before a cluster
+	noteblock("""
+		the batchmaker has written all simulation details to: 
+		"""+batchspecs['batchdir']+'/batch_details.py')
+	
+"""	
 	with open(batchspecs['batchdir']+'script-batch-serial.sh','w') as fp:
 		fp.write('#!/bin/bash\n#---batch serial execution\n')
 		for key in hypodict:
 			fp.write('cd '+key+'\n')
 			fp.write('./script-aamd-protein\n')
 			fp.write('cd ..'+'\n')
-	print 'Wrote a serial execution script to script-batch-serial.sh'
-	with open(batchspecs['batchdir']+'script-batch-upload.sh','w') as fp:
-		fp.write('#!/bin/bash\n#---batch uploads\n')
-	for key in hypodict:
-		call('make upload step=s04-sim scriptfile='+
-			os.path.abspath(batchspecs['batchdir']+'script-batch-upload.sh'),cwd=key)
-	print 'Wrote a serial upload script to script-batch-serial.sh\n'+\
-		'To use the uploader, you have to find-replace DEST with your target system\n'+\
-		'from '+batchspecs['batchdir']+' run:\n'+\
-		'sed -i \'s/DEST/compbio:~/g\' script-batch-upload.sh'+\
-		'Wait until step four is complete before uploading.'
 
+	print '[NOTE] to run serial equilibration use script-batch-serial.sh'
+	print '[NOTE] if you move this to a cluster you must run the following
+	print 
+	
+	print '\n'.join(['[NOTE] %s'%s for s in ['hello','somthing neat','bye']])
+	
+	#---removed batch upload because it would require either wholesale rsync or else it
+	#---...must be run after the files were created locally via serial execution
+			
+	#---recap the batch process
+	print '[NOTE] if you use serial equilibration you can upload afterwards'
+	print '[NOTE] ...by running script-batch-serial.sh'
+	print '[NOTE] ...as long as you replace DEST with a target as in: '
+	print '[NOTE] ..."sed -i \'s/DEST/compbio:~/g\' script-batch-upload.sh"'
+	print '[STATUS] completed batch preparation in '+batchspecs['batchdir']
+"""
 #---INTERFACE
 #-------------------------------------------------------------------------------------------------------------
 
@@ -369,8 +433,8 @@ def makeface(arglist):
 	"""
 	
 	#---print help if no arguments
-	if arglist == []:
-		print niceblock(helpstring,newlines=True)
+	if arglist == []: 
+		print helpstring
 		return
 		
 	#---we prepare a kwargs and an args variable to send to the next function
@@ -389,7 +453,8 @@ def makeface(arglist):
 	#---...to false while any var=val commands will be passed along via extras
 	argdict = {
 		'clean':{'args':['protected','sure'],'module_name':None,'defaults':{'sure':False}},
-		'script':{'module_name':None,'defaults':[],'args':['carefultime','rescript','start','gpu_flag'],
+		'script':{'module_name':None,'defaults':[],
+			'args':['carefultime','rescript','start','gpu_flag','prev'],
 			'singles':[
 				'aamd-bilayer',
 				'cgmd-bilayer',
@@ -448,4 +513,4 @@ def makeface(arglist):
 #-------------------------------------------------------------------------------------------------------------
 
 if __name__ == "__main__": makeface(sys.argv[1:])
-	
+

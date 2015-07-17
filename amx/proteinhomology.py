@@ -39,6 +39,12 @@ aacodemap = {'CYS': 'C', 'ASP': 'D', 'SER': 'S', 'GLN': 'Q', 'LYS': 'K',
 	'ALA': 'A', 'VAL':'V', 'GLU': 'E', 'TYR': 'Y', 'MET': 'M','XAA':'X'}
 
 class ProteinHomology:
+
+	"""
+	This class performs all homology modeling functions for automacs, including multi-template models 
+	and large batches of point mutations.
+	"""
+
 	def __init__(self,rootdir=None,**kwargs):
 	
 		#---set paths for the previous and current steps
@@ -75,6 +81,10 @@ class ProteinHomology:
 		self.build()
 		
 	def build(self):
+
+		"""
+		This placeholder function calls the right modelling function depending on ``self.procedure``.
+		"""
 	
 		print 'BUILDING HOMOLOGY MODELS'
 		if self.procedure != 'mutator': self.get_targets()
@@ -84,6 +94,13 @@ class ProteinHomology:
 		elif self.procedure == 'mutator': self.build_model_mutator()
 		
 	def get_targets(self):
+
+		"""
+		Reads a target sequence in a number of formats. The user can specify a raw sequence in the 
+		``inputs/input_specs_homology.py`` file or supply a textfile with either the protein sequence
+		or the RNA code. The target entry in the ``homology_construction_settings`` dictionary should be
+		a dictionary with one such key (*raw*, *textfile*, or *textfile_rna*).
+		"""
 	
 		self.target = []
 		target_ins = self.settings['target']
@@ -114,6 +131,13 @@ class ProteinHomology:
 			else: raise Exception('except: unclear target type')
 
 	def get_templates(self):
+	
+		"""
+		This routine searches the ``repo`` directory (which cannot be erased when you run 
+		``make clean``) for a particular protein. The user supplies the filename (without a suffix)
+		along with the template chain. If you want to use a stock protein from the PDB, just use the 
+		PDB code instead of the name.
+		"""
 
 		if not os.path.isdir('./repo'): os.mkdir('./repo')
 		temps = self.settings['template']
@@ -132,27 +156,32 @@ class ProteinHomology:
 				pdbfile = response.read()
 				with open(self.rootdir+t[0]+'.pdb','w') as fp: fp.write(pdbfile)
 				copy(self.rootdir+t[0]+'.pdb','./repo/'+t[0]+'.pdb')
-				#---always get the FASTA sequence whenever you get a structure
-				#---note currently deprecated
-				if 0:
-					response = urllib2.urlopen(
-						'http://www.rcsb.org/pdb/files/fasta.txt?structureIdList='+t[0])
-					fastafile = response.read()
-					with open(self.rootdir+t[0]+'.fasta','w') as fp: fp.write(fastafile)
-					copy(self.rootdir+t[0]+'.fasta','./repo/'+t[0]+'.fasta')
 			self.template.append(t)
 			
-	def build_model_single(self,targi=0,tempi=0,batchdir_override=None):
+	def build_model_single(self,batchdir_override=None):
+
+		"""
+		Build a homology model from a single template using the standard MODELLER procedure. 
+		Note that this function is set up to handle multiple targets if the user supplies a text file
+		filled with name/sequence pairs (separated by a colon).
+		"""
 	
 		if len(self.template) != 1: raise Exception('except: needs only one template '+str(self.template))
+		#---a single target name is placed in a list for compatibility below
 		if 'target_name' in self.settings.keys():
 			if type(self.settings['target_name']) == str: 
 				self.settings['target_name'] = [self.settings['target_name']]
-		
+
+		#---if there is only one target then it's obvious
 		if len(self.target) == 1: targi_inds = [0]
+		#---if there are multiple targets and only one target_name then we look up the single name
+		#---note that this is the default for looping over mutations where we name each by mutation[0-9]+
 		elif len(self.target)>1 and 'target_name' in self.settings.keys() and \
 			len(self.settings['target_name']) == 1:
 			targi_inds = [[i[0] for i in self.target].index(self.settings['target_name'][0])]
+		#---if there are multiple names in the target_name list then we look up all of them
+		#---note that this code appears to be redundant with the previous elif and is not used
+		#---...when this functions is called by the mutator
 		elif len(self.target)>1 and 'target_name' in self.settings.keys() and \
 			len(self.settings['target_name']) > 1:
 			targi_inds = [[i[0] for i in self.target].index(j) for j in self.settings['target_name']]
@@ -160,12 +189,14 @@ class ProteinHomology:
 			print 'multiple targets selected so this will be a batch operation'
 			targi_inds = range(len(self.target))
 		else: raise Exception('except: target/target_name mismatch')
-		
-		for targi in range(len(targi_inds)):
+
+		#---note that the target index (an element of targi_inds) selects the target from self.target
+		#---...during batch operations so that we can iterate over multiple targets via build_model_mutator
+		for targi in targi_inds:
 			if len(targi_inds)>1:
 				print 'BATCH MODEL GENERATION, MODEL No. = '+str(targi)
-				batchdir = self.rootdir+'model-v'+('%04d'%(targi+1))+'-'+self.target[targi][0]+'/'
-				batchdirrel = self.rootdirrel+'model-v'+('%04d'%(targi+1))+'-'+self.target[targi][0]+'/'
+				batchdir = self.rootdir+'model-v'+('%04d'%(targi))+'-'+self.target[targi][0]+'/'
+				batchdirrel = self.rootdirrel+'model-v'+('%04d'%(targi))+'-'+self.target[targi][0]+'/'
 				os.mkdir(batchdir)
 				copy(self.sources_dir+'scripts/aamd-protein-homology/*',batchdir)
 				copy(self.rootdir+'*.pdb',batchdir)
@@ -182,6 +213,7 @@ class ProteinHomology:
 			vars_to_modeller = {
 				'template_struct':self.template[0][0],
 				'template_struct_chain':self.template[0][1],
+				#---! these sequence names are wrong because TARGI is reset!
 				'target_seq':self.target[targi][0],
 				'n_models':self.settings['n_models'],
 				}
@@ -225,6 +257,10 @@ class ProteinHomology:
 		#---write comparison script here
 				
 	def build_model_multi(self):
+
+		"""
+		Build a homology model from a multiple templates using the standard MODELLER procedure. 
+		"""
 	
 		if len(self.template) < 1: raise Exception('except: needs multiple templates '+str(self.template))
 		if len(self.target) != 1: raise Exception('except: needs only one target '+str(self.template))
@@ -262,37 +298,54 @@ class ProteinHomology:
 
 	def build_model_mutator(self):
 
+		"""
+		Create an arbitrary batch of point mutations to a custom structure which is supplied either in the 
+		``repo`` or by a four-letter PDB code. Don't forget to supply the template as a tuple with both the 
+		name or path of the protein and its chain (a letter).
+		"""
+
 		print "beginning mutation procedure"
-		#---deprecated use of fasta file for getting the sequence
-		if 0:
-			with open(self.rootdir+self.template[0][0]+'.fasta','r') as fp: lines = fp.readlines()
-			seqstarts = [li for li,l in enumerate(lines) if re.match('^>',l)]+[len(lines)]
-			pdbcodes = [re.findall('^>([A-Z,0-9]{4})\:([A-Z]{1})\|',lines[i])[0] for i in seqstarts[:-1]]
-			seqs = [''.join([lines[l].strip('\n') for l in range(seqstarts[i-1]+1,seqstarts[i])]) 
-				for i in range(1,len(seqstarts))]
-			template = self.template[0]
-			sequence = seqs[pdbcodes.index(template)]
-			#---note that this is a hack but we get the first residue index from the PDB file directly
-			with open(self.rootdir+template[0]+'.pdb','r') as fp: lines = fp.readlines()
-			startres = int([l for l in lines if re.match('^ATOM',l)][0].split()[5])
 		with open(self.rootdir+self.template[0][0]+'.pdb','r') as fp: lines = fp.readlines()
-		seqresli = [li for li,l in enumerate(lines) if re.match('^(SEQRES|REMARK\s300)\s+',l)]
-		seqraw = [re.findall('^(SEQRES|REMARK\s300)\s+[0-9]+\s+([A-Z])\s+[0-9]+\s+(.+)',lines[li])[0] 
-			for li in seqresli]
-		sequence = ''.join([''.join([aacodemap[j] for j in i[1].split()]) 
-			for i in seqraw if i[0] == self.template[0][1]])
-		#---handle missing residues
-		missingli = [re.findall('^REMARK\s+([0-9]+)\sMISSING RESIDUES',l)[0] for li,l in enumerate(lines) 
-			if re.match('^REMARK\s+([0-9]+)\sMISSING RESIDUES',l)]
-		if missingli == []:
-			startres = int([re.findall('^REMARK\s+'+missingli+'\s+[A-Z]{3}\s+[A-Z]\s+([0-9]+)',l)[0]
-				for li,l in enumerate(lines) 
-				if re.match('^REMARK\s+'+missingli+'\s+[A-Z]{3}\s+[A-Z]\s+[0-9]+',l)][0])
-		else: startres = 0
+		
+		regex_seqres = '^SEQRES\s+[0-9]+\s+([A-Z])\s+[0-9]+\s+(.+)'
+		regex_remark = '^REMARK\s300\s([A-Z]+)\s+'
+		#---if SEQRES is present we get the sequence from it
+		#---note that the seqres protocol below should handle missing residues even if they exist
+		#---...at the beginning of the target sequence
+		if any([re.match(regex_seqres,line) for line in lines]):
+			seqresli = [li for li,l in enumerate(lines) if re.match(regex_seqres,l)]
+			seqraw = [re.findall(regex_seqres,lines[li])[0] for li in seqresli]
+			sequence = ''.join([''.join([aacodemap[j] for j in i[1].split()]) 
+				for i in seqraw if i[0] == self.template[0][1]])
+			missingli = [re.findall('^REMARK\s+([0-9]+)\sMISSING RESIDUES',l)[0] for li,l in enumerate(lines) 
+				if re.match('^REMARK\s+([0-9]+)\sMISSING RESIDUES',l)]
+			if missingli != []:
+				if len(missingli)>1: raise Exception('cannot parse multiple MISSING RESIDUE notes')
+				missingli = str(missingli[0])
+				startres = int([
+					re.findall('^REMARK\s+'+missingli+'\s+[A-Z]{3}\s+[A-Z]\s+([0-9]+)',l)[0] 
+					for li,l in enumerate(lines)
+					if re.match('^REMARK\s+'+missingli+'\s+[A-Z]{3}\s+[A-Z]\s+[0-9]+',l)][0])
+			else: startres = int([line for line in lines if re.match('^ATOM',line)][0][23:26+1])
+		elif any([re.match(regex_remark,line) for line in lines]):
+			seqresli = [li for li,l in enumerate(lines) if re.match(regex_remark,l)]
+			seqraw = [re.findall(regex_remark,lines[li])[0] for li in seqresli]
+			sequence = ''.join(seqraw)
+			startres = int([line for line in lines if re.match('^ATOM',line)][0][23:26+1])
+		else: raise Exception('need either REMARK 300 or SEQRES in your pdb file')
+			
 		self.target = []
 		for mi,mut in enumerate(self.settings['mutations']):
 			sequence_mut = list(sequence)
-			if sequence[mut[1]-startres] != mut[0]: raise Exception('wrong starting residue')
+			if sequence[mut[1]-startres] != mut[0]: 
+				msg = [
+					'USER ERROR!',
+					'sequence: '+sequence,
+					'starting residue number from ATOM record: '+str(startres),
+					'expecting '+str(mut[0])+' at position '+str(mut[1]),
+					'however reading '+str(sequence[mut[1]-startres])+' at that position!',
+					]
+				raise Exception('\n'.join(msg))
 			else: sequence_mut[mut[1]-startres] = mut[2]
 			sequence_mut = ''.join(sequence_mut)
 			print 'template sequence = '+sequence
@@ -301,8 +354,9 @@ class ProteinHomology:
 		for mi,mut in enumerate(self.settings['mutations']):
 			print 'building homology model for mutation '+str(mi)
 			self.settings['target_name'] = self.target[mi][0]
-			batchdir = 'model-v'+('%04d'%(mi+1))+'-'+''.join(self.template[0])+\
-				'_'+''.join([str(j) for j in mut])+'/'
-			self.build_model_single(targi=mi,tempi=0,batchdir_override=batchdir)
+			#---we explicitly encode the mutation in the filename so that it can be retrieved later
+			#---...particularly in ???
+			batchdir = 'model-v'+('%05d'%(mi))+'-'+self.template[0][0]+'_chain'+self.template[0][1]+\
+				'_mut'+''.join([str(j) for j in mut])+'/'
+			self.build_model_single(batchdir_override=batchdir)
 
-		
