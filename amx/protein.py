@@ -335,7 +335,32 @@ class ProteinWater(amxsim.AMXSimulation):
 				'-o solvate-dense.gro',
 				'-p solvate-standard.top']
 			call(cmd,logfile='log-genbox-solvate',cwd=self.rootdir)
-			copy(self.rootdir+'solvate-dense.gro',self.rootdir+'solvate.gro')
+			
+			#---add a gap between the protein and the water if the user asks for it
+			if 'protein_water_gap' in self.settings and self.settings['protein_water_gap']!=None:
+			
+				vmdtrim = [
+					'mol new solvate-dense.gro',
+					'set sel [atomselect top \"(all not (water '+\
+					' and within '+str(self.settings['protein_water_gap'])+\
+					' of not water)) and '+\
+					'(x>=0 and x<='+str(10*boxvecs[0])+' and y>=0 and y<= '+str(10*boxvecs[1])+\
+					' and z>=0 and z<= '+str(10*boxvecs[2])+')"]',
+					'$sel writepdb '+self.rootdir+'solvate-vmd.pdb',
+					'exit',]			
+				with open(self.rootdir+'script-vmd-trim.tcl','w') as fp:
+					for line in vmdtrim: fp.write(line+'\n')
+				vmdlog = open(self.rootdir+'log-script-vmd-trim','w')
+				p = subprocess.Popen('vmd -dispdev text -e script-vmd-trim.tcl',
+					stdout=vmdlog,stderr=vmdlog,cwd=self.rootdir,shell=True)
+				p.communicate()
+				cmd = [gmxpaths['editconf'],
+					'-f solvate-vmd.pdb',
+					'-o solvate.gro','-resnr 1','-d 0']
+				call(cmd,logfile='log-editconf-convert',cwd=self.rootdir)
+
+			else: copy(self.rootdir+'solvate-dense.gro',self.rootdir+'solvate.gro')
+			
 
 		elif self.simscale == 'cgmd':
 

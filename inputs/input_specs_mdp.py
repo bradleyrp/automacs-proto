@@ -432,8 +432,8 @@ mdpdefs = {
 				},		
 			'couple':{
 				'tcoupl':'V-rescale',
-				'tc_grps':'Protein Non-Protein',
 				'tau_t':'0.1 0.1',
+				'tc_grps':'Protein Non-Protein',
 				'ref_t':'300 300',
 				'pcoupl':'no',
 				},	
@@ -451,6 +451,37 @@ mdpdefs = {
 				'comm-grps':'Protein non-Protein',
 				},
 			},
+		#---override for NVT protein and solvent
+		'nvt-protein-short':{
+			'continue':'start',
+			'output':{
+				'nstxout':1000,
+				'nstvout':1000,
+				'nstlog':100,
+				'nstenergy':100,
+				'nstxtcout':500,		
+				},		
+			'couple':{
+				'tcoupl':'V-rescale',
+				'tc_grps':'Protein Non-Protein',
+				'tau_t':'0.1 0.1',
+				'ref_t':'300 300',
+				'pcoupl':'no',
+				},	
+			'constrain':{
+				'constraints':'all-bonds',
+				'constraint_algorithm':'lincs',
+				},
+			'integrate':{
+				'integrator':'md',
+				'tinit':0,
+				'dt':0.0001,
+				'nsteps':10000,
+				'nstcomm':100,
+				'nstcalcenergy':100,
+				'comm-grps':'Protein non-Protein',
+				},
+			},		
 		#---override for NPT protein and solvent
 		'npt-protein':{
 			'continue':'start',

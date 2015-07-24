@@ -4,7 +4,7 @@
 input_filename = 'sources/structures/3ala.pdb'
 
 #---controller sets the scale automatically
-simscale = 'cgmd'
+simscale = 'aamd'
 
 #---settings for protein.py
 protein_construction_settings = {
@@ -21,6 +21,7 @@ protein_construction_settings = {
 		'wbuffer':1.5,
 		'force_field':'charmm27',
 		'force_field_local':None,
+		'protein_water_gap':None,
 		'top_includes':[
 			'charmm27.ff/forcefield.itp',
 			'protein.itp',
@@ -36,6 +37,7 @@ protein_construction_settings = {
 			'group':'aamd',
 			'input-md-in.mdp':None,
 			'input-md-nvt-eq-in.mdp':['nvt-protein'],
+			'input-md-nvt-eq-short-in.mdp':['nvt-protein-short'],
 			'input-md-npt-eq-in.mdp':['npt-protein'],
 			},
 		},

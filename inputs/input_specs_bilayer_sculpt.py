@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 #---SIMULATION RESOLUTION
-simscale = 'cgmd'
+simscale = 'aamd'
 
 #---CONSTRUCTION SETTINGS
 

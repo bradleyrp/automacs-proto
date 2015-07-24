@@ -11,7 +11,7 @@ complist1 = [4,1,0]
 lipidnames1 = ['DOPC','DOPS','CHOL']
 
 #---SIMULATION RESOLUTION
-simscale = 'cgmd'
+simscale = 'aamd'
 
 #---CONSTRUCTION SETTINGS
 bilayer_construction_settings = {
