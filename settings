@@ -221,7 +221,7 @@ default_proc_specs = {
 		{'nodes':1,'ppn':8,'walltime':24,'scratch':False,
 		'module':'export PATH=$PATH:/usr/local/gromacs/bin/:/usr/local/bin/'},
 	'SEASNet':
-		{'nodes':1,'ppn':2,'walltime':4,'scratch':False,
+		{'nodes':1,'ppn':4,'walltime':24,'scratch':False,
 		'module':'module load gromacs/gromacs-4.6.3'},
 	'kahlo':
 		{'nodes':1,'ppn':4,'walltime':24,'scratch':False,
@@ -548,6 +548,7 @@ script_dict = {
 			'step_build':'s01-build-protein-water',
 			'step_equilibration':'s02-equil',
 			'step_simulation':'s03-sim',
+			'gpu_flag':'auto',
 			'input_files':'aamd-protein-equil',
 			'detect_previous_step':None,
 			'mdp_look_string':'protein_construction_settings,aamd',
