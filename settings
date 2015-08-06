@@ -232,7 +232,7 @@ default_proc_specs = {
 		{'nodes':1,'ppn':8,'walltime':24,'scratch':False,
 		'module':'export PATH=$PATH:/usr/local/gromacs/bin/:/usr/local/bin/'},
 	'curie':
-		{'nodes':1,'ppn':4,'walltime':24,'scratch':False,
+		{'nodes':1,'ppn':4,'walltime':12,'scratch':False,
 		'module':'module load gromacs/gromacs-4.6.3'},
 	'kahlo':
 		{'nodes':1,'ppn':4,'walltime':24,'scratch':False,
@@ -268,6 +268,7 @@ gmx_overrides = {
 	'compbio_opterons':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	'walnut':{'mdrun':'mpirun -np NPROCS mdrun_mpi',},
 	'kahlo':{'mdrun':'mdrun -nt NPROCS'},
+	'curie':{'mdrun':'mdrun -nt NPROCS'},
 	}
 	
 #---convert gromacs 4 commands to gromacs 5

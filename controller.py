@@ -76,7 +76,9 @@ def docs(clean=False):
 	"""
 
 	import shutil
-	if clean: shutil.rmtree('./docs')
+	if clean: 
+		if os.path.isdir('./docs'):
+			shutil.rmtree('./docs')
 	else:
 		if not os.path.isfile('gmxpaths.conf'): 
 			with open('gmxpaths.conf','w') as fp: fp.write('# placeholder')
