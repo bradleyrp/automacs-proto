@@ -14,7 +14,8 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
 	commit_message=$timestamp" : "${@:2}
-	git add . --ignore-removal
+	git add . --all
+	find . -name "*.pyc" -exec git rm -f "{}" \;
   	git commit -a -m "$commit_message"
     git push
 fi
