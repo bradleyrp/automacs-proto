@@ -1,0 +1,48 @@
+#!/bin/bash
+#PBS -l nodes=1:ppn=4,walltime=24:00:00
+#PBS -j eo
+#PBS -N gmxjob
+echo "Job started on `hostname` at `date`"
+cd $PBS_O_WORKDIR
+
+#---definitions
+step_simulation=s03-sim
+mdp_look_string=protein_construction_settings,aamd
+step_build=s01-build-protein-water
+gpu_flag=auto
+specs_file=inputs\\/input_specs_protein.py
+step_equilibration=s02-equil
+input_files=aamd-protein-equil
+
+
+module load gromacs/gromacs-4.6.3
+
+#---execute python step
+python -c "execfile('./amx/header');
+try: ProteinWater(rootdir='$step_build');
+except Exception,e:
+	print str(e);
+	traceback.print_exc();
+	print 'fail';"
+go=$(tail $step_build/log-script-master)
+if [[ "$go" =~ fail$ ]];then exit;fi
+
+
+module load gromacs/gromacs-4.6.3
+
+#---execute equilibration step
+cd $step_equilibration
+echo "moved to "$step_equilibration", "$(pwd)
+./script-equilibrate.pl
+if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
+cd ..
+
+
+module load gromacs/gromacs-4.6.3
+
+#---execute simulation (continuation) step
+cd $step_simulation
+./script-sim.pl
+if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
+cd ..
+

@@ -257,6 +257,8 @@ def script(single=None,rescript=False,**extras):
 					files = [f[0] for f in files if f!=[]]
 					with open('upload-rsync-list.txt','w') as fp:
 						for f in files: fp.write(f+'\n')
+			#---write the module load commands for later
+			with open('./cluster-gmx','w') as fp: fp.write(proc_settings['module'])
 		
 		#---no need to prepare directories if this is a rescript
 		if not rescript: prep_scripts(target,script_dict,extras=extras,extra_settings=sets_pass)

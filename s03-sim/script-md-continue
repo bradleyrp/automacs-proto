@@ -1,0 +1,17 @@
+#!/bin/bash
+
+#---definitions
+detect_previous_step=s03-sim
+step_simulation=s06-sim
+mdp_look_string=protein_construction_settings,aamd
+step_build=s04-build-protein-water
+gpu_flag=auto
+specs_file=inputs\\/input_specs_protein.py
+step_equilibration=s05-equil
+input_files=aamd-protein-equil
+
+#---execute simulation (continuation) step
+./script-sim.pl
+if [[ $(tail log-script-master) =~ fail$ ]];then exit;fi
+
+
