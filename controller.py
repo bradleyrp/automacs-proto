@@ -202,6 +202,9 @@ def script(single=None,rescript=False,**extras):
 			sim_only=None,extras=extras))
 		if hs_footer != None: fp.write(hs_footer)
 		fp.close()		
+
+		#---write the module load commands post-processing
+		with open('./cluster-gmx','w') as fp: fp.write(proc_settings['module'])
 		
 	#---single procedure script maker or re-scripter
 	else:
@@ -257,7 +260,7 @@ def script(single=None,rescript=False,**extras):
 					files = [f[0] for f in files if f!=[]]
 					with open('upload-rsync-list.txt','w') as fp:
 						for f in files: fp.write(f+'\n')
-			#---write the module load commands for later
+			#---write the module load commands post-processing
 			with open('./cluster-gmx','w') as fp: fp.write(proc_settings['module'])
 		
 		#---no need to prepare directories if this is a rescript
