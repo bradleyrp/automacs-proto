@@ -557,7 +557,7 @@ script_dict = {
 		},
 	'aamd-protein':{
 		'prep':[prepare_equil_sim[0]+\
-			"sed -i 's/STEPSTRING.*/STEPSTRING=\"nvt-short nvt npt\"/g' $step_equilibration/settings.sh"]+\
+			"sed -i 's/STEPSTRING.*/STEPSTRING=\"nvt npt\"/g' $step_equilibration/settings.sh"]+\
 			prepare_equil_sim[1:],
 		'steps':{
 			'step_build':'s01-build-protein-water',
