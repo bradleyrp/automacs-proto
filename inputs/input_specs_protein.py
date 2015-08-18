@@ -18,10 +18,10 @@ protein_construction_settings = {
 		'negative_counterion_name':'CL',
 		'histype':'d',
 		'sol_name':'SOL',
-		'wbuffer':1.5,
+		'wbuffer':1.6,
 		'force_field':'charmm27',
 		'force_field_local':None,
-		'protein_water_gap':3,
+		'protein_water_gap':None,
 		'top_includes':[
 			'charmm27.ff/forcefield.itp',
 			'protein.itp',
