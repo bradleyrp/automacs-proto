@@ -21,7 +21,7 @@ protein_construction_settings = {
 		'wbuffer':1.5,
 		'force_field':'charmm27',
 		'force_field_local':None,
-		'protein_water_gap':None,
+		'protein_water_gap':3,
 		'top_includes':[
 			'charmm27.ff/forcefield.itp',
 			'protein.itp',
