@@ -340,6 +340,7 @@ class ProteinWater(amxsim.AMXSimulation):
 			if 'protein_water_gap' in self.settings and self.settings['protein_water_gap']!=None:
 			
 				vmdtrim = [
+					'package require pbctools',
 					'mol new solvate-dense.gro',
 					'set sel [atomselect top \"(all not (water '+\
 					' and within '+str(self.settings['protein_water_gap'])+\
@@ -382,6 +383,7 @@ class ProteinWater(amxsim.AMXSimulation):
 				for line in gro1[2:-1]: fp.write(line)
 				for line in gro2[2:]: fp.write(line)		
 			vmdtrim = [
+				'package require pbctools',
 				'mol new solvate-merge.gro',
 				'set sel [atomselect top \"(all not (name '+self.settings['sol_name']+\
 				' and within '+str(self.settings['protein_water_gap'])+\
