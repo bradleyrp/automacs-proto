@@ -10,7 +10,7 @@ simscale = 'aamd'
 protein_construction_settings = {
 	'aamd':{
 		'positive_counterion_name':'NA',
-		'cube':False,
+		'cube':True,
 		'ion_strength':0.15,
 		'solvent_structure':'spc216.gro',
 		'align_x':True,
@@ -18,7 +18,7 @@ protein_construction_settings = {
 		'negative_counterion_name':'CL',
 		'histype':'d',
 		'sol_name':'SOL',
-		'wbuffer':1.6,
+		'wbuffer':1.2,
 		'force_field':'charmm27',
 		'force_field_local':None,
 		'protein_water_gap':None,
