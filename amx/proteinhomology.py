@@ -338,12 +338,12 @@ class ProteinHomology:
 					re.findall('^REMARK\s+'+missingli+'\s+[A-Z]{3}\s+[A-Z]\s+([0-9]+)',l)[0] 
 					for li,l in enumerate(lines)
 					if re.match('^REMARK\s+'+missingli+'\s+[A-Z]{3}\s+[A-Z]\s+[0-9]+',l)][0])
-			else: startres = int([line for line in lines if re.match('^ATOM',line)][0][23:26+1])
+			else: startres = int([line for line in lines if re.match('^ATOM',line)][0][22:25+1])
 		elif any([re.match(regex_remark,line) for line in lines]):
 			seqresli = [li for li,l in enumerate(lines) if re.match(regex_remark,l)]
 			seqraw = [re.findall(regex_remark,lines[li])[0] for li in seqresli]
 			sequence = ''.join(seqraw)
-			startres = int([line for line in lines if re.match('^ATOM',line)][0][23:26+1])
+			startres = int([line for line in lines if re.match('^ATOM',line)][0][22:25+1])
 		else: raise Exception('need either REMARK 300 or SEQRES in your pdb file')
 			
 		self.target = []
