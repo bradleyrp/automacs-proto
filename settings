@@ -621,7 +621,7 @@ script_dict = {
 		'steps':{
 			'step_simulation':'s01-restart',
 			'detect_previous_step':None,
-			'gpu_flag':'cpu',
+			'gpu_flag':'auto',
 			},
 		'continue':True,
 		'sequence':[
@@ -633,7 +633,7 @@ script_dict = {
 		'steps':{
 			'detect_previous_step':None,
 			'step_simulation':'s01-restart',
-			'gpu_flag':'cpu',
+			'gpu_flag':'auto',
 			},
 		'sequence':[
 			call_sim_rescript,
