@@ -342,8 +342,13 @@ document_string = \
 prepare_equil_sim = [
 """
 #---copy equilibration files
-if ! [ -d "$step_equilibration" ]; then cp -r ./sources/general-equil ./$step_equilibration
-else cp -r ./sources/general-equil/* ./$step_equilibration;fi\n
+if ! [ -d "$step_equilibration" ]; then 
+    cp -r ./sources/general-equil ./$step_equilibration
+    cp ./sources/general-sim/script-sim.pl ./$step_equilibration/
+else 
+    cp -r ./sources/general-equil/* ./$step_equilibration
+    cp ./sources/general-sim/script-sim.pl ./$step_equilibration/
+fi\n
 #---connect equilibration settings to the previous step
 sed -i 's/^SOURCEDIR.*/SOURCEDIR=\.\.\/'$step_build'/g' $step_equilibration/settings.sh
 sed -i 's/^MDPLOOK.*/MDPLOOK='$mdp_look_string'/g' $step_equilibration/settings.sh
