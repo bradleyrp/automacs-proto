@@ -23,7 +23,8 @@ import socket
 from copy import deepcopy
 if os.path.isfile('settings'): execfile('settings')
 elif os.path.isfile('../settings'): execfile('../settings')
-extrasets = os.path.expanduser('~/.automacs.py')
+username = subprocess.Popen('echo $USER',stdout=subprocess.PIPE,shell=True).communicate()[0].strip()
+extrasets = os.path.expanduser('/home/%s/.automacs.py'%username)
 if os.path.isfile(extrasets): execfile(extrasets)
 
 #---FUNCTIONS
