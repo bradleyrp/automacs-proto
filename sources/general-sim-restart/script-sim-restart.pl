@@ -24,7 +24,6 @@ use gmxwrap (
 #---inputs
 system("bash settings.sh");
 my $stepstring = getbashstr("settings.sh","STEPSTRING");
-my $gpu_flag = getbashstr("settings.sh","gpu_flag");
 my @steps = split(/\s+/, $stepstring);
 my %steplist = map { $_ => 1 } @steps;
 my %config = fileparse('../gmxpaths.conf');
@@ -81,7 +80,6 @@ $cmd .= " -c md.part" . $nrun . ".gro";
 $cmd .= " -g md.part" . $nrun . ".log";
 $cmd .= " -e md.part" . $nrun . ".edr";
 $cmd .= " -cpo md.part" . $nrun . ".cpt";
-if (grep { $_ eq $gpu_flag} ('gpu','gpu_cpu','auto','cpu')) { $cmd .= " -nb " . $gpu_flag; }
 $cmd .= " > " . $logname . " 2>&1";
 syscatch($cmd);
 errorscan($logname)==0 or finish "$!";

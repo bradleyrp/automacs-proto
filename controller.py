@@ -14,6 +14,8 @@ from amx.tools import call
 #-------------------------------------------------------------------------------------------------------------
 
 execfile('settings')
+extrasets = os.path.expanduser('~/.automacs.py')
+if os.path.isfile(extrasets): execfile(extrasets)
 from amx.tools import checkout,multiresub,confirm
 from amx.tools import script_maker,prep_scripts,niceblock,argsort,chain_steps,latestcheck
 from amx.tools import get_proc_settings,ultrasweep,wordwrap,noteblock
@@ -204,7 +206,7 @@ def script(single=None,rescript=False,**extras):
 		fp.close()		
 
 		#---write the module load commands post-processing
-		with open('./cluster-gmx','w') as fp: fp.write(proc_settings['module'])
+		#with open('./cluster-gmx','w') as fp: fp.write(proc_settings['module'])
 		
 	#---single procedure script maker or re-scripter
 	else:
@@ -261,7 +263,12 @@ def script(single=None,rescript=False,**extras):
 					with open('upload-rsync-list.txt','w') as fp:
 						for f in files: fp.write(f+'\n')
 			#---write the module load commands post-processing
-			with open('./cluster-gmx','w') as fp: fp.write(proc_settings['module'])
+			#with open('./cluster-gmx','w') as fp: fp.write(proc_settings['module'])
+		#---write the module load commands post-processing ^^^^^^^^^^
+		with open('./cluster-gmx','w') as fp:
+			fp.write('#!/bin/bash\n') 
+			if proc_settings != None and 'module' in proc_settings: fp.write(proc_settings['module'])
+			else: fp.write('#---no system-specific settings')
 		
 		#---no need to prepare directories if this is a rescript
 		if not rescript: prep_scripts(target,script_dict,extras=extras,extra_settings=sets_pass)
@@ -399,7 +406,7 @@ def batch(**extras):
 		the batchmaker has written all simulation details to: 
 		"""+batchspecs['batchdir']+'/batch_details.py')
 	
-"""	
+	#---! the following was previously commented-out for some reason
 	with open(batchspecs['batchdir']+'script-batch-serial.sh','w') as fp:
 		fp.write('#!/bin/bash\n#---batch serial execution\n')
 		for key in hypodict:
@@ -407,12 +414,6 @@ def batch(**extras):
 			fp.write('./script-aamd-protein\n')
 			fp.write('cd ..'+'\n')
 
-	print '[NOTE] to run serial equilibration use script-batch-serial.sh'
-	print '[NOTE] if you move this to a cluster you must run the following
-	print 
-	
-	print '\n'.join(['[NOTE] %s'%s for s in ['hello','somthing neat','bye']])
-	
 	#---removed batch upload because it would require either wholesale rsync or else it
 	#---...must be run after the files were created locally via serial execution
 			
@@ -422,7 +423,7 @@ def batch(**extras):
 	print '[NOTE] ...as long as you replace DEST with a target as in: '
 	print '[NOTE] ..."sed -i \'s/DEST/compbio:~/g\' script-batch-upload.sh"'
 	print '[STATUS] completed batch preparation in '+batchspecs['batchdir']
-"""
+
 #---INTERFACE
 #-------------------------------------------------------------------------------------------------------------
 

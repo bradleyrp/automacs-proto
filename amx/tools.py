@@ -23,6 +23,8 @@ import socket
 from copy import deepcopy
 if os.path.isfile('settings'): execfile('settings')
 elif os.path.isfile('../settings'): execfile('../settings')
+extrasets = os.path.expanduser('~/.automacs.py')
+if os.path.isfile(extrasets): execfile(extrasets)
 
 #---FUNCTIONS
 #-------------------------------------------------------------------------------------------------------------
@@ -491,7 +493,7 @@ def get_proc_settings():
 			if system_id in gmx_overrides and key in gmx_overrides[system_id]: 
 				command_syntax = gmx_overrides[system_id][key]
 			else: command_syntax = key
-			if proc_settings != None:
+			if proc_settings != None and 'nodes' in proc_settings:
 				command_syntax = re.sub('NPROCS',
 					str(proc_settings['nodes']*proc_settings['ppn']),command_syntax)
 			if gmxversion==5: command_syntax = re.sub(key,gmx_syntax5[key],command_syntax)
@@ -508,7 +510,9 @@ def get_proc_settings():
 	scratch_suffix = ''
 	header_source_footer = None
 	if proc_settings != None:
-		if proc_settings['scratch']: scratch_suffix = '_scratch'
+		if 'scratch' in proc_settings and proc_settings['scratch']: scratch_suffix = '_scratch'
+	#---script repo was used to consolidate cluster_header globals in one place
+	script_repo = dict([(k,globals()[k]) for k in [j for j in globals() if re.match('^cluster_header',j)]])
 	if hostname != None and 'cluster_header_'+system_id+scratch_suffix in script_repo:
 		scripttext = script_repo['cluster_header_'+system_id+scratch_suffix]
 		#---if the header is a list, then it must contain a header and a footer

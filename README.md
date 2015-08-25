@@ -24,3 +24,9 @@ Usage
 -----
 
 Run ``make`` to get started or run ``make docs`` to view the documentation.
+
+Settings
+--------
+
+
+
