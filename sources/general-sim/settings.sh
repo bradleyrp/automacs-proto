@@ -8,6 +8,10 @@ SOURCEDIR=../s2-equil
 EXTENDTIME="50000"
 STOPHOURS="-1"
 
+if ls *cpt 1> /dev/null 2>&1; then
+echo "settings.sh found a cpt file so skipping copy procedure"
+else
+
 #---locate the latest checkpoint from the equilibrate folder
 THISDIR=$(pwd)
 cd $SOURCEDIR
@@ -23,3 +27,5 @@ cd $THISDIR
 #---copy checkpoint and input files
 cp $SOURCEDIR/$(printf md.part%04d.tpr $PRUN) ./
 cp $SOURCEDIR/$(printf md.part%04d.cpt $PRUN) ./
+
+fi
