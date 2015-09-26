@@ -7,7 +7,9 @@
 #---this script requires the base directory as an argument
 basedir=$1
 cd $basedir
+if [ -d "$basedir/docs" ]; then
 rm -r $basedir/docs
+fi
 sphinx-apidoc -F -o $basedir/docs $basedir/amx
 cp $basedir/sources/docs/conf-sphinx.py $basedir/docs/conf.py
 cp $basedir/sources/docs/supplement/index.rst $basedir/docs/

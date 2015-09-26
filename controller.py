@@ -14,7 +14,8 @@ from amx.tools import call
 #-------------------------------------------------------------------------------------------------------------
 
 execfile('settings')
-username = subprocess.Popen('echo $USER',stdout=subprocess.PIPE,shell=True).communicate()[0].strip()
+if 'USER' in os.environ: username = os.environ['USER']
+else: username = re.findall('/home/(\w+)',os.environ['HOME']).pop()
 extrasets = os.path.expanduser('/home/%s/.automacs.py'%username)
 if os.path.isfile(extrasets): execfile(extrasets)
 from amx.tools import checkout,multiresub,confirm
