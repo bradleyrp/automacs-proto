@@ -419,6 +419,7 @@ mdpdefs = {
 				'emstep':0.01,
 				},
 			'couple':{},
+			'constrain':{'constraints':'none'},
 			},
 		#---override for NVT protein and solvent
 		'nvt-protein':{
