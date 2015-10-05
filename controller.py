@@ -7,6 +7,7 @@ from copy import deepcopy
 import glob
 import json
 import numpy as np
+import time,datetime
 from amx.tools import copy
 from amx.tools import call
 
@@ -88,7 +89,7 @@ def docs(clean=False):
 			with open('gmxpaths.conf','w') as fp: fp.write('# placeholder')
 		os.system('./amx/script-make-docs.sh '+os.path.abspath('.'))
 	
-def upload(step=None,extras=None,silent=False,scriptfile=None):
+def upload(step=None,extras=None,silent=False,scriptfile=None,part=None):
 
 	"""
 	Provides a file list and rsync syntax to upload this to a cluster without extra baggage.
@@ -102,16 +103,19 @@ def upload(step=None,extras=None,silent=False,scriptfile=None):
 	else: last = oldsteps[-1]
 	for root,dirnames,filenames in os.walk('./amx'): break
 	for fn in filenames: gofiles.append('amx/'+fn)
-	if step == None:
+	if step == None and part == None:
 		lcheck = latestcheck(last)
 		if lcheck == []: return False
 		for t in latestcheck(last): gofiles.append(last+'/'+t)
+	elif step == None and part != None:
+		for suf in ['.cpt','.tpr']: gofiles.append(last+'/md.part%04d%s'%(int(part),suf))
 	else:
 		for root,dirnames,filenames in os.walk(last): break
 		for fn in filenames: gofiles.append(last+'/'+fn)
 	for root,dirnames,filenames in os.walk(last): break
 	for j in [i for i in filenames if re.match('.+\.(pl|sh)$',i)]: gofiles.append(last+'/'+j)
 	cwd = os.path.basename(os.path.abspath(os.getcwd()))
+	print '[STATUS] writing upload-rsync-list.txt'
 	with open('upload-rsync-list.txt','w') as fp: 
 		for i in gofiles: fp.write(i+'\n')
 	#---custom functionality only used by batch (so be careful with relative paths)
@@ -119,9 +123,42 @@ def upload(step=None,extras=None,silent=False,scriptfile=None):
 		with open(scriptfile,'a') as fp:
 			fp.write('rsync -avi --files-from='+cwd+'/upload-rsync-list.txt '+cwd+' DEST/'+cwd+'\n')
 	else:
-		if not silent: print 'upload list written to upload-rsync-list.txt\nrun '+\
-			'the following rsync to your destination'
-		if not silent: print 'rsync -avi --files-from=upload-rsync-list.txt ../'+cwd+' DEST/'+cwd
+		print '[STATUS] preparing upload'
+		sshname = raw_input('[QUESTION] enter ssh alias for destination machine: ')
+		subfolder = raw_input('[QUESTION] enter subfolder on remote machine (default is ~/): ')
+		print '[STATUS] we will rsync to %s:~/%s'%(sshname,subfolder)
+		cmd = 'rsync -%s --files-from=upload-rsync-list.txt ../%s %s:~/%s/%s'%(
+			'avin',cwd,sshname,subfolder,cwd)
+		print '[STATUS] running "%s"'%cmd
+		p = subprocess.Popen(cmd,shell=True,cwd=os.path.abspath(os.getcwd()))
+		log = p.communicate()
+		cmd = 'rsync -%s --files-from=upload-rsync-list.txt ../%s %s:~/%s/%s'%(
+			'avi',cwd,sshname,subfolder,cwd)
+		if raw_input('\n[QUESTION] continue [y/N]? ')[:1] not in 'nN':
+			print '[STATUS] running "%s"'%cmd
+			p = subprocess.Popen(cmd,shell=True,cwd=os.path.abspath(os.getcwd()))
+			log = p.communicate()
+		ts = datetime.datetime.fromtimestamp(time.time()).strftime('%Y.%m.%d.%H%M')
+		with open('log-uploads','a') as fp: fp.write('up %s:~/%s/%s on %s\n'%(sshname,subfolder,cwd,ts))
+
+def download():
+
+	"""
+	Synchronize uploaded files according to log-uploads.
+	"""
+	
+	if not os.path.isfile('./log-uploads'): raise Exception('[ERROR] cannot find log-uploads')
+	with open('./log-uploads','r') as fp: lines = fp.readlines()
+	last_entry = [line for line in lines if re.match('^up\s+([\w-]+):([^\s]+)',line)][-1]
+	sshname,subfolder = re.findall('^up\s+([\w-]+):([^\s]+)',last_entry).pop()
+	cmd = 'rsync -avin --progress %s:%s/ ./'%(sshname,subfolder)
+	p = subprocess.Popen(cmd,shell=True,cwd=os.path.abspath(os.getcwd()))
+	log = p.communicate()
+	if raw_input('\n[QUESTION] continue [y/N]? ')[:1] not in 'nN':
+		cmd = 'rsync -avi --progress %s:%s/ ./'%(sshname,subfolder)
+		print '[STATUS] running "%s"'%cmd
+		p = subprocess.Popen(cmd,shell=True,cwd=os.path.abspath(os.getcwd()))
+		log = p.communicate()
 	
 def copycode():
 
