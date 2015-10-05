@@ -222,18 +222,20 @@ def script(single=None,rescript=False,**extras):
 		#---...is enough time to copy files back from scratch
 		extras['walltime'] = proc_settings['walltime']*0.98
 		prep_scripts('rescript',script_dict,extras=extras,extra_settings=sets_pass)
-		#---write a list of files to move to scratch
-		#---use the upload routine to only copy necessary files to scratch
-		if not ('start' in extras.keys() and extras['start']):
-			upload(silent=True)
-			with open('upload-rsync-list.txt','a') as fp: fp.write('gmxpaths.conf\n')
-		#---if start flag is present then move everything
-		else:
-			files = [os.path.join(dp, f) for dp, dn, fns in os.walk('./') for f in fns]
-			files = [re.findall('^'+'\.?\/?'+'((?!\.git).+)',f) for f in files]
-			files = [f[0] for f in files if f!=[]]
-			with open('upload-rsync-list.txt','w') as fp:
-				for f in files: fp.write(f+'\n')
+		#---disabled scratch functionality
+		if 0:
+			#---write a list of files to move to scratch
+			#---use the upload routine to only copy necessary files to scratch
+			if not ('start' in extras.keys() and extras['start']):
+				upload(silent=True)
+				with open('upload-rsync-list.txt','a') as fp: fp.write('gmxpaths.conf\n')
+			#---if start flag is present then move everything
+			else:
+				files = [os.path.join(dp, f) for dp, dn, fns in os.walk('./') for f in fns]
+				files = [re.findall('^'+'\.?\/?'+'((?!\.git).+)',f) for f in files]
+				files = [f[0] for f in files if f!=[]]
+				with open('upload-rsync-list.txt','w') as fp:
+					for f in files: fp.write(f+'\n')
 
 		#---write a simulation continuation script in the root directory on clusters
 		fp = open('cluster-md-continue','w')
