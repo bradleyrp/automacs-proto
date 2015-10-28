@@ -453,7 +453,7 @@ class ProteinWater(amxsim.AMXSimulation):
 		
 		print "writing structure with correct residue numbers to structure.pdb"
 		with open(self.rootdir+'system-input.pdb','r') as fp: lines = fp.readlines()
-		startres = int([line for line in lines if re.match('^ATOM',line)][0][23:26+1])		
+		startres = int([line for line in lines if re.match('^ATOM',line)][0][22:25+1])		
 		print "according to the input_filename, the starting residue is %d"%startres
 		print "[WARNING] use struture.pdb for post-processing for the right residue numbers"
 		cmd = [gmxpaths['editconf'],
